@@ -15,6 +15,8 @@ except ImportError:
 
 import rpyc
 import time
+import io
+import traceback
 from threading import Thread, Condition
 
 from auto import logger
@@ -37,6 +39,7 @@ CAM_FPS = 8
 
 # Global synchronized state.
 CLIENT_SET = set()
+CAMERA = None
 FRAME = None
 COND = Condition()
 
@@ -71,9 +74,9 @@ class CameraService(rpyc.Service):
 
 
 def _capture_forever():
+    global CAMERA, FRAME
     time_last_client_seen = None
-    camera = None
-    global FRAME
+    CAMERA = None
 
     while True:
         with COND:
@@ -81,28 +84,58 @@ def _capture_forever():
 
         curr_time = time.time()
 
-        if n_clients > 0 and camera is None:
-            camera = CameraRGB(width=CAM_WIDTH, height=CAM_HEIGHT, fps=CAM_FPS)
+        if n_clients > 0 and CAMERA is None:
+            CAMERA = CameraRGB(width=CAM_WIDTH, height=CAM_HEIGHT, fps=CAM_FPS)
             with COND:
                 log.info("Opened the camera!")
 
-        if n_clients == 0 and camera is not None and (curr_time - time_last_client_seen) > CAMERA_TIMEOUT_SECONDS:
-            camera.close()
-            camera = None
+        if n_clients == 0 and CAMERA is not None and (curr_time - time_last_client_seen) > CAMERA_TIMEOUT_SECONDS:
+            CAMERA.close()
+            CAMERA = None
             with COND:
                 log.info("Closed the camera...")
 
         if n_clients > 0:
             time_last_client_seen = curr_time
 
-        if camera is not None:
-            frame = camera.capture()
+        if CAMERA is not None:
+            frame = CAMERA.capture()
             with COND:
                 FRAME = frame.copy()
                 log.info("Captured a frame with shape {}".format(frame.shape))
                 COND.notify_all()
         else:
             time.sleep(0.05)
+
+
+def _robust_capture_forever():
+    global CAMERA
+
+    # I've observed that the camera dies if it is capturing _while_ the system time changes.
+    # Unfortunately, that happens often for an AutoAuto device because it is often capturing
+    # soon after bootup, and the system time will be changed _every time_ it boots (the time
+    # is changed as soon as it is obtained from the NTP server soon after the device boots
+    # and gains internet access).
+    #
+    # See this issue: https://github.com/waveform80/picamera/issues/527
+    #
+    # The workaround is to simply catch the error, close the camera, and start the whole process
+    # over again. In my tests, this works fine to recover the camera. In the code below, we
+    # assume that any error thrown is due to the error described here. If not... no worries,
+    # no harm in trying again regardless of the error. Better than just giving up!
+
+    while True:
+        try:
+            _capture_forever()
+        except:
+            output = io.StringIO()
+            traceback.print_exc(file=output)
+            log.error(output.getvalue())
+        finally:
+            if CAMERA is not None:
+                CAMERA.close()
+                CAMERA = None
+                time.sleep(5)   # let the camera cool off a bit... it's had a hard time recently. :P
 
 
 if __name__ == "__main__":
@@ -117,5 +150,5 @@ if __name__ == "__main__":
     with COND:
         log.info("RUNNING!")
 
-    _capture_forever()
+    _robust_capture_forever()
 

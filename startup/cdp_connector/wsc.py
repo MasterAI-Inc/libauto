@@ -200,7 +200,7 @@ class WebSocketConnection:
                 log.info("delegate's onError callback threw error: {}".format(e))
                 output = io.StringIO()
                 traceback.print_exc(file=output)
-                log.info(output.getvalue())
+                log.error(output.getvalue())
 
 
 class StandardDelegate:
