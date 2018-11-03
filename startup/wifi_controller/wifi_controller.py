@@ -147,7 +147,7 @@ while True:
                 if ssid is None:
                     log.info("WiFi magically came back before user input.")
                     break
-                log.info("Will try to connect to SSID:", ssid)
+                log.info("Will try to connect to SSID: {}".format(ssid))
                 console.big_image('images/wifi_pending.png')
                 console.big_status('Trying to connect...')
                 did_connect = wireless.connect(ssid, password)
