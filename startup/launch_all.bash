@@ -108,7 +108,7 @@ while ! nc -z localhost 18863; do
     sleep 0.1
 done
 
-"$LIBAUTO_SERVICES_PYTHON" startup/wifi_controller/wifi_controller.py &
+"$LIBAUTO_SERVICES_PYTHON" startup/wifi_controller/wifi_controller.py "$LIBAUTO_PRIV_USER" &
 WIFI_PID=$!
 
 sudo -u "$LIBAUTO_UP_USER" -i tmux new-session -d -s cdp_dashboard

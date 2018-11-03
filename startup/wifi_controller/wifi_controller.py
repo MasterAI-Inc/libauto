@@ -15,9 +15,11 @@ from auto import print_all
 from auto import console
 
 import myzbarlight
+import util
 import json
 import time
 import cv2
+import sys
 
 from auto import logger
 log = logger.init('wifi_controller', terminal=True)
@@ -26,6 +28,11 @@ log = logger.init('wifi_controller', terminal=True)
 STORE = secure_db()
 
 wireless = Wireless('wlan0')
+
+
+system_priv_user = sys.argv[1]   # the "Privileged" system user
+
+log.info("Starting Wifi controller using the privileged user: {}".format(system_priv_user))
 
 
 def stream_frame(frame):
@@ -102,8 +109,11 @@ def ensure_token():
     camera.close()
 
     STORE.put('DEVICE_TOKEN', token)
-
     print_all("Stored Device token: {}...".format(token[:5]))
+
+    password = util.token_to_password(token)
+    util.change_password(system_priv_user, password)
+    print_all("Successfully changed {}'s password!".format(system_priv_user))
 
     console.big_image('images/token_success.png')
     console.big_status('Success. Token: {}...'.format(token[:5]))
