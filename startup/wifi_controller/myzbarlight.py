@@ -26,7 +26,7 @@ def qr_scan(frame):
     raw = frame.tobytes()
     assert(len(raw) == width*height)  # sanity
     symbologie = Symbologies.get('QRCODE')
-    found = zbar_code_scanner(symbologie, raw, width, height)
+    found = zbar_code_scanner([symbologie], raw, width, height)
     if found is None:
         return []
     return found

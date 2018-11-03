@@ -45,9 +45,9 @@ fi
 if [ ! -f /var/lib/libauto/secure.db ]
 then
     mkdir -p /var/lib/libauto
-    chmod 777 /var/lib/libauto
+    chmod 755 /var/lib/libauto
     touch /var/lib/libauto/settings.db
-    chmod 666 /var/lib/libauto/settings.db
+    chmod 644 /var/lib/libauto/settings.db
     touch /var/lib/libauto/secure.db
     chmod 600 /var/lib/libauto/secure.db
 fi
@@ -58,10 +58,10 @@ then
     exit 1
 fi
 
-python startup/cio_rpc_server/cio_rpc_server.py &
+"$LIBAUTO_SERVICES_PYTHON" startup/cio_rpc_server/cio_rpc_server.py &
 CIO_RPC_SERVER_PID=$!
 
-python startup/camera_rpc_server/camera_rpc_server.py &
+"$LIBAUTO_SERVICES_PYTHON" startup/camera_rpc_server/camera_rpc_server.py &
 CAM_RPC_SERVER_PID=$!
 
 while ! nc -z localhost 18861; do
@@ -72,7 +72,7 @@ while ! nc -z localhost 18862; do
     sleep 0.1
 done
 
-python resources/scripts/startup_demo_car.py &
+"$LIBAUTO_SERVICES_PYTHON" resources/scripts/startup_demo_car.py &
 DEMO_PID=$!
 
 fbcp &
@@ -85,14 +85,14 @@ wait $FBCP_PID
 
 wait $DEMO_PID
 
-python startup/console_ui/console_ui.py &
+"$LIBAUTO_CONSOLE_UI_PYTHON" startup/console_ui/console_ui.py &
 CUI_PID=$!
 
 while ! nc -z localhost 18863; do
     sleep 0.1
 done
 
-python startup/wifi_controller/wifi_controller.py &
+"$LIBAUTO_SERVICES_PYTHON" startup/wifi_controller/wifi_controller.py &
 WIFI_PID=$!
 
 sudo -u "$LIBAUTO_UP_USER" -i tmux new-session -d -s cdp_dashboard
@@ -100,7 +100,7 @@ sudo -u "$LIBAUTO_UP_USER" -i tmux new-session -d -s cdp_dashboard
 sudo -u "$LIBAUTO_UP_USER" -i tmux new-session -d -s bootup_session
 sudo -u "$LIBAUTO_UP_USER" -i tmux send -t bootup_session python SPACE bootup_script.py ENTER
 
-python startup/cdp_connector/cdp_connector.py "$LIBAUTO_UP_USER" &
+"$LIBAUTO_SERVICES_PYTHON" startup/cdp_connector/cdp_connector.py "$LIBAUTO_UP_USER" &
 CDPC_PID=$!
 
 while ! nc -z localhost 18864; do
