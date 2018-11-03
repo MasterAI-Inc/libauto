@@ -1,0 +1,26 @@
+#!/bin/bash
+
+if ! [ $(id -u) = 0 ]
+then
+    echo "You must be root to use this script."
+    exit 1
+fi
+
+if [ -z "$1" ]
+then
+    echo "No name on command line."
+    exit 1
+fi
+
+NAME="$1"
+NAME="${NAME//[^A-Za-z0-9]/}"
+echo "$NAME"
+
+# This change makes it permanent, but you have to reboot for it to take effect.
+echo "$NAME" > /etc/hostname
+sed -i '/^.*set_hostname.*$/d' /etc/hosts
+echo "127.0.1.1      " "$NAME" " ### Set by set_hostname" >> /etc/hosts
+
+# This will change it slightly more immediately, but you still need to log out and in to see the change.
+hostname "$NAME"
+
