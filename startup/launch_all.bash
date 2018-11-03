@@ -42,16 +42,6 @@ else
     echo "The update_libauto script is already up-to-date."
 fi
 
-if [ ! -f /var/lib/libauto/secure.db ]
-then
-    mkdir -p /var/lib/libauto
-    chmod 755 /var/lib/libauto
-    touch /var/lib/libauto/settings.db
-    chmod 644 /var/lib/libauto/settings.db
-    touch /var/lib/libauto/secure.db
-    chmod 600 /var/lib/libauto/secure.db
-fi
-
 if [ -z "$LIBAUTO_UP_USER" ] || [ -z "$LIBAUTO_PRIV_USER" ]
 then
     echo "Error: The LIBAUTO_UP_USER and LIBAUTO_PRIV_USER variable is not set."
@@ -62,6 +52,20 @@ if [ -z "$LIBAUTO_SERVICES_PYTHON" ] || [ -z "$LIBAUTO_CONSOLE_UI_PYTHON" ]
 then
     echo "Error: The LIBAUTO_SERVICES_PYTHON and LIBAUTO_CONSOLE_UI_PYTHON variable is not set."
     exit 1
+fi
+
+if [ ! -f /var/lib/libauto/secure.db ]
+then
+    mkdir -p /var/lib/libauto
+    chmod 755 /var/lib/libauto
+    chown "$LIBAUTO_PRIV_USER":"$LIBAUTO_PRIV_USER" /var/lib/libauto
+
+    touch /var/lib/libauto/settings.db
+    chmod 644 /var/lib/libauto/settings.db
+    chown "$LIBAUTO_PRIV_USER":"$LIBAUTO_PRIV_USER" /var/lib/libauto/settings.db
+
+    touch /var/lib/libauto/secure.db
+    chmod 600 /var/lib/libauto/secure.db
 fi
 
 "$LIBAUTO_SERVICES_PYTHON" startup/cio_rpc_server/cio_rpc_server.py &
