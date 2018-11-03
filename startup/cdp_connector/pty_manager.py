@@ -41,10 +41,12 @@ def switch_to_user(uid, gid):
 
 class PtyManager:
 
-    def __init__(self, up_user):
+    def __init__(self, up_user, priv_user):
         self.pty_lookup_lock = Lock()
         self.pty_lookup = {}
         self.up_user = up_user
+        self.priv_user = priv_user
+        # TODO use the priv_user
 
 
     def _up_user_uid_gid_home(self):

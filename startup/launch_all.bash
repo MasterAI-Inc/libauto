@@ -52,9 +52,15 @@ then
     chmod 600 /var/lib/libauto/secure.db
 fi
 
-if [ -z "$LIBAUTO_UP_USER" ]
+if [ -z "$LIBAUTO_UP_USER" ] || [ -z "$LIBAUTO_PRIV_USER" ]
 then
-    echo "Error: The LIBAUTO_UP_USER variable is not set."
+    echo "Error: The LIBAUTO_UP_USER and LIBAUTO_PRIV_USER variable is not set."
+    exit 1
+fi
+
+if [ -z "$LIBAUTO_SERVICES_PYTHON" ] || [ -z "$LIBAUTO_CONSOLE_UI_PYTHON" ]
+then
+    echo "Error: The LIBAUTO_SERVICES_PYTHON and LIBAUTO_CONSOLE_UI_PYTHON variable is not set."
     exit 1
 fi
 
@@ -100,7 +106,7 @@ sudo -u "$LIBAUTO_UP_USER" -i tmux new-session -d -s cdp_dashboard
 sudo -u "$LIBAUTO_UP_USER" -i tmux new-session -d -s bootup_session
 sudo -u "$LIBAUTO_UP_USER" -i tmux send -t bootup_session python SPACE bootup_script.py ENTER
 
-"$LIBAUTO_SERVICES_PYTHON" startup/cdp_connector/cdp_connector.py "$LIBAUTO_UP_USER" &
+"$LIBAUTO_SERVICES_PYTHON" startup/cdp_connector/cdp_connector.py "$LIBAUTO_UP_USER" "$LIBAUTO_PRIV_USER" &
 CDPC_PID=$!
 
 while ! nc -z localhost 18864; do
