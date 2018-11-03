@@ -46,7 +46,6 @@ class PtyManager:
         self.pty_lookup = {}
         self.system_up_user = system_up_user
         self.system_priv_user = system_priv_user
-        # TODO use the system_priv_user
 
 
     def _user_uid_gid_home(self, system_user):
@@ -104,6 +103,9 @@ class PtyManager:
 
             elif msg['type'] == 'clear_screen':
                 self._clear_screen()
+
+            elif msg['type'] == 'update_libauto':
+                self._update_libauto()
 
 
     def end_user_session(self, username, user_session):
@@ -450,6 +452,11 @@ class PtyManager:
 
     def _clear_screen(self):
         console.clear()
+
+
+    def _update_libauto(self):
+        cmd = ['update_libauto']
+        self._run_subprocess(cmd, self.system_priv_user)
 
 
 if __name__ == '__main__':

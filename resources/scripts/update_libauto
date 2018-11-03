@@ -1,11 +1,5 @@
 #!/bin/bash
 
-if ! [ $(id -u) = 0 ]
-then
-    echo "You must be root to use this script."
-    exit 1
-fi
-
 if [ -z "$LIBAUTO_PRIV_USER" ]
 then
     echo "Error: The LIBAUTO_PRIV_USER variable is not set."
@@ -19,5 +13,8 @@ then
 fi
 
 sudo -u "$LIBAUTO_PRIV_USER" -i /bin/bash -c "cd $LIBAUTO_PATH && git pull"
+
+sleep 5    # Allows the user time to see what happened.
+
 reboot
 
