@@ -216,7 +216,7 @@ class PtyManager:
                 del self.pty_lookup[xterm_guid]
 
 
-    def _run_pty_cmd_background(self, cmd, xterm_guid, send_func, username, user_session,
+    def _run_pty_cmd_background(self, cmd, xterm_guid, send_func, username, user_session, system_user,
                                 env_override=None, start_dir_override=None, size=None):
         env = dict(os.environ.copy())
 
@@ -230,7 +230,7 @@ class PtyManager:
         else:
             size = (size['rows'], size['cols'])
 
-        pw_record = pwd.getpwnam(self.system_up_user)
+        pw_record = pwd.getpwnam(system_user)
 
         if start_dir_override is None:
             start_dir_override = pw_record.pw_dir
@@ -249,7 +249,7 @@ class PtyManager:
 
         def switch_user():
             os.setgid(pw_record.pw_gid)
-            os.initgroups(self.system_up_user, pw_record.pw_gid)
+            os.initgroups(system_user, pw_record.pw_gid)
             os.setuid(pw_record.pw_uid)
 
         pty = PtyProcess.spawn(
@@ -287,6 +287,7 @@ class PtyManager:
                     send_func=send_func,
                     username=username,
                     user_session=user_session,
+                    system_user=self.system_up_user,
                     size=size
             )
             pty.user_session = user_session
@@ -316,6 +317,7 @@ class PtyManager:
                     send_func=send_func,
                     username=username,
                     user_session=user_session,
+                    system_user=self.system_up_user,
                     size=size
             )
             pty.user_session = user_session
@@ -351,6 +353,7 @@ class PtyManager:
                     send_func=send_func,
                     username=username,
                     user_session=user_session,
+                    system_user=self.system_up_user,
                     env_override=env_override,
                     start_dir_override=start_dir_override,
                     size=size
