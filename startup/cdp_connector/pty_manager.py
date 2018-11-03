@@ -41,26 +41,26 @@ def switch_to_user(uid, gid):
 
 class PtyManager:
 
-    def __init__(self, up_user, priv_user):
+    def __init__(self, system_up_user, system_priv_user):
         self.pty_lookup_lock = Lock()
         self.pty_lookup = {}
-        self.up_user = up_user
-        self.priv_user = priv_user
-        # TODO use the priv_user
+        self.system_up_user = system_up_user
+        self.system_priv_user = system_priv_user
+        # TODO use the system_priv_user
 
 
-    def _user_uid_gid_home(self, username):
-        pw_record = pwd.getpwnam(username)
+    def _user_uid_gid_home(self, system_user):
+        pw_record = pwd.getpwnam(system_user)
         uid = pw_record.pw_uid
         gid = pw_record.pw_gid
         home = pw_record.pw_dir
         return uid, gid, home
 
 
-    def _run_subprocess(self, cmd, username):
+    def _run_subprocess(self, cmd, system_user):
         # This runs a command without a TTY, which is fine for most commands.
         # If you need a TTY, you should call `_run_pty_cmd_background` instead.
-        cmd = ['sudo', '-u', username, '-i'] + cmd
+        cmd = ['sudo', '-u', system_user, '-i'] + cmd
         output = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.decode('utf-8')
         return output
 
@@ -127,7 +127,7 @@ class PtyManager:
 
 
     def _tmux_ls(self):
-        output = self._run_subprocess(['tmux', 'ls'], self.up_user)
+        output = self._run_subprocess(['tmux', 'ls'], self.system_up_user)
         if output.startswith('no server'):
             return []
         session_names = []
@@ -216,7 +216,8 @@ class PtyManager:
                 del self.pty_lookup[xterm_guid]
 
 
-    def _run_pty_cmd_background(self, cmd, xterm_guid, send_func, username, user_session, env_override=None, start_dir_override=None, size=None):
+    def _run_pty_cmd_background(self, cmd, xterm_guid, send_func, username, user_session,
+                                env_override=None, start_dir_override=None, size=None):
         env = dict(os.environ.copy())
 
         env['TERM'] = 'xterm-256color'   # background info: https://unix.stackexchange.com/a/198949
@@ -229,7 +230,7 @@ class PtyManager:
         else:
             size = (size['rows'], size['cols'])
 
-        pw_record = pwd.getpwnam(self.up_user)
+        pw_record = pwd.getpwnam(self.system_up_user)
 
         if start_dir_override is None:
             start_dir_override = pw_record.pw_dir
@@ -248,7 +249,7 @@ class PtyManager:
 
         def switch_user():
             os.setgid(pw_record.pw_gid)
-            os.initgroups(self.up_user, pw_record.pw_gid)
+            os.initgroups(self.system_up_user, pw_record.pw_gid)
             os.setuid(pw_record.pw_uid)
 
         pty = PtyProcess.spawn(
@@ -280,7 +281,14 @@ class PtyManager:
             if 'cmd' in settings:
                 cmd.extend(settings['cmd'])  # <-- becomes the shell argument
             size = settings.get('size', None)
-            pty = self._run_pty_cmd_background(cmd, xterm_guid, send_func, username, user_session, size=size)
+            pty = self._run_pty_cmd_background(
+                    cmd=cmd,
+                    xterm_guid=xterm_guid,
+                    send_func=send_func,
+                    username=username,
+                    user_session=user_session,
+                    size=size
+            )
             pty.user_session = user_session
             pty.description = "Attached session: {}".format(session_name)
             pty.cmd = cmd
@@ -302,7 +310,14 @@ class PtyManager:
             cmd = 'tmux attach -d -t {}'.format(session_name)
             cmd = cmd.split(' ')   # <-- only take input from our trusted CDP, which only takes input from authorized users
             size = settings.get('size', None)
-            pty = self._run_pty_cmd_background(cmd, xterm_guid, send_func, username, user_session, size=size)
+            pty = self._run_pty_cmd_background(
+                    cmd=cmd,
+                    xterm_guid=xterm_guid,
+                    send_func=send_func,
+                    username=username,
+                    user_session=user_session,
+                    size=size
+            )
             pty.user_session = user_session
             pty.description = "Attached session: {}".format(session_name)
             pty.cmd = cmd
@@ -330,7 +345,16 @@ class PtyManager:
             start_dir_override = settings.get('start_dir', None)
             size = settings.get('size', None)
 
-            pty = self._run_pty_cmd_background(cmd, xterm_guid, send_func, username, user_session, env_override, start_dir_override, size=size)
+            pty = self._run_pty_cmd_background(
+                    cmd=cmd,
+                    xterm_guid=xterm_guid,
+                    send_func=send_func,
+                    username=username,
+                    user_session=user_session,
+                    env_override=env_override,
+                    start_dir_override=start_dir_override,
+                    size=size
+            )
             pty.user_session = user_session
             pty.description = description
             pty.cmd = cmd
@@ -373,7 +397,7 @@ class PtyManager:
         #     https://github.com/jupyter/terminado/blob/master/terminado/management.py#L74
         #     https://unix.stackexchange.com/a/88742
         cmd = "tmux kill-session -t".split(' ') + [session_name]
-        output = self._run_subprocess(cmd, self.up_user)
+        output = self._run_subprocess(cmd, self.system_up_user)
 
 
     def _list_sessions(self, send_func, user_session):
@@ -387,7 +411,7 @@ class PtyManager:
 
 
     def _write_code_from_cdp(self, xterm_guid, code_str):
-        uid, gid, home = self._user_uid_gid_home(self.up_user)
+        uid, gid, home = self._user_uid_gid_home(self.system_up_user)
         with switch_to_user(uid, gid):
             subdirs = xterm_guid[0:2], xterm_guid[2:4], xterm_guid[4:6], xterm_guid[6:8], xterm_guid
             directory = os.path.join(home, '.cdp_runs', *subdirs)

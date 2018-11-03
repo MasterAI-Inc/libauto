@@ -59,13 +59,13 @@ class CdpService(rpyc.Service):
 
 if __name__ == '__main__':
 
-    up_user   = sys.argv[1]   # the "UnPrivileged" user name.
-    priv_user = sys.argv[2]   # the "Privileged" user name.
-    log.info("Will run the PTY manager using the unprivileged user: {}".format(up_user))
-    log.info("Will run the PTY manager using the privileged user:   {}".format(priv_user))
+    system_up_user   = sys.argv[1]   # the "UnPrivileged" system user
+    system_priv_user = sys.argv[2]   # the "Privileged" system user
+    log.info("Will run the PTY manager using the unprivileged user: {}".format(system_up_user))
+    log.info("Will run the PTY manager using the privileged user:   {}".format(system_priv_user))
 
     consumers = [
-        PtyManager(up_user, priv_user),
+        PtyManager(system_up_user, system_priv_user),
         Verification(),
         Dashboard(),
     ]
