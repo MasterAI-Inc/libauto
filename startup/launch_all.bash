@@ -3,6 +3,12 @@
 # Change to the `libauto` directory.
 cd "$(dirname "$0")"/..
 
+for i in `seq 1 3`
+do
+    echo '=========================================================='
+    echo '==========================================================' 1>&2
+done
+
 echo "Starting at $(date) in directory $(pwd) as user $(whoami)"
 
 if ! diff -qN resources/scripts/profile_d_libauto.sh /etc/profile.d/libauto.sh

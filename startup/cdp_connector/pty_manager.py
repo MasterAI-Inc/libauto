@@ -104,9 +104,6 @@ class PtyManager:
             elif msg['type'] == 'clear_screen':
                 self._clear_screen()
 
-            elif msg['type'] == 'update_libauto':
-                self._update_libauto()
-
 
     def end_user_session(self, username, user_session):
         """
@@ -452,11 +449,6 @@ class PtyManager:
 
     def _clear_screen(self):
         console.clear()
-
-
-    def _update_libauto(self):
-        cmd = ['update_libauto']
-        self._run_subprocess(cmd, self.system_priv_user)
 
 
 if __name__ == '__main__':

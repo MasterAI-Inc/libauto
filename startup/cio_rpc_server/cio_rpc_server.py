@@ -33,7 +33,21 @@ from auto import logger
 log = logger.init('cio_rpc_server', terminal=True)
 
 
-from cio import default_handle as h
+try:
+    from cio import default_handle as h
+    log.info("Was able to get the CIO handle ('h'). Yay.")
+except Exception as e:
+    # The controller must not be connected ... or is malfunctioning ...?
+    log.error("Failed to get the CIO handle ('h').")
+    h = None
+    error = e
+
+
+def get_h():
+    if h is not None:
+        return h
+    else:
+        raise error
 
 
 def _format_args(args, kwargs):
@@ -85,7 +99,7 @@ class ComponentManager:
             self.counts[iface].add(conn_name)
             log.info("{} acquired existing component {}".format(conn_name, component_name))
         else:
-            iface = h.acquire_component_interface(component_name)
+            iface = get_h().acquire_component_interface(component_name)
             iface = self._lock_and_expose_methods(iface)
             self.iface_lookup[component_name] = iface
             self.name_lookup[iface] = component_name
@@ -104,7 +118,7 @@ class ComponentManager:
             del self.iface_lookup[component_name]
             del self.name_lookup[iface]
             del self.counts[iface]
-            h.dispose_component_interface(iface)
+            get_h().dispose_component_interface(iface)
             log.info("{} disposed first-time component {}".format(conn_name, component_name))
         else:
             log.info("{} disposed existing component {}".format(conn_name, component_name))
@@ -172,7 +186,7 @@ class ControllerService(rpyc.Service):
 
     def exposed_capabilities(self):
         with self.lock:
-            return tuple(sorted(h.CAPS.keys()))
+            return tuple(sorted(get_h().CAPS.keys()))
 
     def exposed_acquire_component_interface(self, component_name, callback=None):
         with self.lock:
