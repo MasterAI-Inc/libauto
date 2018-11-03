@@ -18,6 +18,9 @@ from auto.camera_rpc_client import CameraRGB
 from auto.camera import wrap_frame_index_decorator, base64_encode_image
 from auto.inet import Wireless, get_ip_address
 
+from auto import logger
+log = logger.init(__name__, terminal=True)
+
 
 class Dashboard:
 
@@ -62,6 +65,8 @@ class Dashboard:
             response = self._shutdown(reboot=False)
         elif command == 'reboot':
             response = self._shutdown(reboot=True)
+        elif command == 'update_libauto':
+            response = self._update_libauto()
         elif command == 'start_capture_stream':
             response = self._start_capture_stream(command_id, send_func, user_session)
         elif command == 'stop_capture_stream':
@@ -145,6 +150,12 @@ class Dashboard:
     def _shutdown(self, reboot):
         cmd = 'reboot' if reboot else 'poweroff'
         cmd = cmd.split(' ')
+        output = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.decode('utf-8')
+        return output
+
+    def _update_libauto(self):
+        cmd = ['update_libauto']
+        log.info("Will update libauto!!!")
         output = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.decode('utf-8')
         return output
 
