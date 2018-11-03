@@ -49,16 +49,18 @@ class PtyManager:
         # TODO use the priv_user
 
 
-    def _up_user_uid_gid_home(self):
-        pw_record = pwd.getpwnam(self.up_user)
+    def _user_uid_gid_home(self, username):
+        pw_record = pwd.getpwnam(username)
         uid = pw_record.pw_uid
         gid = pw_record.pw_gid
         home = pw_record.pw_dir
         return uid, gid, home
 
 
-    def _run_subprocess(self, cmd):
-        cmd = ['sudo', '-u', self.up_user, '-i'] + cmd
+    def _run_subprocess(self, cmd, username):
+        # This runs a command without a TTY, which is fine for most commands.
+        # If you need a TTY, you should call `_run_pty_cmd_background` instead.
+        cmd = ['sudo', '-u', username, '-i'] + cmd
         output = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.decode('utf-8')
         return output
 
@@ -125,7 +127,7 @@ class PtyManager:
 
 
     def _tmux_ls(self):
-        output = self._run_subprocess(['tmux', 'ls'])
+        output = self._run_subprocess(['tmux', 'ls'], self.up_user)
         if output.startswith('no server'):
             return []
         session_names = []
@@ -371,7 +373,7 @@ class PtyManager:
         #     https://github.com/jupyter/terminado/blob/master/terminado/management.py#L74
         #     https://unix.stackexchange.com/a/88742
         cmd = "tmux kill-session -t".split(' ') + [session_name]
-        output = self._run_subprocess(cmd)
+        output = self._run_subprocess(cmd, self.up_user)
 
 
     def _list_sessions(self, send_func, user_session):
@@ -385,7 +387,7 @@ class PtyManager:
 
 
     def _write_code_from_cdp(self, xterm_guid, code_str):
-        uid, gid, home = self._up_user_uid_gid_home()
+        uid, gid, home = self._user_uid_gid_home(self.up_user)
         with switch_to_user(uid, gid):
             subdirs = xterm_guid[0:2], xterm_guid[2:4], xterm_guid[4:6], xterm_guid[6:8], xterm_guid
             directory = os.path.join(home, '.cdp_runs', *subdirs)
