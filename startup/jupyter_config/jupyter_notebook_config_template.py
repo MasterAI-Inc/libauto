@@ -1,4 +1,4 @@
 # The Jupyter server configuration:
 
-c.NotebookApp.token = '<JUPYTER_PASSWORD>'
+c.NotebookApp.password = <JUPYTER_PASSWORD>
 

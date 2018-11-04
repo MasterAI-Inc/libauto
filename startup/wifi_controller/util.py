@@ -69,7 +69,7 @@ def _hashed_token(token, salt, length):
     hash_bytes = m.digest()
     hash_base64 = base64.b64encode(hash_bytes)
     password = hash_base64[:length].decode('utf-8')
-    password = password.replace('/', '#').replace('+', '$')  # '/' and '+' are confusing for users to see in a password; this replacement is easier on the eyes and maintains the same level of security.
+    password = password.replace('/', '_').replace('+', '_')  # '/' and '+' are confusing for users to see in a password; this replacement is easier on the eyes and only decreases the level of security by a miniscule amount (the password length is plenty long, and we're just giving up 1 character from an alphabet of 64.)
     return password
 
 
