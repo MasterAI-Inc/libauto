@@ -92,6 +92,8 @@ def ensure_token():
 
     camera = CameraRGB()
 
+    password = None
+
     for i, frame in enumerate(camera.stream()):
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
         stream_frame(frame)
@@ -102,6 +104,10 @@ def ensure_token():
             try:
                 qr_data = json.loads(qr_data.decode('utf-8'))
                 token = qr_data['t']
+                if 'p' in qr_data:
+                    # This allows us to override the default password for special-purpose cars.
+                    # The default is just... a default. No matter what is set here, it can be changed later.
+                    password = qr_data['p']
                 break
             except:
                 pass
@@ -111,7 +117,12 @@ def ensure_token():
     STORE.put('DEVICE_TOKEN', token)
     print_all("Stored Device token: {}...".format(token[:5]))
 
-    password = util.token_to_password(token)
+    if password is None:
+        # If a particular default password was not specified, we will generate a good
+        # default password from the token. This is a good thing, since it ensures that
+        # each device is given a strong, unique default password.
+        password = util.token_to_password(token)
+
     util.change_password(system_priv_user, password)
     print_all("Successfully changed {}'s password!".format(system_priv_user))
 
