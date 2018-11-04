@@ -92,7 +92,7 @@ def ensure_token():
 
     camera = CameraRGB()
 
-    password = None
+    system_password = None
 
     for i, frame in enumerate(camera.stream()):
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
@@ -105,9 +105,9 @@ def ensure_token():
                 qr_data = json.loads(qr_data.decode('utf-8'))
                 token = qr_data['t']
                 if 'p' in qr_data:
-                    # This allows us to override the default password for special-purpose cars.
+                    # This allows us to override the default system_password for special-purpose devices.
                     # The default is just... a default. No matter what is set here, it can be changed later.
-                    password = qr_data['p']
+                    system_password = qr_data['p']
                 break
             except:
                 pass
@@ -117,13 +117,17 @@ def ensure_token():
     STORE.put('DEVICE_TOKEN', token)
     print_all("Stored Device token: {}...".format(token[:5]))
 
-    if password is None:
-        # If a particular default password was not specified, we will generate a good
-        # default password from the token. This is a good thing, since it ensures that
-        # each device is given a strong, unique default password.
-        password = util.token_to_password(token)
+    jupyter_password = util.token_to_jupyter_password(token)
+    STORE.put('DEVICE_JUPYTER_PASSWORD', jupyter_password)
+    print_all("Stored Jupyter password: {}...".format(jupyter_password[:2]))
 
-    util.change_password(system_priv_user, password)
+    if system_password is None:
+        # If a particular default system_password was not specified, we will generate a good
+        # default system_password from the token. This is a good thing, since it ensures that
+        # each device is given a strong, unique default system_password.
+        system_password = util.token_to_system_password(token)
+
+    util.change_system_password(system_priv_user, system_password)
     print_all("Successfully changed {}'s password!".format(system_priv_user))
 
     console.big_image('images/token_success.png')
