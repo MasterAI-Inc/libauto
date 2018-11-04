@@ -112,6 +112,9 @@ def ensure_token():
             except:
                 pass
 
+    console.big_image('images/token_success.png')
+    console.big_status('Success. Token: {}...'.format(token[:5]))
+
     camera.close()
 
     STORE.put('DEVICE_TOKEN', token)
@@ -130,8 +133,6 @@ def ensure_token():
     util.change_system_password(system_priv_user, system_password)
     print_all("Successfully changed {}'s password!".format(system_priv_user))
 
-    console.big_image('images/token_success.png')
-    console.big_status('Success. Token: {}...'.format(token[:5]))
     time.sleep(5)
 
     console.big_clear()
