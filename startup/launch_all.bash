@@ -123,9 +123,15 @@ while ! nc -z localhost 18864; do
     sleep 0.1
 done
 
+./startup/jupyter_config/launch_jupyter.bash &
+JUPYTER_PID=$!
+
 echo 'EVERYTHING LAUNCHED SUCCESSFULLY!'
 
 wait $CUI_PID
+
+kill -9 $JUPYTER_PID
+wait $JUPYTER_PID
 
 kill -9 $CDPC_PID
 wait $CDPC_PID
