@@ -16,6 +16,8 @@ from auto import console
 
 import myzbarlight
 import util
+
+import subprocess
 import json
 import time
 import cv2
@@ -78,6 +80,15 @@ def get_wifi_info_from_user():
     camera.close()
 
     return ssid, password
+
+
+def update_and_reboot_if_no_token():
+    token = STORE.get('DEVICE_TOKEN', None)
+
+    if token is None:
+        log.info("We now have Wifi, but we doesn't yet have a token. Therefore we will take this opportunity to update libauto.")
+        cmd = ['update_libauto']
+        output = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.decode('utf-8')
 
 
 def ensure_token():
@@ -191,6 +202,8 @@ while True:
                     break
             console.big_clear()
             console.clear_image()
+
+            update_and_reboot_if_no_token()
 
     else:
         # We have WiFi.
