@@ -1,0 +1,44 @@
+#!/usr/bin/env python
+
+"""
+Use "Reservoir Sampling" to return `k` random lines from the input files (or
+stdin if no input files are passed on the command line).
+See: https://en.wikipedia.org/wiki/Reservoir_sampling
+
+Run `subset --help` for info.
+"""
+
+import argparse
+import fileinput
+import sys
+import random
+
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description="Subset file(s) using Reservoir Sampling")
+    parser.add_argument('-k', '--num_lines', type=int, required=True,
+                        help='number of samples (lines) to keep from the input file(s)')
+    parser.add_argument('-s', '--seed', type=int,
+                        help='set the random number seed; if omitted, uses a seed based on the time')
+    parser.add_argument('files', metavar='FILE', nargs='*',
+                        help='files to read; if empty, uses stdin')
+    args = parser.parse_args()
+
+    k = args.num_lines
+    samples = []
+
+    random.seed(args.seed)  # seeds with None if arg omitted, which works for random.seed()
+
+    for i, line in enumerate(fileinput.input(files=args.files)):
+        if not line: continue
+        if i < k:
+            samples.append(line.rstrip('\n'))
+        else:
+            r = random.randint(0, i)
+            if r < k:
+                samples[r] = line.rstrip('\n')
+
+    sys.stdout.write('\n'.join(samples))
+    sys.stdout.write('\n')
+

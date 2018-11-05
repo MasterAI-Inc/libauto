@@ -1,0 +1,42 @@
+#!/usr/bin/env python
+
+"""
+Print the first `n` lines from the input file AND the last `n` lines
+from the input file.
+
+Run `inspect --help` for info.
+"""
+
+import argparse
+import fileinput
+import sys
+from collections import deque
+
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description="Inspects the first and last n lines from the input file")
+    parser.add_argument('-n', '--num_lines', type=int, default=10,
+                        help='number of lines to sample from beginning AND end')
+    parser.add_argument('file', metavar='FILE', nargs='*',
+                        help='file to read; if empty, uses stdin')
+    args = parser.parse_args()
+
+    n = args.num_lines
+    begin = []
+    end = deque([])
+
+    for i, line in enumerate(fileinput.input(files=args.file)):
+        if not line: continue
+        line = "{}: {}".format(i+1, line.rstrip('\n'))
+        if i < n:
+            begin.append(line)
+        end.append(line)
+        if len(end) > n:
+            end.popleft()
+
+    sys.stdout.write('\n'.join(begin))
+    sys.stdout.write('\n' + '='*10 + '\n')
+    sys.stdout.write('\n'.join(end))
+    sys.stdout.write('\n')
+

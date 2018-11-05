@@ -1,0 +1,15 @@
+#!/bin/bash
+
+if [ $# != 1 ] || [ ! -d "$1" ]
+then
+    echo "Usage: $(basename "$0") <path_to_directory>" 1>&2
+    exit 1
+fi
+
+if [ $(basename "$1") == "." ]
+then
+    echo "You cannot use '.' as the path_to_directory." 1>&2
+    exit 2
+fi
+
+tar -cvzf "$(basename "$1").tar.gz" "$1"

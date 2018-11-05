@@ -24,3 +24,6 @@ export PYTHONPATH="$LIBAUTO_PATH:$PYTHONPATH"
 export LIBAUTO_CONSOLE_UI_PYTHON="/opt/berryconda3/bc3/envs/console_ui/bin/python"
 export LIBAUTO_SERVICES_PYTHON="/opt/berryconda3/bc3/envs/services/bin/python"
 
+# Include the libauto `bin` in the PATH so that we can teach these helper commands
+export PATH="$LIBAUTO_PATH/environment/bin:$PATH"
+

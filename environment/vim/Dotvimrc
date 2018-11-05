@@ -1,0 +1,248 @@
+" Do smart things when a filetype is recognized.
+filetype plugin on
+filetype indent on
+
+" Set UTF-8 encoding.
+set enc=utf-8
+set fenc=utf-8
+set termencoding=utf-8
+
+" Disable vi compatibility (emulation of old bugs).
+set nocompatible
+
+" Set color scheme according to window type.
+if has("gui_running")
+    colorscheme desert
+    " colorscheme peaksea
+    " colorscheme solarized
+    set background=dark
+    set guioptions-=T    " remove toolbar
+    set t_Co=256
+    " set gfn=Courier_New:h11:b:cANSI
+    " set autochdir
+    set cursorline
+else
+    colorscheme desert
+    " colorscheme zellner
+    set background=light
+endif
+
+" Set the leader key for my custom commands.
+let mapleader = ","
+let g:mapleader = ","
+
+" Custom command: save the file.
+nnoremap <leader>s :w<CR>
+inoremap <leader>s <ESC>:w<CR>a
+
+" Custom command: make.
+nnoremap <leader>r :w<CR>:!make<CR>
+inoremap <leader>r <ESC>:w<CR>:!make<CR>
+
+" Custom command: quit the editor.
+nnoremap <leader>q :wq<CR>
+inoremap <leader>q <ESC>:wq<CR>
+
+" Custom commands: easy buffer navigation.
+nnoremap <leader>l :ls<CR>
+nnoremap <leader>n :bnext<CR>
+nnoremap <leader>b :bprev<CR>
+nnoremap <leader>x :bdelete<CR>
+
+" Clear the current highlighted search term.
+nnoremap <leader>f :nohlsearch<CR>
+
+" Custom commands: comment and uncomment code.
+autocmd FileType c,cpp,java,scala let b:comment_leader = '// '
+autocmd FileType sh,ruby,python   let b:comment_leader = '# '
+autocmd FileType conf,fstab,make  let b:comment_leader = '# '
+autocmd FileType tex              let b:comment_leader = '% '
+autocmd FileType mail             let b:comment_leader = '> '
+autocmd FileType vim              let b:comment_leader = '" '
+noremap <silent> <leader>cc :<C-B>silent <C-E>s/^\(.\)/\=escape(b:comment_leader,'\/').submatch(1)<CR>:nohlsearch<CR>
+noremap <silent> <leader>cu :<C-B>silent <C-E>s/^\V<C-R>=escape(b:comment_leader,'\/')<CR>//e<CR>:nohlsearch<CR>
+
+" Smart way to move between windows.
+map <C-j> <C-W>j
+map <C-k> <C-W>k
+map <C-h> <C-W>h
+map <C-l> <C-W>l
+map <A-j> <C-W>J
+map <A-k> <C-W>K
+map <A-h> <C-W>H
+map <A-l> <C-W>L
+
+" Space runs the macro stored in q. (So you can hit qq to record then space to play.)
+nnoremap <Space> @q
+
+" Make shift+y do what you'd expect.
+nnoremap Y y$
+
+" Make copy use the system copy buffer.
+if has("gui_running")
+    nnoremap yy V"+y
+    nnoremap yw "+yw
+    vnoremap y "+y
+endif
+
+" Switch to previous buffer.
+nmap <F2> :b#<CR>
+imap <F2> <Esc>:b#<CR>
+nmap <leader>2 :b#<CR>
+imap <leader>2 <Esc>:b#<CR>
+
+" Switch between header/source.
+nmap <silent> <F3> :e %:p:s,.h$,.X123X,:s,.cpp$,.h,:s,.X123X$,.cpp,<CR>
+imap <silent> <F3> <Esc>:e %:p:s,.h$,.X123X,:s,.cpp$,.h,:s,.X123X$,.cpp,<CR>
+nmap <silent> <leader>3 :e %:p:s,.h$,.X123X,:s,.cpp$,.h,:s,.X123X$,.cpp,<CR>
+imap <silent> <leader>3 <Esc>:e %:p:s,.h$,.X123X,:s,.cpp$,.h,:s,.X123X$,.cpp,<CR>
+
+" Turn on/off spelling easily.
+nmap <silent> <F5> :set spell!<CR>
+nmap <silent> <leader>5 :set spell!<CR>
+
+" Turn on/off line wrapping easily.
+nmap <silent> <F6> :set wrap!<CR>
+nmap <silent> <leader>6 :set wrap!<CR>
+
+" Make jj be escape (because the escape key is so far away...).
+imap jj <Esc>
+
+" Make the curror move to the next visual line instead of the next actual line.
+imap <silent> <Down> <C-o>gj
+imap <silent> <Up> <C-o>gk
+nmap <silent> <Down> gj
+nmap <silent> <Up> gk
+nmap <silent> j gj
+nmap <silent> k gk
+
+" Keep the cursor away from the bottom and top of the window.
+set scrolloff=7
+
+" Turn on spell checking.
+set spell
+
+" Show the options for tab completion (use left/right/up/down to browse).
+set wildmenu
+set wildignore=*.dll,*.o,*.pyc,*.bak,*.exe,*.jpg,*.jpeg,*.png,*.gif,*$py.class
+set wildmode=list:longest
+
+" Use indentation of previous line.
+"   Note: Disabled because it doesn't seem to do anything extra from
+"         what 'filetype indent on' does.
+"set autoindent
+
+" Use intelligent indentation for C.
+"   Note: Disabled because it doesn't seem to work very well with python.
+"         I think the 'filetype indent on' is all you need to have smart
+"         indenting work though.
+"set smartindent
+
+" Configure tab stuff.
+set tabstop=4        " the width of the actual tab character
+set shiftwidth=4     " what to do with the '<<' and '>>' commands
+set softtabstop=4    " the amount of whitespace that is inserted by the tab key
+set expandtab        " makes the tab key insert only spaces
+set backspace=2      " make backspace always backspace (over start of lines, eol, etc)
+
+" Wrap lines visually, but never put in an automatic newline.
+set wrap
+set linebreak
+set nolist  " list disables linebreak
+set textwidth=0
+set wrapmargin=0
+
+" Turn syntax highlighting on.
+syntax on
+
+" Turn line numbers on.
+set number
+
+" Highlight matching braces.
+set showmatch
+
+" Intelligent comments.
+"set comments=sl:/*,mb:\ *,elx:\ */
+set formatoptions+=rco   " http://stackoverflow.com/questions/951555/insert-comments-automatically-in-vim
+
+" Use case-insensitivity unless there is a capital letter in the search pattern.
+set ignorecase smartcase
+
+" Search as you type.
+set incsearch
+
+" All search results are highlighted.
+set hlsearch
+
+" Don't make the default backup file (the file with a ~ at the end).
+set nobackup
+
+" Don't write-then-move when saving. Instead just write over the original.
+set nowritebackup
+
+" Don't create a lock file.
+set noswapfile
+
+" Don't create an undo file.
+set noundofile
+
+" Highlights trailing white space and delete it when the file is saved.
+highlight ExtraWhitespace ctermbg=lightgreen guibg=lightgreen
+match ExtraWhitespace /\s\+\%#\@<!$/
+function! <SID>StripTrailingWhitespaces()
+    let l = line(".")
+    let c = col(".")
+    %s/\s\+$//e
+    call cursor(l, c)
+endfunction
+autocmd InsertEnter * match ExtraWhitespace /\s\+\%#\@<!$/
+autocmd InsertLeave * match ExtraWhitespace /\s\+$/
+autocmd BufWritePre * :call <SID>StripTrailingWhitespaces()
+
+" Have Vim jump to the last position when reopening a file.
+autocmd BufReadPost * if line("'\"") > 0 && line("'\"") <= line("$") | exe "normal g'\"" | endif
+
+" Search for visually-selected text, '*' for forward, '#' for backward.
+vnoremap <silent> * :<C-U>
+    \let old_reg=getreg('"')<Bar>let old_regtype=getregtype('"')<CR>
+    \gvy/<C-R><C-R>=substitute(
+    \escape(@", '/\.*$^~['), '\_s\+', '\\_s\\+', 'g')<CR><CR>
+    \gV:call setreg('"', old_reg, old_regtype)<CR>
+vnoremap <silent> # :<C-U>
+    \let old_reg=getreg('"')<Bar>let old_regtype=getregtype('"')<CR>
+    \gvy?<C-R><C-R>=substitute(
+    \escape(@", '?\.*$^~['), '\_s\+', '\\_s\\+', 'g')<CR><CR>
+    \gV:call setreg('"', old_reg, old_regtype)<CR>
+
+" Make the status line pretty.
+highlight User1 guifg=#eea040 guibg=#222222
+highlight User2 guifg=#dd3333 guibg=#222222
+highlight User3 guifg=#ff66ff guibg=#222222
+highlight User4 guifg=#a0ee40 guibg=#222222
+highlight User5 guifg=#eeee40 guibg=#222222
+set laststatus=2
+set statusline=
+set statusline+=%2*\ %n%*                  " buffer number
+set statusline+=%1*\ \ %y%*                " file type
+set statusline+=%3*\ \ %<%f%*              " relative path (%F for full path)
+set statusline+=%2*%m%*                    " modified flag
+set statusline+=%2*%r%*                    " read-only flag
+set statusline+=%4*\ \ %<%{CurDir()}%*     " PWD
+set statusline+=%1*%=                      " start right-alignment
+set statusline+=%1*%5l%*                   " current line
+set statusline+=%2*/%L%*                   " total lines
+set statusline+=%3*%4v\ \ %*               " virtual column number
+set statusline+=%2*0x%04B\ %*              " character under cursor
+set statusline+=%1*\ %{CurEncoding()}%*  " file encoding
+set statusline+=%1*\ %{LineEnding()}\ %*     " file format
+function! LineEnding()
+    let osstr = &ff
+    return osstr=='unix' ? '\n' : (osstr=='mac' ? '\r' : '\r\n')
+endfunction
+function! CurEncoding()
+    return &fenc!='' ? &fenc : &enc
+endfunction
+function! CurDir()
+    let curdir = substitute(getcwd(), '/home/ryan', "~", "g")
+    return curdir
+endfunction

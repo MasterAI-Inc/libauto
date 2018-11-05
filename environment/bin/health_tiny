@@ -1,0 +1,30 @@
+#!/bin/bash
+
+CPU_INFO=$(uptime | awk -F'average: ' '{print $2}' | awk -F',' '{print $1$2$3}')
+
+if [ -n "$(which sensors)" ]    # requires package "lm-sensors"
+then
+    CPU_TEMP=$(sensors | grep 'Physical id 0:' | awk -F' ' '{print $4}')
+fi
+
+MEM_TOTAL=$(vmstat -s | grep " total memory" | awk '{print $1}')
+MEM_ACTIVE=$(vmstat -s | grep " active memory" | awk '{print $1}')
+MEM_USED=$(vmstat -s | grep " used memory" | awk '{print $1}')
+SWP_TOTAL=$(vmstat -s | grep " total swap" | awk '{print $1}')
+SWP_USED=$(vmstat -s | grep " used swap" | awk '{print $1}')
+MEM_PERCENT_ACTIVE=$(echo "100 * $MEM_ACTIVE / $MEM_TOTAL" | bc)%
+MEM_PERCENT_USED=$(echo "100 * $MEM_USED / $MEM_TOTAL" | bc)%
+if [ $SWP_TOTAL -ne "0" ]; then
+    SWP_PERCENT_USED=$(echo "100 * $SWP_USED / $SWP_TOTAL" | bc)%
+else
+    SWP_PERCENT_USED="0%"
+fi
+
+ROOT_FS_PERCENT_USED=$(df 2>/dev/null | grep '/$' | awk '{print $5}')
+
+echo "L $CPU_INFO"
+if [ -n "$CPU_TEMP" ]; then echo "T $CPU_TEMP"; fi
+echo "U $MEM_PERCENT_ACTIVE"
+echo "A $MEM_PERCENT_USED"
+echo "S $SWP_PERCENT_USED"
+echo "H $ROOT_FS_PERCENT_USED"
