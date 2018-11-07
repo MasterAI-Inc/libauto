@@ -84,16 +84,14 @@ def enable_component(fd, register_number):
     Enable the controller's component whose register number is `register_number`.
     Return a string representing the state of the component, or raise an exception
     on error.
-    Note: After you enable a component, you should wait for the controller to loop_once
-          so that you can reliably query that component and receive up-to-date info.
-          As such, poll `is_ready` until it return True after you enable a component. I.e.
-              |  enable_component(fd, ...)
-              |  i2c_poll_until(lambda: is_ready(fd), True, timeout_ms=1000)
+    Note: After you enable a component, you should wait for the controller to tell you
+          that it has _actually_ been enabled before you try to communicate with it.
+          See how it is done in `acquire_component_interface()`.
     """
     indicator, = write_read_i2c_with_integrity(fd, [CAPABILITIES_REG_NUM, 0x05, register_number], 1)
     if indicator == 0: return "already enabled"
     if indicator == 1: return "now enabled"
-    if indicator == 2: raise Exception("invalid register address!")
+    if indicator == 0xFF: raise Exception("invalid register address!")
     raise Exception("unknown return value: {}".format(indicator))
 
 
@@ -103,25 +101,32 @@ def disable_component(fd, register_number):
     Disable the controller's component whose register number is `register_number`.
     Return a string representing the state of the component, or raise an exception
     on error.
+    Note: After you disable a component, you should wait for the controller to tell
+          you that it has _actually_ been disabled. See how it is done in
+          `dispose_component_interface()`.
     """
     indicator, = write_read_i2c_with_integrity(fd, [CAPABILITIES_REG_NUM, 0x06, register_number], 1)
     if indicator == 0: return "already disabled"
     if indicator == 1: return "now disabled"
-    if indicator == 2: raise Exception("invalid register address!")
+    if indicator == 0xFF: raise Exception("invalid register address!")
     raise Exception("unknown return value: {}".format(indicator))
 
 
 @i2c_retry(N_I2C_TRIES)
-def is_component_enabled(fd, register_number):
+def get_component_status(fd, register_number):
     """
-    Return True if the component is currently enabled, False if the component
-    is not currently enabled, or raise an exception if the component doesn't
-    exist.
+    Return a string representing the component's status. It will be one of:
+     - ENABLE_PENDING
+     - ENABLED
+     - DISABLE_PENDING
+     - DISABLED
+    Or raise an error.
     """
     indicator, = write_read_i2c_with_integrity(fd, [CAPABILITIES_REG_NUM, 0x07, register_number], 1)
-    if indicator == 0: return False
-    if indicator == 1: return True
-    if indicator == 2: raise Exception("invalid register address!")
+    if indicator == 0: return 'DISABLED'
+    if indicator == 1: return 'ENABLE_PENDING'
+    if indicator == 2: return 'ENABLED'
+    if indicator == 3: return 'DISABLE_PENDING'
     raise Exception("unknown return value: {}".format(indicator))
 
 
@@ -145,7 +150,7 @@ def get_capabilities(fd, soft_reset_first=False, only_enabled=False, detect_enab
                     'register_number': reg,
             }
             if detect_enabledness:
-                caps[name]['is_enabled'] = is_component_enabled(fd, reg)
+                caps[name]['is_enabled'] = (get_component_status(fd, reg) == 'ENABLED')
 
     return caps
 
@@ -163,7 +168,7 @@ def acquire_component_interface(fd, caps, component_name):
     register_number = caps[component_name]['register_number']
     interface = KNOWN_COMPONENTS[component_name](fd, register_number)
     enable_component(fd, register_number)
-    i2c_poll_until(lambda: is_ready(fd), True, timeout_ms=1000)
+    i2c_poll_until(lambda: get_component_status(fd, register_number), 'ENABLED', timeout_ms=1000)
     interface.__fd__ = fd
     interface.__reg__ = register_number
     return interface
@@ -177,7 +182,7 @@ def dispose_component_interface(interface):
     fd = interface.__fd__
     register_number = interface.__reg__
     disable_component(fd, register_number)
-    i2c_poll_until(lambda: is_ready(fd), True, timeout_ms=1000)
+    i2c_poll_until(lambda: get_component_status(fd, register_number), 'DISABLED', timeout_ms=1000)
 
 
 def test_all(fd):
