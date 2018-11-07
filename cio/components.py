@@ -250,24 +250,6 @@ def factory_get_loop_frequency(fd, reg_num):
     return LoopFrequency()
 
 
-def factory_get_car_speed(fd, reg_num):
-
-    class CarSpeed:
-
-        def __init__(self):
-            pass
-
-        @i2c_retry(N_I2C_TRIES)
-        def read(self):
-            """
-            Returns the speed of the car in terms of "encoder 'counts' per second".
-            """
-            buf = write_read_i2c_with_integrity(fd, [reg_num], 2)
-            return struct.unpack('1H', buf)[0]
-
-    return CarSpeed()
-
-
 def factory_set_car_motors(fd, reg_num):
 
     class CarMotors:
@@ -486,7 +468,6 @@ KNOWN_COMPONENTS = {
     'Timer1PWM':             Timer1PWM,
     'Timer3PWM':             Timer3PWM,
     'LoopFrequency':         factory_get_loop_frequency,
-    'CarSpeed':              factory_get_car_speed,
     'CarMotors':             factory_set_car_motors,
     'PID_throttle':          factory_pid,
     'PID_steering':          factory_pid,
