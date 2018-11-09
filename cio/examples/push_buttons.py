@@ -14,21 +14,14 @@ from cio import default_handle as h
 
 pprint(h.CAPS)
 
-gpio = h.acquire_component_interface('GpioPassthrough')
+b = h.acquire_component_interface('PushButtons')
 
-gpio.print_all_state(n_pins=20)  # the mini-mode exposes only 20 pins
-print('-' * 70)
+n = b.num_buttons()
 
-rx = gpio.employ_pin(0)
-tx = gpio.employ_pin(1)
+print(n)
 
-buttons = gpio.employ_pin(18)
-vindiv2 = gpio.employ_pin(19)
-photo   = gpio.employ_pin(24)
+time.sleep(2)
 
-while True:
-    print(buttons.analog_read())
-    #print(vindiv2.analog_read())
-    #print(photo.analog_read())
-    time.sleep(0.1)
+for i in range(n):
+    print(b.button_state(i))
 

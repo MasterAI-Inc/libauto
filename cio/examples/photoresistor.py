@@ -14,21 +14,9 @@ from cio import default_handle as h
 
 pprint(h.CAPS)
 
-gpio = h.acquire_component_interface('GpioPassthrough')
+p = h.acquire_component_interface('Photoresistor')
 
-gpio.print_all_state(n_pins=20)  # the mini-mode exposes only 20 pins
-print('-' * 70)
-
-rx = gpio.employ_pin(0)
-tx = gpio.employ_pin(1)
-
-buttons = gpio.employ_pin(18)
-vindiv2 = gpio.employ_pin(19)
-photo   = gpio.employ_pin(24)
-
-while True:
-    print(buttons.analog_read())
-    #print(vindiv2.analog_read())
-    #print(photo.analog_read())
+for i in range(1000):
+    print(p.read_ohms())
     time.sleep(0.1)
 

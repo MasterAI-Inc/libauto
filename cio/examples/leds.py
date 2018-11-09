@@ -14,21 +14,20 @@ from cio import default_handle as h
 
 pprint(h.CAPS)
 
-gpio = h.acquire_component_interface('GpioPassthrough')
+leds = h.acquire_component_interface('LEDs')
 
-gpio.print_all_state(n_pins=20)  # the mini-mode exposes only 20 pins
-print('-' * 70)
+leds.set_mode(1)
 
-rx = gpio.employ_pin(0)
-tx = gpio.employ_pin(1)
+time.sleep(3)
 
-buttons = gpio.employ_pin(18)
-vindiv2 = gpio.employ_pin(19)
-photo   = gpio.employ_pin(24)
+leds.set_mode(0)
+leds.set_values()
 
-while True:
-    print(buttons.analog_read())
-    #print(vindiv2.analog_read())
-    #print(photo.analog_read())
-    time.sleep(0.1)
+time.sleep(1)
+
+for i in range(8):
+    binary = "{0:{fill}3b}".format(i, fill='0')
+    red, green, blue = [int(b) for b in binary]
+    leds.set_values(red, green, blue)
+    time.sleep(1)
 

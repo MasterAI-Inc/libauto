@@ -174,36 +174,78 @@ def factory_push_buttons(fd, reg_num):
 
     class PushButtons:
         def __init__(self):
-            self.total_a_presses = 0
-            self.total_a_releases = 0
-
-            self.total_b_releases = 0
-            self.total_b_presses = 0
-
-            self.total_c_releases = 0
-            self.total_c_presses = 0
+            pass
 
         @i2c_retry(N_I2C_TRIES)
-        def state(self):
+        def num_buttons(self):
             """
-            Update the state of the buttons. Return the number of _new_ button presses.
+            Return the number of buttons on the device.
             """
-            old_total_a_presses, old_total_a_releases = self.total_a_presses, self.total_a_releases
-            old_total_b_presses, old_total_b_releases = self.total_b_presses, self.total_b_releases
-            old_total_c_presses, old_total_c_releases = self.total_c_presses, self.total_c_releases
-            self.total_a_presses, self.total_a_releases, \
-            self.total_b_presses, self.total_b_releases, \
-            self.total_c_presses, self.total_c_releases  = write_read_i2c_with_integrity(fd, [reg_num], 6)
-            return {
-                'a': {'pressed':  self.total_a_presses  - old_total_a_presses,
-                      'released': self.total_a_releases - old_total_a_releases},
-                'b': {'pressed':  self.total_b_presses  - old_total_b_presses,
-                      'released': self.total_b_releases - old_total_b_releases},
-                'c': {'pressed':  self.total_c_presses  - old_total_c_presses,
-                      'released': self.total_c_releases - old_total_c_releases},
-            }
+            n, = write_read_i2c_with_integrity(fd, [reg_num, 0x00], 1)
+            return n
+
+        @i2c_retry(N_I2C_TRIES)
+        def button_state(self, button_index):
+            """
+            Return the state of the button at the given index (zero-based).
+            Returns a tuple of (num_presses, num_releases, is_currently_pressed)
+            which are of types (int, int, bool).
+            """
+            buf = write_read_i2c_with_integrity(fd, [reg_num, 0x01+button_index], 3)
+            presses = int(buf[0])
+            releases = int(buf[1])
+            is_pressed = bool(buf[2])
+            return presses, releases, is_pressed
 
     return PushButtons()
+
+
+def factory_leds(fd, reg_num):
+
+    class LEDs:
+        def __init__(self):
+            pass
+
+        @i2c_retry(N_I2C_TRIES)
+        def set_values(self, red=False, green=False, blue=False):
+            """
+            Set the LED on/off value for each of the three LEDs.
+            """
+            led_state = ((1 if red else 0) | ((1 if green else 0) << 1) | ((1 if blue else 0) << 2))
+            status, = write_read_i2c_with_integrity(fd, [reg_num, 0x00, led_state], 1)
+            if status != 72:
+                raise Exception("failed to set LED state")
+
+        @i2c_retry(N_I2C_TRIES)
+        def set_mode(self, mode):
+            """
+            Set the `mode` of the LEDs. There is currently only two modes:
+             - 0: manual mode (you use `set_values()` (the default)
+             - 1: spinning mode (the LEDs flash red, then green, then blue, then repeat)
+            """
+            status, = write_read_i2c_with_integrity(fd, [reg_num, 0x01, mode], 1)
+            if status != 72:
+                raise Exception("failed to set LED mode")
+
+    return LEDs()
+
+
+def factory_photoresistor(fd, reg_num):
+
+    class Photoresistor:
+        def __init__(self):
+            pass
+
+        @i2c_retry(N_I2C_TRIES)
+        def read_ohms(self):
+            """
+            Read the resistance of the photoresistor (in ohms). The photoresistor's
+            resistance changes depending on how much light is on it, thus the name!
+            """
+            buf = write_read_i2c_with_integrity(fd, [reg_num], 4)
+            return struct.unpack('1I', buf)[0]
+
+    return Photoresistor()
 
 
 def factory_read_encoders(fd, reg_num):
@@ -463,6 +505,8 @@ KNOWN_COMPONENTS = {
     'Temperature':           factory_read_one_float,
     'GpioPassthrough':       GpioPassthrough,
     'PushButtons':           factory_push_buttons,
+    'LEDs':                  factory_leds,
+    'Photoresistor':         factory_photoresistor,
     'Barometer':             factory_read_one_float,
     'Encoders':              factory_read_encoders,
     'Timer1PWM':             Timer1PWM,

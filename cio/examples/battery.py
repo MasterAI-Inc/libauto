@@ -17,6 +17,6 @@ pprint(h.CAPS)
 batt = h.acquire_component_interface('BatteryVoltageReader')
 
 while True:
-    print(batt())
+    print(batt.millivolts())
     time.sleep(0.1)
 

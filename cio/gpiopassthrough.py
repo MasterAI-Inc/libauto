@@ -93,8 +93,8 @@ class GpioPassthrough:
     def employ_pin(self, pin_index):
         return GpioPinRef(self.fd, self.reg_num, pin_index)
 
-    def print_all_state(self):
-        for i in range(32):
+    def print_all_state(self, n_pins=32):
+        for i in range(n_pins):
             p = self.employ_pin(i)
             print("Pin {:2d} state: {}".format(i, p.get_state_as_string()))
             p.retire()
