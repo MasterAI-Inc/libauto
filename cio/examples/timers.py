@@ -18,32 +18,30 @@ pprint(h.CAPS)
 
 t1 = h.acquire_component_interface('Timer1PWM')
 
-t1.set_top(20000)
-t1.set_ocr_b(3000)
-t1.enable_b()
+t1.set_top(40000)
+t1.set_ocr_a(3000)
+t1.enable_a()
 
 time.sleep(2)
 
-for i in range(0, 20000, 100):
-    t1.set_ocr_b(i)
+for i in range(2000, 4000, 10):
+    t1.set_ocr_a(i)
     time.sleep(0.01)
 
-t1.set_ocr_b(3000)
-
-time.sleep(2)
+t1.set_ocr_a(3000)
 
 time.sleep(2)
 
 
 t3 = h.acquire_component_interface('Timer3PWM')
 
-t3.set_top(20000)
+t3.set_top(40000)
 t3.set_ocr(3000)
 t3.enable()
 
 time.sleep(2)
 
-for i in range(0, 20000, 100):
+for i in range(2000, 4000, 10):
     t3.set_ocr(i)
     time.sleep(0.01)
 
@@ -54,7 +52,7 @@ time.sleep(1)
 t3.set_range(2000, 4000)
 
 for i in range(0, 100):
-    t3(i / 100)
+    t3.set_pct(i / 100)
     time.sleep(0.01)
 
 t3.set_ocr(3000)
@@ -65,7 +63,7 @@ t3.disable()
 
 time.sleep(2)
 
-t1.disable_b()
+t1.disable_a()
 
 time.sleep(2)
 

@@ -270,6 +270,42 @@ def factory_read_encoders(fd, reg_num):
             pass
 
         @i2c_retry(N_I2C_TRIES)
+        def enable_e1(self):
+            """
+            Enable the first encoder pair.
+            """
+            status, = write_read_i2c_with_integrity(fd, [reg_num, 0x00], 1)
+            if status != 31:
+                raise Exception("Failed to enable encoder")
+
+        @i2c_retry(N_I2C_TRIES)
+        def enable_e2(self):
+            """
+            Enable the second encoder pair.
+            """
+            status, = write_read_i2c_with_integrity(fd, [reg_num, 0x01], 1)
+            if status != 31:
+                raise Exception("Failed to enable encoder")
+
+        @i2c_retry(N_I2C_TRIES)
+        def disable_e1(self):
+            """
+            Disable the first encoder pair.
+            """
+            status, = write_read_i2c_with_integrity(fd, [reg_num, 0x02], 1)
+            if status != 31:
+                raise Exception("Failed to disable encoder")
+
+        @i2c_retry(N_I2C_TRIES)
+        def disable_e2(self):
+            """
+            Disable the second encoder pair.
+            """
+            status, = write_read_i2c_with_integrity(fd, [reg_num, 0x03], 1)
+            if status != 31:
+                raise Exception("Failed to disable encoder")
+
+        @i2c_retry(N_I2C_TRIES)
         def read(self):
             """
             Return the state of the Encoders. Six values are returned:
