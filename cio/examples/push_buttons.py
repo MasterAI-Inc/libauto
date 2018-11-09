@@ -20,8 +20,28 @@ n = b.num_buttons()
 
 print(n)
 
-time.sleep(2)
+# for i in range(1000):
+#     print(b.debug())
+#     time.sleep(0.1)
 
-for i in range(n):
-    print(b.button_state(i))
+states = [b.button_state(i) for i in range(n)]
+
+while True:
+
+    for prev_state, i in zip(states, range(n)):
+        state = b.button_state(i)
+        if state == prev_state:
+            continue
+
+        diff_presses  = (state[0] - prev_state[0]) % 256
+        diff_releases = (state[1] - prev_state[1]) % 256
+
+        if diff_presses > 0:
+            print("Button #{} pressed {} time{}".format(i+1, diff_presses, 's' if diff_presses > 1 else ''))
+        if diff_releases > 0:
+            print("Button #{} released {} time{}".format(i+1, diff_releases, 's' if diff_releases > 1 else ''))
+
+        states[i] = state
+
+    time.sleep(0.05)
 

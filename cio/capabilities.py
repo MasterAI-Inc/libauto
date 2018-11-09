@@ -184,17 +184,3 @@ def dispose_component_interface(interface):
     disable_component(fd, register_number)
     i2c_poll_until(lambda: get_component_status(fd, register_number), 'DISABLED', timeout_ms=1000)
 
-
-def test_all(fd):
-    caps = get_capabilities(fd)
-    components = sorted(caps.keys())
-    print("Components:", components)
-
-    interfaces = [(name, acquire_component_interface(fd, caps, name)) for name in components]
-
-    for name, interface in interfaces:
-        print("{}: {}".format(name, interface))
-
-    for name, interface in interfaces:
-        dispose_component_interface(interface)
-

@@ -197,6 +197,17 @@ def factory_push_buttons(fd, reg_num):
             is_pressed = bool(buf[2])
             return presses, releases, is_pressed
 
+        @i2c_retry(N_I2C_TRIES)
+        def debug(self):
+            """
+            Print debug info.
+            """
+            buf = write_read_i2c_with_integrity(fd, [reg_num, 0xFF], 6)
+            official_state = int(buf[0])
+            unofficial_state = int(buf[1])
+            debug_value = struct.unpack('1I', buf[2:])[0]
+            return official_state, unofficial_state, debug_value
+
     return PushButtons()
 
 

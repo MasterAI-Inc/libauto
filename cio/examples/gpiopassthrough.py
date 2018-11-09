@@ -24,11 +24,9 @@ tx = gpio.employ_pin(1)
 
 buttons = gpio.employ_pin(18)
 vindiv2 = gpio.employ_pin(19)
-photo   = gpio.employ_pin(24)
 
 while True:
     print(buttons.analog_read())
     #print(vindiv2.analog_read())
-    #print(photo.analog_read())
     time.sleep(0.1)
 
