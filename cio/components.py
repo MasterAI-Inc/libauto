@@ -74,10 +74,12 @@ def factory_play_buzzer_notes(fd, reg_num):
                 return can_play == 0
 
             @i2c_retry(N_I2C_TRIES)
-            def send_new_notes(notes):
-                can_play, = write_read_i2c_with_integrity(fd, [reg_num, 0x01] + list(notes.encode()), 1)
+            def send_new_notes(notes, pos):
+                buf = list(notes.encode())
+                can_play, = write_read_i2c_with_integrity(fd, [reg_num, 0x01, pos] + buf, 1)
                 if can_play != 1:
                     raise Exception("failed to send notes to play")
+                return len(buf)
 
             @i2c_retry(N_I2C_TRIES)
             def start_playback():
@@ -90,8 +92,10 @@ def factory_play_buzzer_notes(fd, reg_num):
                 return [seq[i * n:(i + 1) * n] for i in range((len(seq) + n - 1) // n)]
 
             i2c_poll_until(is_currently_playing, False, timeout_ms=10000)
-            for chunk in chunkify(notes, 5):
-                send_new_notes(chunk)
+            pos = 0
+            for chunk in chunkify(notes, 4):
+                chunk_len = send_new_notes(chunk, pos)
+                pos += chunk_len
             start_playback()
 
     return Buzzer()
