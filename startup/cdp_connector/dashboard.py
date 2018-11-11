@@ -14,6 +14,7 @@ import subprocess
 from queue import Queue, Empty
 from threading import Thread
 
+import auto
 from auto.camera_rpc_client import CameraRGB
 from auto.camera import wrap_frame_index_decorator, base64_encode_image
 from auto.inet import Wireless, get_ip_address
@@ -160,9 +161,5 @@ class Dashboard:
         return output
 
     def _get_version(self):
-        path = os.path.realpath(__file__)
-        for _ in range(3):
-            path = os.path.dirname(path)
-        with open(os.path.join(path, 'version.txt'), 'r') as f:
-            return f.read().strip()
+        return auto.__version__
 
