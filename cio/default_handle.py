@@ -21,7 +21,7 @@ We'll go ahead and get the capabilities here, so that we have them ready to
 go for whoever imports this module.
 """
 from . import capabilities
-CAPS = capabilities.get_capabilities(FD, soft_reset_first=True, detect_enabledness=False)
+CAPS = capabilities.get_capabilities(FD, soft_reset_first=True, detect_enabledness=True)
 
 
 """
