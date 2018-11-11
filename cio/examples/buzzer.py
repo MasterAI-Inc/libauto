@@ -18,7 +18,8 @@ b = h.acquire_component_interface('Buzzer')
 
 time.sleep(2)
 
-b.play()
+#b.play()
+b.play('>E>E>ER>C>E>G')
 
 time.sleep(2)
 

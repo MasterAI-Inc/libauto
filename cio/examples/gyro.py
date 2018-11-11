@@ -14,9 +14,12 @@ from cio import default_handle as h
 
 pprint(h.CAPS)
 
-p = h.acquire_component_interface('Photoresistor')
+gyro       = h.acquire_component_interface('Gyroscope')
+gyro_accum = h.acquire_component_interface('Gyroscope_accum')
 
 for i in range(1000):
-    print(p.read(), p.read_millivolts(), p.read_ohms())
+    print(gyro.read())
+    print(gyro_accum.read())
+    print()
     time.sleep(0.1)
 

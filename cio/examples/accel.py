@@ -14,9 +14,9 @@ from cio import default_handle as h
 
 pprint(h.CAPS)
 
-p = h.acquire_component_interface('Photoresistor')
+accel = h.acquire_component_interface('Accelerometer')
 
 for i in range(1000):
-    print(p.read(), p.read_millivolts(), p.read_ohms())
+    print(accel.read())
     time.sleep(0.1)
 

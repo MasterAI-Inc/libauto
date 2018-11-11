@@ -14,9 +14,7 @@ from cio import default_handle as h
 
 pprint(h.CAPS)
 
-p = h.acquire_component_interface('Photoresistor')
+calibrator = h.acquire_component_interface('Calibrator')
 
-for i in range(1000):
-    print(p.read(), p.read_millivolts(), p.read_ohms())
-    time.sleep(0.1)
+calibrator.calibrate()
 

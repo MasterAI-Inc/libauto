@@ -288,7 +288,7 @@ def factory_read_encoders(fd, reg_num):
         @i2c_retry(N_I2C_TRIES)
         def enable_e1(self):
             """
-            Enable the first encoder pair.
+            Enable the first encoder pair (e1).
             """
             status, = write_read_i2c_with_integrity(fd, [reg_num, 0x00], 1)
             if status != 31:
@@ -297,7 +297,7 @@ def factory_read_encoders(fd, reg_num):
         @i2c_retry(N_I2C_TRIES)
         def enable_e2(self):
             """
-            Enable the second encoder pair.
+            Enable the second encoder pair (e2).
             """
             status, = write_read_i2c_with_integrity(fd, [reg_num, 0x01], 1)
             if status != 31:
@@ -306,7 +306,7 @@ def factory_read_encoders(fd, reg_num):
         @i2c_retry(N_I2C_TRIES)
         def disable_e1(self):
             """
-            Disable the first encoder pair.
+            Disable the first encoder pair (e1).
             """
             status, = write_read_i2c_with_integrity(fd, [reg_num, 0x02], 1)
             if status != 31:
@@ -315,7 +315,7 @@ def factory_read_encoders(fd, reg_num):
         @i2c_retry(N_I2C_TRIES)
         def disable_e2(self):
             """
-            Disable the second encoder pair.
+            Disable the second encoder pair (e2).
             """
             status, = write_read_i2c_with_integrity(fd, [reg_num, 0x03], 1)
             if status != 31:
@@ -335,8 +335,9 @@ def factory_read_encoders(fd, reg_num):
         @i2c_retry(N_I2C_TRIES)
         def read_e1_timing(self):
             """
-            Return the number of microseconds that the encoder pin was high. This
-            can be used to read a PWM signal (assuming the PWM signal has a known,
+            Return the number of microseconds that each of the two pins on the first
+            encoder (e1) are high (i.e. the duration the pin stays in the high state).
+            This can be used to read a PWM signal (assuming the PWM signal has a known,
             fixed frequency). If the pin has not gone high-then-low recently (within
             the last half-second), the value returned here will be 0 to indicate
             it is not presently known (i.e. the PWM signal is not currently coming
