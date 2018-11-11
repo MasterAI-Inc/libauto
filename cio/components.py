@@ -252,13 +252,29 @@ def factory_photoresistor(fd, reg_num):
             pass
 
         @i2c_retry(N_I2C_TRIES)
+        def read(self):
+            """
+            Read the voltage of the photoresistor pin, and read
+            the computed resistance of the photoresistor.
+            """
+            buf = write_read_i2c_with_integrity(fd, [reg_num], 8)
+            millivolts, resistance = struct.unpack('2I', buf)
+            return millivolts, resistance
+
+        def read_millivolts(self):
+            """
+            Read the raw voltage of the photoresistor pin.
+            """
+            millivolts, resistance = self.read()
+            return millivolts
+
         def read_ohms(self):
             """
             Read the resistance of the photoresistor (in ohms). The photoresistor's
             resistance changes depending on how much light is on it, thus the name!
             """
-            buf = write_read_i2c_with_integrity(fd, [reg_num], 4)
-            return struct.unpack('1I', buf)[0]
+            millivolts, resistance = self.read()
+            return resistance
 
     return Photoresistor()
 
@@ -306,22 +322,45 @@ def factory_read_encoders(fd, reg_num):
                 raise Exception("Failed to disable encoder")
 
         @i2c_retry(N_I2C_TRIES)
-        def read(self):
+        def read_e1_counts(self):
             """
-            Return the state of the Encoders. Six values are returned:
-             - Encoder1 : Number of "clicks"
-             - Encoder2 : Number of "clicks"
-             - Encoder1 : Pin A change count.
-             - Encoder1 : Pin B change count.
-             - Encoder2 : Pin A change count.
-             - Encoder2 : Pin B change count.
+            Return the state of the first encoder (e1). Three values are returned:
+             - Number of "clicks"
+             - Pin A change count.
+             - Pin B change count.
             """
-            # You could do:
-            #e1lsb, e1msb, e2lsb, e2msb = write_read_i2c_with_integrity(fd, [reg_num], 4)
-            #return ((e1msb << 8) | e1lsb), ((e2msb << 8) | e2lsb)
-            # But we'll do this instead because I like it better in this case:
-            buf = write_read_i2c_with_integrity(fd, [reg_num, 0x04], 12)
-            return struct.unpack('6h', buf)
+            buf = write_read_i2c_with_integrity(fd, [reg_num, 0x04], 6)
+            return struct.unpack('3h', buf)
+
+        @i2c_retry(N_I2C_TRIES)
+        def read_e1_timing(self):
+            """
+            Return the number of microseconds that the encoder pin was high. This
+            can be used to read a PWM signal (assuming the PWM signal has a known,
+            fixed frequency). If the pin has not gone high-then-low recently (within
+            the last half-second), the value returned here will be 0 to indicate
+            it is not presently known (i.e. the PWM signal is not currently coming
+            through). Two values are returned by this method: `(pin_a_usecs, pin_b_usecs)`.
+            Recall: 1000000 microseconds = 1 second
+            """
+            buf = write_read_i2c_with_integrity(fd, [reg_num, 0x05], 8)
+            return struct.unpack('2I', buf)
+
+        @i2c_retry(N_I2C_TRIES)
+        def read_e2_counts(self):
+            """
+            Same as `read_e1_counts()`, but for the second encoder (e2).
+            """
+            buf = write_read_i2c_with_integrity(fd, [reg_num, 0x06], 6)
+            return struct.unpack('3h', buf)
+
+        @i2c_retry(N_I2C_TRIES)
+        def read_e2_timing(self):
+            """
+            Same as `read_e1_timing()`, but for the second encoder (e2).
+            """
+            buf = write_read_i2c_with_integrity(fd, [reg_num, 0x07], 8)
+            return struct.unpack('2I', buf)
 
     return Encoders()
 
