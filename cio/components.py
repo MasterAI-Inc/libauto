@@ -61,6 +61,23 @@ def factory_play_buzzer_notes(fd, reg_num):
         def __init__(self):
             pass
 
+        @i2c_retry(N_I2C_TRIES)
+        def is_currently_playing(self):
+            """
+            Return true if the buzzer is currently playing music.
+            Return false if the buzzer is not. You cannot play new
+            music while the buzzer is currently playing music, so
+            you can use this method to check.
+            """
+            can_play, = write_read_i2c_with_integrity(fd, [reg_num, 0x00], 1)
+            return can_play == 0
+
+        def wait(self):
+            """
+            Block until the buzzer is not playing music anymore.
+            """
+            i2c_poll_until(self.is_currently_playing, False, timeout_ms=100000)
+
         def play(self, notes="o4l16ceg>c8"):
             """
             Tell the controller to play the notes described by the `notes` parameter.
@@ -68,11 +85,6 @@ def factory_play_buzzer_notes(fd, reg_num):
             to finish then will play _these_ `notes`. (If the current notes do not finish
             within 10 seconds, this function will give up and raise and error.)
             """
-            @i2c_retry(N_I2C_TRIES)
-            def is_currently_playing():
-                can_play, = write_read_i2c_with_integrity(fd, [reg_num, 0x00], 1)
-                return can_play == 0
-
             @i2c_retry(N_I2C_TRIES)
             def send_new_notes(notes, pos):
                 buf = list(notes.encode())
@@ -91,7 +103,7 @@ def factory_play_buzzer_notes(fd, reg_num):
                 """Split `seq` into sublists of size `n`"""
                 return [seq[i * n:(i + 1) * n] for i in range((len(seq) + n - 1) // n)]
 
-            i2c_poll_until(is_currently_playing, False, timeout_ms=10000)
+            i2c_poll_until(self.is_currently_playing, False, timeout_ms=100000)
             pos = 0
             for chunk in chunkify(notes, 4):
                 chunk_len = send_new_notes(chunk, pos)
