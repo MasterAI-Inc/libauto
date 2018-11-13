@@ -105,3 +105,11 @@ def clear():
     big_clear()
     clear_image()
 
+
+def set_battery_percent(pct):
+    """
+    Set the battery percentage that is displayed on the console UI.
+    `pct` should be an integer in [0, 100].
+    """
+    CONN.root.set_battery_percent(pct)
+

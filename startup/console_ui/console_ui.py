@@ -35,7 +35,7 @@ RESOURCE_DIR_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname
 
 # Settings:
 CONSOLE_FONT_SIZE = 20
-HEADER_FONT_SIZE = 30
+HEADER_FONT_SIZE = 25
 BIG_STATUS_FONT_SIZE = 25
 BG_COLOR = (0, 0, 0)
 HEADER_BG_COLOR = (136, 204, 136)
@@ -72,11 +72,13 @@ console_font = pygame.font.Font(CONSOLE_FONT_PATH, CONSOLE_FONT_SIZE)
 header_font = pygame.font.Font(HEADER_FONT_PATH, HEADER_FONT_SIZE)
 big_status_font = pygame.font.Font(CONSOLE_FONT_PATH, BIG_STATUS_FONT_SIZE)
 
-# Pre-load the logo
+# Pre-load some stuff:
 logo = pygame.image.load(LOGO_PATH)
 logo_width, logo_height = logo.get_rect().size
 logo_image_size = (header_rect.height * logo_width // logo_height, header_rect.height)
 logo = pygame.transform.scale(logo, logo_image_size)
+logo_rect = pygame.Rect(console_rect.x + console_rect.width - logo_image_size[0], header_rect.y, *logo_image_size)
+header_title_sprite = header_font.render(HEADER_TITLE, True, HEADER_TXT_COLOR)
 
 
 # State:
@@ -91,13 +93,17 @@ big_status = None
 stream_img_rect = None
 stream_img = None
 
+battery_sprite = None
+
 
 def draw_header():
     window_surface.fill(HEADER_BG_COLOR, header_rect)
-    image_rect = pygame.Rect(console_rect.x + console_rect.width - logo_image_size[0], header_rect.y, *logo_image_size)
-    window_surface.blit(logo, image_rect)
-    title_text = header_font.render(HEADER_TITLE, True, HEADER_TXT_COLOR)
-    window_surface.blit(title_text, (header_rect.x + 10, header_rect.y + 4))
+    window_surface.blit(logo, logo_rect)
+    window_surface.blit(header_title_sprite, (header_rect.x + 10, header_rect.y + 8))
+    if battery_sprite is not None:
+        battery_origin_x = console_rect.x + console_rect.width - logo_image_size[0] - battery_sprite.get_rect().width - 5
+        battery_origin_y = header_rect.y + 8
+        window_surface.blit(battery_sprite, (battery_origin_x, battery_origin_y))
 
 
 def parse_text(new_text, old_lines, outer_rect):
@@ -256,6 +262,18 @@ class ConsoleService(rpyc.Service):
             global stream_img_rect, stream_img
             stream_img_rect = None
             stream_img = None
+            draw_all()
+
+    def exposed_set_battery_percent(self, pct):
+        """
+        `pct` should be an integer in [0, 100].
+        """
+        with self.lock:
+            if not isinstance(pct, int) or not (0 <= pct <= 100):
+                raise Exception("Invalid battery percent")
+            pct = "{}%".format(pct)
+            global battery_sprite
+            battery_sprite = header_font.render(pct, True, HEADER_TXT_COLOR)
             draw_all()
 
 
