@@ -38,17 +38,289 @@ Currently, there are four RPC servers:
 
 - The CDP RPC server: If you want to send data to your AutoAuto Labs account, you go through this guy.
 
-Each of these servers has corresponding RCP clients that make their usages easy and transparent.
+Each of these servers has corresponding RCP clients that make their usages easy and transparent. See:
+ - each client linked here
 
 ## Examples
 
+### Drive your car!
+
+**Note:**: Only applicable to AutoAuto _cars_, not other devices.
+
+```python
+import car
+
+# Each line below defaults to driving for 1 second (results in, 4 seconds total driving).
+car.forward()
+car.left()
+car.right()
+car.reverse()
+
+# You can also specify the duration (in seconds), for example:
+car.forward(2.5)
+```
+
+### Print to the AutoAuto Console
+
+AutoAuto devices are equipped with an LCD screen which displays the "AutoAuto Console". You can print your own text to the console, example below:
+
+```python
+from auto import console
+
+console.print("Hi, friend!")
+console.print("How are you?")
+```
+
+The `car` package also has a print function which prints to `stdout` _and_ to the
+AutoAuto console. (For those who use the `car` package, this is convenient.)
+
+```python
+import car
+
+car.print("¡Hola, amigo!")
+car.print("¿Como estas?")
+```
+
+### Use the camera
+
+Capture a single frame:
+
+```python
+import car
+
+frame = car.capture()
+car.stream(frame)
+```
+
+**Note:** The `car.capture()` and `car.stream()` functions are convenience functions. They use the `auto` package internally. E.g. To most efficiently acquire camera frames continuously, use the next snippet (below). This bypasses the camera RPC server, thus it will not work if other processes are currently using the camera (including the camera RPC server itself).
+
+```python
+from auto.camera_pi import CameraRGB
+from auto import frame_streamer
+
+camera = CameraRGB(width=320, height=240, fps=8)
+
+for frame in camera.stream():
+    # <process frame here>
+    frame_streamer.stream(frame, to_console=True)
+```
+
+You can clear the frame from the AutoAuto Console like this:
+
+```python
+import car
+car.stream(None)
+
+# --or--
+
+from auto import frame_streamer
+frame_streamer.stream(None, to_console=True)
+```
+
+### Detect faces
+
+```python
+import car
+
+while True:
+    frame = car.capture()
+    car.detect_faces(frame)
+    car.stream(frame)
+```
+
+The lower-level class-based interface for the face detector can be found in `auto.models.FaceDetector`. The face detector uses OpenCV under the hood (pun _always_ intended!).
+
+### Detect people
+
+We call this the "pedestrian detector" in the context of an AutoAuto _car_.
+
+```python
+import car
+
+while True:
+    frame = car.capture()
+    car.detect_pedestrians(frame)
+    car.stream(frame)
+```
+
+The lower-level class-based interface for the people detector can be found in `auto.models.PedestrianDetector`. The people detector uses OpenCV under the hood.
+
+### Detect stop signs
+
+```python
+import car
+
+while True:
+    frame = car.capture()
+    car.detect_stop_signs(frame)
+    car.stream(frame)
+```
+
+The lower-level class-based interface for the stop sign detector can be found in `auto.models.StopSignDetector`. The stop sign detector uses OpenCV under the hood.
+
+### Helper functions: object location & size
+
+The following works with the returned value from:
+ - `car.detect_faces()` (shown in example below)
+ - `car.detect_pedestrians()`
+ - `car.detect_stop_signs()`
+
+```python
+import car
+
+frame = car.capture()
+rectangles = car.detect_faces(frame)
+car.stream(frame)
+
+location = car.object_location(rectangles, frame.shape)
+size = car.object_size(rectangles, frame.shape)
+
+car.print("Object location:", location)
+car.print("Object size:", size)
+```
+
+### Raw OpenCV
+
+In the example below, we'll use OpenCV to do edge-detection using the Canny edge filter.
+
+```python
+import cv2
+
+print(cv2.__version__)
+
 TODO
+```
+
+### Classify frame's center color
+
+```python
+import car
+
+frame = car.capture()
+color = car.classify_color(frame)
+car.stream(frame)
+car.print("The detected color is", color)
+```
+
+The lower-level class-based interface for the color classifier can be found in `auto.models.ColorClassifier`. **We would love someone to make it work better!** We will fix it ourselves someday where there is time, but if someone in the community is interested, have at it.
+
+### Precise steering
+
+**Note:**: Only applicable to AutoAuto _cars_, not other devices.
+
+```python
+from car.motors import set_steering
+import time
+
+for angle in range(-45, 46):       # goes from -45 to +45
+    set_steering(angle)
+    time.sleep(0.05)
+
+for angle in range(45, -46, -1):   # goes from +45 to -45
+    set_steering(angle)
+    time.sleep(0.05)
+
+time.sleep(0.5)
+set_steering(0.0)  # STRAIGHT
+time.sleep(1.0)
+```
+
+**Important Note:** The call to `set_steering()` is asynchronous; that is, the function returns immediately, very likely _before_ the wheels have actually had a change to fully turn to the desired angle! Furthermore, the call only "lasts" for 1 second, then the angle will automatically revert back to "straight". As a result you must call `set_steering()` in a loop to keep it "active". (This is a safety feature, allowing the car to revert to going straight if your program crashes or if the Pi loses communication with the microcontroller.)
+
+### Precise throttle
+
+**Note:**: Only applicable to AutoAuto _cars_, not other devices.
+
+**WARNING:** You can easily injure the car by setting the throttle too high. Use this interface with great caution. These cars are wicked fast.
+
+```python
+from car.motors import set_throttle
+import time
+
+set_throttle(0.0)     # CAR IN NEUTRAL
+time.sleep(1.0)
+
+set_throttle(20.0)   # CAR'S MAX THROTTLE
+time.sleep(0.3)
+
+set_throttle(50.0)    # HALF THROTTLE
+time.sleep(0.3)
+
+set_throttle(0.0)     # NEUTRAL
+time.sleep(1.0)
+```
+
+**Important Note:** The call to `set_throttle()` is asynchronous; that is, the function returns immediately, very likely _before_ the car's speed actually changes! Furthermore, the call only "lasts" for 1 second, then the car will revert back to a throttle of zero. As a result you must call `set_throttle()` in a loop to keep it "active". (This is a safety feature, allowing the car to automatically **STOP** if your program crashes or if the Pi loses communication with the microcontroller.)
+
+### Stream frames to AutoAuto Labs
+
+... and we'll detect faces as well to make the demo cooler.
+
+```python
+import car
+
+while True:
+    frame = car.capture()
+    car.detect_faces(frame)
+    car.stream(frame, to_labs=True)   # <-- Note the new param `to_labs=True`
+```
+
+### Plot frames in Jupyter
+
+(also works to stream a single frame to AutoAuto Labs)
+TODO
+
+### Gyroscope
+
+TODO
+
+### Accelerometer
+
+TODO
+
+### Buzzer
+
+TODO
+
+### Photoresistor
+
+TODO
+
+### Push Buttons
+
+TODO
+
+### Batter voltage
+
+TODO
+
+### LEDs
+
+Internal and external.
+TODO
+
+### PID loop for steering
+
+TODO
+
+### Calibration
+
+TODO
+
+## Project Ideas
+
+AutoAuto Labs has many projects you can do (all fun!). Here are a few other ideas
+which haven't been built into AutoAuto Labs yet (but will be in the future).
+
+- Colision detection
+
 
 ## TODO
 
 - embed demo videos
 - link to ReadTheDocs documentation
 - add contribution instructions
+- document PCB extension pins (e.g. aux PWM and encoders)
 
 Also, the [Issues](https://github.com/AutoAutoAI/libauto/issues), of course.
 
