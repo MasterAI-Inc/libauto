@@ -8,7 +8,7 @@
 #
 ###############################################################################
 
-BASE_URL = "wss://labs.autoauto.ai/autopair/device"
+BASE_URL = "wss://ws.autoauto.ai/autopair/device"
 #BASE_URL = "ws://192.168.1.4:8000/autopair/device"
 
 from wsc import WebSocketConnection, StandardDelegate, run_forever

@@ -133,9 +133,15 @@ done
 ./startup/jupyter_config/launch_jupyter.bash &
 JUPYTER_PID=$!
 
+"$LIBAUTO_SERVICES_PYTHON" startup/battery_monitor/battery_monitor.py &
+BATT_PID=$!
+
 echo 'EVERYTHING LAUNCHED SUCCESSFULLY!'
 
 wait $CUI_PID
+
+kill -9 $BATT_PID
+wait $BATT_PID
 
 kill -9 $JUPYTER_PID
 wait $JUPYTER_PID
