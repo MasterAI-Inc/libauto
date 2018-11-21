@@ -45,7 +45,7 @@ Each of these servers has corresponding RCP clients that make their usages easy 
 
 ### Drive your car!
 
-**Note:**: Only applicable to AutoAuto _cars_, not other devices.
+**Note:** Only applicable to AutoAuto _cars_, not other devices.
 
 ```python
 import car
@@ -77,8 +77,8 @@ AutoAuto console. (For those who use the `car` package, this is convenient.)
 ```python
 import car
 
-car.print("¡Hola, amigo!")
-car.print("¿Como estas?")
+car.print("Hi, friend!")
+car.print("How are you?")
 ```
 
 ### Use the camera
@@ -92,13 +92,13 @@ frame = car.capture()
 car.stream(frame)
 ```
 
-**Note:** The `car.capture()` and `car.stream()` functions are convenience functions. They use the `auto` package internally. E.g. To most efficiently acquire camera frames continuously, use the next snippet (below). This bypasses the camera RPC server, thus it will not work if other processes are currently using the camera (including the camera RPC server itself).
+**Note:** The `car.capture()` and `car.stream()` functions are convenience functions. They use the `auto` package internally. E.g. The following code uses the next-layer-down interfaces.
 
 ```python
-from auto.camera_pi import CameraRGB
+from auto.camera_rpc_client import CameraRGB
 from auto import frame_streamer
 
-camera = CameraRGB(width=320, height=240, fps=8)
+camera = CameraRGB()
 
 for frame in camera.stream():
     # <process frame here>
@@ -116,6 +116,8 @@ car.stream(None)
 from auto import frame_streamer
 frame_streamer.stream(None, to_console=True)
 ```
+
+**Advanced Usage:** The most optimized way to access camera frames is to bypass the camera RPC server and get access to the camera directly. You can do this by using the `auto.camera_pi.CameraRGB` class. Two things must happen for this to work: (1) you must be running your process under a privileged account (`root` or `hacker`), and (2) no other process may be using the camera (e.g. you might have to kill the camera RPC server or at least wait for it to time-out and release the camera).
 
 ### Detect faces
 
@@ -185,11 +187,18 @@ In the example below, we'll use OpenCV to do edge-detection using the Canny edge
 
 ```python
 import cv2
+import car
 
-print(cv2.__version__)
+print("OpenCV version:", cv2.__version__)
 
-TODO
+while True:
+    frame = car.capture(verbose=False)
+    frame_gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+    frame_edges = cv2.Canny(frame_gray, 100, 200)
+    car.stream(frame_edges, verbose=False)
 ```
+
+To remove the frame index from the frame, you can use the underlying `auto.camera_rpc_client.CameraRGB` interface instead of `car.capture()`.
 
 ### Classify frame's center color
 
@@ -240,11 +249,11 @@ import time
 set_throttle(0.0)     # CAR IN NEUTRAL
 time.sleep(1.0)
 
-set_throttle(20.0)   # CAR'S MAX THROTTLE
-time.sleep(0.3)
+set_throttle(20.0)   # 1/5 THROTTLE  (100 is max, don't try that though)
+time.sleep(1.0)
 
 set_throttle(50.0)    # HALF THROTTLE
-time.sleep(0.3)
+time.sleep(0.4)
 
 set_throttle(0.0)     # NEUTRAL
 time.sleep(1.0)
