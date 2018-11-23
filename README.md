@@ -22,7 +22,7 @@ The library is segmented into three packages:
 
 - [cio](./cio/): A package whose only job is to talk to the on-board microcontroller. The name `cio` is short for "controller input/output".
 
-- [car](./car/): The `car` package contains helper functions that are only useful for AutoAuto _cars_. E.g. `car.forward()`, `car.left()`, `car.right()`, `car.reverse()`. If you look at the implementations of these helper functions, you'll find they use the `auto` and `cio` packages under the hood (pun intended).
+- [car](./car/): The `car` package contains helper functions that are only useful for AutoAuto _cars_. E.g. `car.forward()`, `car.left()`, `car.right()`, `car.reverse()`. If you look at the implementations of these helper functions, you'll find they use the `auto` and `cio` packages under the hood (pun intended). Overall the `car` package makes doing common operations take less code.
 
 To really grasp this library's internals, you'll also want to understand how/where/why Remote Procedure Calls (PRC) are used. See the section [RPC Everywhere](#rpc-everywhere).
 
@@ -87,7 +87,7 @@ frame = car.capture()
 car.stream(frame)
 ```
 
-**Note:** The `car.capture()` and `car.stream()` functions are convenience functions. They use the `auto` package internally. E.g. The following code uses the next-layer-down interfaces.
+**Note:** The `car.capture()` and `car.stream()` functions are convenience functions. They use the `auto` package internally. E.g. The following code uses the next-layer-down interfaces to capture frames continuously.
 
 ```python
 from auto.camera_rpc_client import CameraRGB
@@ -206,11 +206,11 @@ car.stream(frame)
 car.print("The detected color is", color)
 ```
 
-The lower-level class-based interface for the color classifier can be found in `auto.models.ColorClassifier`. **We would love someone to make it work better!** We will fix it ourselves someday where there is time, but if someone in the community is interested, have at it.
+The lower-level class-based interface for the color classifier can be found in `auto.models.ColorClassifier`. Contributions for making it work better are very welcome.
 
 ### Precise steering
 
-**Note:**: Only applicable to AutoAuto _cars_, not other devices.
+**Note:** Only applicable to AutoAuto _cars_, not other devices.
 
 ```python
 from car.motors import set_steering
@@ -233,7 +233,7 @@ time.sleep(1.0)
 
 ### Precise throttle
 
-**Note:**: Only applicable to AutoAuto _cars_, not other devices.
+**Note:** Only applicable to AutoAuto _cars_, not other devices.
 
 **WARNING:** You can easily injure the car by setting the throttle too high. Use this interface with great caution. These cars are wicked fast.
 
@@ -271,8 +271,9 @@ while True:
 
 ### Plot frames in Jupyter
 
-(also works to stream a single frame to AutoAuto Labs)
-TODO
+The helper function `car.plot()` will both stream a single frame to your AutoAuto Labs account _and_ it returns a `matplotlib` object, so you can conveniently use it from Jupyter. See the screenshot below:
+
+![](https://autoauto-static-uploads.s3.amazonaws.com/8183a8fbf783457685d21e711dd98069.png)
 
 ### Gyroscope
 
@@ -284,7 +285,29 @@ TODO
 
 ### Buzzer
 
-TODO
+The `car` package has two helper functions:
+
+```python
+import car
+
+car.buzz('!O4 L16 c e g >c8')
+
+car.honk()
+```
+
+Or you can use the underlying CIO RPC client to connect with the buzzer.
+
+```python
+from cio.rpc_client import acquire_component_interface
+
+buzzer = acquire_component_interface("Buzzer")
+
+buzzer.play('!O4 L16 c e g >c8')  # <-- asynchronous call
+
+buzzer.wait()   # <-- block the program until the buzzer finishes playing
+```
+
+See [Buzzer Language](#buzzer-language) to learn how to write notes as a string that the buzzer can interpret and play.
 
 ### Photoresistor
 
@@ -327,6 +350,10 @@ Currently, there are four RPC servers:
 
 Each of these servers has corresponding RCP clients that make their usages easy and transparent. See:
  - each client linked here
+
+## Buzzer Language
+
+TODO
 
 ## Project Ideas
 
