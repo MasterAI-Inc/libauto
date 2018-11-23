@@ -192,7 +192,8 @@ def factory_push_buttons(fd, reg_num):
 
     class PushButtons:
         def __init__(self):
-            pass
+            self.n = None
+            self.states = None
 
         @i2c_retry(N_I2C_TRIES)
         def num_buttons(self):
@@ -225,6 +226,52 @@ def factory_push_buttons(fd, reg_num):
             unofficial_state = int(buf[1])
             debug_value = struct.unpack('1I', buf[2:])[0]
             return official_state, unofficial_state, debug_value
+
+        def get_events(self):
+            """
+            Return a list of buttons events that have happened since
+            the last call this method.
+            """
+            if self.n is None:
+                self.n = self.num_buttons()
+                self.states = [self.button_state(i) for i in range(self.n)]
+                return []
+
+            events = []
+
+            for prev_state, i in zip(self.states, range(self.n)):
+                state = self.button_state(i)
+                if state == prev_state:
+                    continue
+
+                diff_presses  = (state[0] - prev_state[0]) % 256
+                diff_releases = (state[1] - prev_state[1]) % 256
+
+                if diff_presses == 0 and diff_releases == 0:
+                    continue
+
+                if prev_state[2]:  # if button **was** pressed
+                    # We'll add `released` events first.
+                    while diff_presses > 0 or diff_releases > 0:
+                        if diff_releases > 0:
+                            events.append({'button': i+1, 'action': 'released'})
+                            diff_releases -= 1
+                        if diff_presses > 0:
+                            events.append({'button': i+1, 'action': 'pressed'})
+                            diff_presses -= 1
+                else:
+                    # We'll add `pressed` events first.
+                    while diff_presses > 0 or diff_releases > 0:
+                        if diff_presses > 0:
+                            events.append({'button': i+1, 'action': 'pressed'})
+                            diff_presses -= 1
+                        if diff_releases > 0:
+                            events.append({'button': i+1, 'action': 'released'})
+                            diff_releases -= 1
+
+                self.states[i] = state
+
+            return events
 
     return PushButtons()
 
