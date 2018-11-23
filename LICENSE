@@ -1,14 +1,59 @@
-Copyright (c) 2017-2018 AutoAuto, LLC
-ALL RIGHTS RESERVED
+Unless otherwise noted, all code and documentation contained in this library
+have the following license and copyright:
 
-Use of this library, in source or binary form, is prohibited without written
-approval from AutoAuto, LLC.
+    Copyright (c) 2017-2018 AutoAuto, LLC
+    ALL RIGHTS RESERVED
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-OTHER DEALINGS IN THE SOFTWARE.
+    Use of this library, in source or binary form, is prohibited without written
+    approval from AutoAuto, LLC.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+    OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+    OTHER DEALINGS IN THE SOFTWARE.
+
+
+_______________________________________________________________________________
+
+
+The Buzzer Language was developed by Pololu Corporation and has been
+incorporated into libauto. The Buzzer Language was distributed by
+Pololu Corporation within their AStar32U4 Library. Relevant links
+are below:
+ - AStar32U4 Library: https://github.com/pololu/a-star-32u4-arduino-library/tree/072dd13823e2a027cf131fa3125d907db7abd6f7
+ - PololuBuzzer.h: https://github.com/pololu/a-star-32u4-arduino-library/blob/072dd13823e2a027cf131fa3125d907db7abd6f7/PololuBuzzer.h
+ - PololuBuzzer.cpp: https://github.com/pololu/a-star-32u4-arduino-library/blob/072dd13823e2a027cf131fa3125d907db7abd6f7/PololuBuzzer.cpp
+ - LICENSE.txt: https://github.com/pololu/a-star-32u4-arduino-library/blob/072dd13823e2a027cf131fa3125d907db7abd6f7/LICENSE.txt
+
+A copy of the AStar32U4 Library's `LICENSE.txt` file is below:
+
+    Copyright (c) 2015 Pololu Corporation.  For more information, see
+
+    http://www.pololu.com/
+    http://forum.pololu.com/
+
+    Permission is hereby granted, free of charge, to any person
+    obtaining a copy of this software and associated documentation
+    files (the "Software"), to deal in the Software without
+    restriction, including without limitation the rights to use,
+    copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following
+    conditions:
+
+    The above copyright notice and this permission notice shall be
+    included in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+    OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+    OTHER DEALINGS IN THE SOFTWARE.
+

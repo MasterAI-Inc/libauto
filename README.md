@@ -506,7 +506,11 @@ Currently, there are four RPC servers:
 
 ## Buzzer Language
 
+The Buzzer Language<sup>[1](#buzzer-language-copyright)</sup> works as follows:
+
 TODO
+
+<a name="buzzer-language-copyright">1</a>: Pololu Corporation developed and holds the copyright for the Buzzer Language and its documentation. Further information about the Buzzer Language's license and copyright can be found in the [LICENSE](./LICENSE) file.
 
 ## Project Ideas
 
