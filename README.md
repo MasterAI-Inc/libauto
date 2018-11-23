@@ -275,13 +275,51 @@ The helper function `car.plot()` will both stream a single frame to your AutoAut
 
 ![](https://autoauto-static-uploads.s3.amazonaws.com/8183a8fbf783457685d21e711dd98069.png)
 
+**Note:** There is a bug where the first time you run `car.plot()`, the figure may not automatically show up under the cell. It seems that this only happens on the first run, and the figure will show up on all subsequent runs, as shown in the screenshot above.
+
 ### Gyroscope
 
-TODO
+You can get _instantanious_ measurements from the gyroscope like this:
+
+```python
+from cio.rpc_client import acquire_component_interface
+import time
+
+gyroscope = acquire_component_interface('Gyroscope')
+
+for i in range(100):
+    x, y, z = gyroscope.read()
+    print(' '.join("{:10.3f}".format(v) for v in (x, y, z)))
+    time.sleep(0.05)
+```
+
+Or you can get _accumulated_ (or _integrated_, if you prefer) measurements like this (which is likely what you actually want):
+
+```python
+from cio.rpc_client import acquire_component_interface
+import time
+
+gyroscope = acquire_component_interface('Gyroscope_accum')
+
+for i in range(100):
+    x, y, z = gyroscope.read()
+    print(' '.join("{:10.3f}".format(v) for v in (x, y, z)))
+    time.sleep(0.05)
+```
 
 ### Accelerometer
 
-TODO
+```python
+from cio.rpc_client import acquire_component_interface
+import time
+
+accelerometer = acquire_component_interface('Accelerometer')
+
+for i in range(100):
+    x, y, z = accelerometer.read()
+    print(' '.join("{:10.3f}".format(v) for v in (x, y, z)))
+    time.sleep(0.05)
+```
 
 ### Buzzer
 
