@@ -508,7 +508,31 @@ Currently, there are four RPC servers:
 
 The Buzzer Language<sup>[1](#buzzer-language-copyright)</sup> works as follows:
 
-TODO
+The notes are specified by the characters C, D, E, F, G, A, and B, and they are played by default as "quarter notes" with a length of 500 ms. This corresponds to a tempo of 120 beats/min. Other durations can be specified by putting a number immediately after the note. For example, C8 specifies C played as an eighth note, with half the duration of a quarter note. The special note R plays a rest (no sound). The sequence parser is case-insensitive and ignores spaces, which may be used to format your music nicely.
+
+Various control characters alter the sound:
+
+| Control character(s)        | Effect |
+| --------------------------- | ------ |
+| **A**–**G**                 | Specifies a note that will be played. |
+| **R**                       | Specifies a rest (no sound for the duration of the note). |
+| **+** or **#** after a note | Raises the preceding note one half-step. |
+| **-** after a note          | Lowers the preceding note one half-step. |
+| **1**–**2000** after a note | Determines the duration of the preceding note. For example, C16 specifies C played as a sixteenth note (1/16th the length of a whole note). |
+| **.** after a note          | "Dots" the preceding note, increasing the length by 50%. Each additional dot adds half as much as the previous dot, so that "A.." is 1.75 times the length of "A". |
+| **>** before a note         | Plays the following note one octave higher. |
+| **<** before a note         | Plays the following note one octave lower. |
+| **O** followed by a number  | Sets the octave. (default: O4) |
+| **T** followed by a number  | Sets the tempo in beats per minute (BPM). (default: T120) |
+| **L** followed by a number  | Sets the default note duration to the type specified by the number: 4 for quarter notes, 8 for eighth notes, 16 for sixteenth notes, etc. (default: L4) |
+| **V** followed by a number  | Sets the music volume (0–15). (default: V15) |
+| **MS**                      | Sets all subsequent notes to play play staccato – each note is played for 1/2 of its allotted time, followed by an equal period of silence. |
+| **ML**                      | Sets all subsequent notes to play legato – each note is played for full length. This is the default setting. |
+| **!**                       | Resets the octave, tempo, duration, volume, and staccato setting to their default values. These settings persist from one play() to the next, which allows you to more conveniently break up your music into reusable sections. |
+
+Examples:
+ - The C-major scale up and back down: "!L16 V8 cdefgab&gt;cbagfedc"
+ - The first few measures of Bach's fugue in D-minor: "!T240 L8 agafaea dac+adaea fa&lt;aa&lt;bac#a dac#adaea f4"
 
 <a name="buzzer-language-copyright">1</a>: Pololu Corporation developed and holds the copyright for the Buzzer Language and its documentation. Further information about the Buzzer Language's license and copyright can be found in the [LICENSE](./LICENSE) file.
 
