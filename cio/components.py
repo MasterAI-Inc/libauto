@@ -85,6 +85,8 @@ def factory_play_buzzer_notes(fd, reg_num):
             to finish then will play _these_ `notes`. (If the current notes do not finish
             within 10 seconds, this function will give up and raise and error.)
             """
+            notes = notes.replace(' ', '')  # remove spaces from the notes (they don't hurt, but they take up space and the microcontroller doesn't have a ton of space)
+
             @i2c_retry(N_I2C_TRIES)
             def send_new_notes(notes, pos):
                 buf = list(notes.encode())
