@@ -16,7 +16,7 @@ from auto import print_all
 from cio.rpc_client import acquire_component_interface
 
 from auto import logger
-log = logger.init('wifi_controller', terminal=True)
+log = logger.init('battery_monitor', terminal=True)
 
 
 log.info("Starting battery monitoring process...")
@@ -30,6 +30,8 @@ def batt_voltage_to_pct(millivolts):
     """
     Take in millivolts (an integer) and
     return percentage (an integer in [0, 100]).
+
+    See: https://github.com/AutoAutoAI/libauto/issues/7
     """
     high = 8400
     low = 6500
