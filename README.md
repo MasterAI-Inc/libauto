@@ -531,7 +531,7 @@ Various control characters alter the sound:
 | **!**                       | Resets the octave, tempo, duration, volume, and staccato setting to their default values. These settings persist from one play() to the next, which allows you to more conveniently break up your music into reusable sections. |
 
 Examples:
- - The C-major scale up and back down: "!L16 V8 cdefgab&gt;cbagfedc"
+ - The C-major scale up and back down: "!L16 cdefgab&gt;cbagfedc"
  - The first few measures of Bach's fugue in D-minor: "!T240 L8 agafaea dac+adaea fa&lt;aa&lt;bac#a dac#adaea f4"
 
 <a name="buzzer-language-copyright">1</a>: Pololu Corporation developed and holds the copyright for the Buzzer Language and its documentation. Further information about the Buzzer Language's license and copyright can be found in the [LICENSE](./LICENSE) file.
