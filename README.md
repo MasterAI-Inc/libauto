@@ -2,25 +2,25 @@
 
 ## Introduction
 
+Use Python & AI to program a self-driving car. AutoAuto is a fun way to learn bleeding-edge skills, intended for the beginner programmer and the advanced engineer alike. Drive your wonder with AutoAuto.
+
 This library runs on AutoAuto devices and exposes all the functionality the device has through an easy Python interface.
+
+![AutoAuto Fleet 1 Car](https://autoauto-static-uploads.s3.amazonaws.com/d452293bcac14e65a3370c54e9027e79.JPG)
 
 ## Beginner or Advanced?
 
-If you are a beginner programmer ("coder") you will want to follow along through the lessons on [AutoAuto Labs](https://labs.autoauto.ai/). After you've leveled-up through the beginning and intermediate lessons, you can come back here and explore the more advanced usage.
+If you are a beginner programmer ("coder") you will want to follow along through the lessons on [AutoAuto Labs](https://labs.autoauto.ai/). After you've leveled-up through the beginner and intermediate lessons, you can come back here and explore this library's deeper implementation details.
 
-If you are an advanced programmer, you are welcome to dive right into using this library! This library is already installed on your AutoAuto device. You can either SSH into your device to gain command-line access (with `sudo`-powers), or you can access the Jupyter Notebook server (which runs by default in the background on every AutoAuto device), or you can use [AutoAuto Labs](https://labs.autoauto.ai/)'s programming interface (which is simple, yet pleasant to use).
-
-If you choose to SSH, you'll want to SSH into the account named `hacker`. I.e. Use the command: `ssh hacker@<ip_of_your_device>`. You must obtain your device's default password from [AutoAuto Labs](https://labs.autoauto.ai/autopair/) (from the "My Devices" page, you can view your device's "Info for Advanced Users"). Every device has a different default system password. You are encouraged to change your device's system password (using the usual `passwd` command).
-
-If you choose to use Jupyter, connect to the Jupyter server running on your device on port 8888. I.e. You should navigate in your browser to `http://<ip_of_your_device>:8888/`. You must obtain the password for Jupyter from [AutoAuto Labs](https://labs.autoauto.ai/autopair/) (from the "My Devices" page, you can view your device's "Info for Advanced Users"). Every device has a different Jupyter password.
+If you are an advanced programmer, you are welcome to dive right into using this library! This library is already installed on your AutoAuto device. Have a look at the section [Connecting to Your Device](#connecting-to-your-device) and the section [Examples](#examples), then you will be off-to-the-races programming your device using this library.
 
 ## Library Overview
 
 The library is segmented into three packages:
 
-- `auto`: The "core" package (if you will). Contains critial components for _every_ AutoAuto device, such as the camera interface and ML models.
+- `auto`: The "core" package. Contains the critical components for _every_ AutoAuto device, such as the camera interface and ML models.
 
-- `cio`: A package whose only job is to know how to talk to the on-board microcontroller. The communication protocol is agnostic to the details of the microcontroller (such as the instruction set, clock rate, etc). The `cio` package can talk to any microcontroller that speaks the correct protocol. The name `cio` represents "controller input/output".
+- `cio`: A package whose only job is to know how to talk to the on-board microcontroller. The communication protocol is agnostic to the details of the microcontroller (such as the instruction set, clock rate, etc). The `cio` package can talk to any microcontroller that speaks the correct protocol. The name `cio` is short for "controller input/output".
 
 - `car`: The `car` package contains helper functions that are only useful for AutoAuto _cars_. E.g. `car.forward()`, `car.left()`, `car.right()`, `car.reverse()`. If you look at the implementations of these helper functions, you'll find they use the `auto` and `cio` packages under the hood (pun intended).
 
@@ -40,6 +40,14 @@ Currently, there are four RPC servers:
 
 Each of these servers has corresponding RCP clients that make their usages easy and transparent. See:
  - each client linked here
+
+## Connecting to Your Device
+
+You can either SSH into your device to gain command-line access (with `sudo`-powers), or you can access the Jupyter Notebook server (which runs by default in the background on every AutoAuto device), or you can use [AutoAuto Labs](https://labs.autoauto.ai/)'s programming interface (which is simple, yet pleasant to use).
+
+If you choose to SSH, you'll want to SSH into the account named `hacker`. I.e. Use the command: `ssh hacker@<ip_of_your_device>`. You must obtain your device's default password from [AutoAuto Labs](https://labs.autoauto.ai/autopair/) (from the "My Devices" page, you can view your device's "Info for Advanced Users"). Every device has a different default system password. You are encouraged to change your device's system password (using the usual `passwd` command).
+
+If you choose to use Jupyter, connect to the Jupyter server running on your device on port 8888. I.e. You should navigate in your browser to `http://<ip_of_your_device>:8888/`. You must obtain the password for Jupyter from [AutoAuto Labs](https://labs.autoauto.ai/autopair/) (from the "My Devices" page, you can view your device's "Info for Advanced Users"). Every device has a different Jupyter password.
 
 ## Examples
 
@@ -321,8 +329,9 @@ TODO
 AutoAuto Labs has many projects you can do (all fun!). Here are a few other ideas
 which haven't been built into AutoAuto Labs yet (but will be in the future).
 
-- Colision detection
-
+- Collision detection
+- Collaborative cars
+- Light avoider
 
 ## TODO
 
