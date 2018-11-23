@@ -24,7 +24,7 @@ The library is segmented into three packages:
 
 - [car](./car/): The `car` package contains helper functions that are only useful for AutoAuto _cars_. E.g. `car.forward()`, `car.left()`, `car.right()`, `car.reverse()`. If you look at the implementations of these helper functions, you'll find they use the `auto` and `cio` packages under the hood (pun intended). Overall the `car` package makes doing common operations take less code.
 
-To really grasp this library's internals, you'll also want to understand how/where/why Remote Procedure Calls (PRC) are used. See the section [RPC Everywhere](#rpc-everywhere).
+To really grasp this library's internals, you'll also want to understand how/where/why Remote Procedure Calls (PRCs) are used. See the section [RPC Everywhere](#rpc-everywhere).
 
 ## Connecting to Your Device
 
@@ -365,6 +365,8 @@ for i in range(100):
 
 The program above prints the resistance of the photoresistor (in Ohms). You can play around with where a good threshold is for your application, and you can quickly see the value change by simply covering the light with your hand (you'll see the resistance rise) or by shining a flashlight at the photoresistor (you'll see the resistance decrease).
 
+**Advanced Usage:** If you would like to repurpose the photoresistor pin, you can remove the jumper cap from J23 to install your own sensor (any sensor which output a voltage in the range 0-5V can be plugged in to J23). If you do this, you can still use the Photoresistor interface above but simply use the `millivolts` value for your own purpose.
+
 ### Push Buttons
 
 ```python
@@ -397,33 +399,110 @@ print(battery.millivolts())
 
 ### LEDs
 
-Internal and external.
-TODO
+The main PCB has three on-board LEDs that you can turn on/off programmatically. You can also plug in two external LEDs that can be driven using the same interface. (This, for example, could be used to install headlight or taillight (or both) onto an AutoAuto _car_ that can be programmatically controlled.)
+
+```python
+from cio.rpc_client import acquire_component_interface
+import time
+
+buttons = acquire_component_interface('PushButtons')
+leds = acquire_component_interface('LEDs')
+
+print("Press the buttons to turn on/off the on-board LEDs:")
+
+led_state = [False, False, False]   # all LEDs start off
+
+while True:
+    events = buttons.get_events()
+
+    for e in events:
+        # The first button is index of 1; the first LED is index of 0.
+        # Therefore to map from button index to led index, we'll subtract 1.
+        led_index = e['button'] - 1
+
+        # If the action is "pressed", we'll turn the LED on. Else we'll turn it off.
+        led_state[led_index] = (e['action'] == 'pressed')
+
+        # We set the state of every led below:
+        leds.set_values(*led_state)
+
+    time.sleep(0.1)
+```
+
+LED index 0 also drives the external LED on J21. LED index 2 also drives the external LED on J16.
 
 ### PID loop for steering
 
-TODO
+**Note:** Only applicable to AutoAuto _cars_, not other devices.
+
+The _cars_' microcontroller has a PID loop it can use to steer the car perfectly straight. See the example below (copied from the function named `straight()` that lives in `car.motors`). As the program runs, rotate your car side-to-side and you'll see it trying to correct by steering the opposite direction.
+
+```python
+from cio.rpc_client import acquire_component_interface
+import time
+
+MOTORS = acquire_component_interface('CarMotors')
+MOTORS.on()
+
+PID_STEERING = acquire_component_interface('PID_steering')
+
+GYRO_ACCUM = acquire_component_interface('Gyroscope_accum')
+
+
+def straight(throttle, duration, invert_output):
+    """
+    Drive the car "straight". This function uses the car's gyroscope to
+    continually keep the car in the same direction in which it started.
+
+    This function is synchronous, thus it will not return until after these
+    instructions are finish, which takes approximately `duration` seconds.
+    """
+    MOTORS.set_steering(0.0)
+    time.sleep(0.1)
+    _, _, z = GYRO_ACCUM.read()
+    start_time = time.time()
+    PID_STEERING.set_point(z)
+    PID_STEERING.enable(invert_output=invert_output)
+    while True:
+        curr_time = time.time()
+        if curr_time - start_time >= duration:
+            break
+        MOTORS.set_throttle(throttle)
+        time.sleep(min(0.1, curr_time - start_time))
+    MOTORS.set_throttle(0.0)
+    time.sleep(0.1)
+    PID_STEERING.disable()
+
+
+# Now we call the `straight()` function!
+straight(20, 4.0, False)
+```
 
 ### Calibration
 
-TODO
+If you are running as a privileged user (`root` or `hacker`, via `ssh` most likely), you can calibrate your device (a car, in the example below).
+
+```python
+import car
+
+car.calibrate()
+```
 
 ## RPC Everywhere
 
-You'll quickly notice that we do a lot of RPCs inside of this library. The nature of the beast is that we have limited, shared resources (there is only one microcontroller, only one camera, only one connection to AutoAuto Labs, only one LCD screen). But, we have many processes that need to access these shared resources (e.g. one process wants to talk to the microcontroller to monitor the battery level continually and another process wants to talk to the microcontroller to drive the device (i.e. run the motors); or maybe two processes both need to read frames from the camera to do unrelated computer vision things, or maybe two processes would like to write information to the LCD screen (to the _console_) and have it be interlaced for the user to see; and the list goes on).
+RPC = Remote Procedure Call
+
+You'll quickly notice that we do a lot of RPCs inside of this library. The nature of the beast is that we have limited, shared resources (there is only one microcontroller, only one camera, only one connection to AutoAuto Labs, only one LCD screen). But, we have many processes that need to access these resources (e.g. one process wants to talk to the microcontroller to monitor the battery level continually and another process wants to talk to the microcontroller to drive the device (i.e. run the motors); or maybe two processes both need to read frames from the camera to do unrelated computer vision things, or maybe two processes would like to write information to the LCD screen (to the _console_) and have it be interlaced for the user to see; and the list goes on).
 
 Currently, there are four RPC servers:
 
-- The CIO RPC server: If you want to talk to the microcontroller, go through him. He is the microcontroller broker/gatekeeper.
+- [The CIO RPC server](./startup/cio_rpc_server/cio_rpc_server.py): The single process that may access the microcontroller; if _your program_ wants access to the microcontroller, it must ask this server. The corresponding client is [here](./cio/rpc_client.py).
 
-- The camera RPC server: Same story, if you want frame(s) from the camera, talk to him. (Note: This server will keep the camera "open" for 60 seconds after the last RCP client disconnects, because a common usage-pattern while developing your program is to immediately re-run your code, and having the camera stay open speeds up the second run tremendously).
+- [The camera RPC server](./startup/camera_rpc_server/camera_rpc_server.py): Same story, if you want frame(s) from the camera, talk to this server. (Note: This server will keep the camera "open" for 60 seconds after the last RCP client disconnects, because a common usage-pattern while developing your program is to immediately re-run your code, and having the camera stay open speeds up the second run tremendously). The corresponding client is [here](./auto/camera_rpc_client.py).
 
-- The Console UI RPC server: Same story, if you want to display something on the LCD screen, you know who to ask.
+- [The Console UI RPC server](./startup/console_ui/console_ui.py): Same story, if you want to display something on the LCD screen, you know who to ask. The corresponding client is [here](./auto/console.py).
 
-- The CDP RPC server: If you want to send data to your AutoAuto Labs account, you go through this guy.
-
-Each of these servers has corresponding RCP clients that make their usages easy and transparent. See:
- - each client linked here
+- [The CDP RPC server](startup/cdp_connector/cdp_connector.py): If you want to send data to your AutoAuto Labs account, you go through this server. The interface for this will change soon, btw.
 
 ## Buzzer Language
 
