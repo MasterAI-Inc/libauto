@@ -288,3 +288,19 @@ def calibrate():
     from car import calibration
     calibration.calibrate()
 
+
+def buzz(notes):
+    """
+    Play the given `notes` on the device's buzzer.
+    """
+    from car import buzzer
+    buzzer.buzz(notes)
+
+
+def honk():
+    """
+    Make a car horn ("HONK") sound.
+    """
+    from car import buzzer
+    buzzer.honk()
+
