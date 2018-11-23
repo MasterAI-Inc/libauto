@@ -2,9 +2,9 @@
 
 ## Introduction
 
-Use Python & AI to program a self-driving car. AutoAuto is a fun way to learn bleeding-edge skills, intended for the beginner programmer and the advanced engineer alike. Drive your wonder with AutoAuto.
+Use Python & A.I. to program a self-driving car. AutoAuto is a fun way to learn bleeding-edge skills, intended for beginner and advanced engineers alike. Drive your wonder with AutoAuto.
 
-This library runs on AutoAuto devices and exposes all the functionality the device has through an easy Python interface.
+This library runs on AutoAuto devices and exposes all the functionality the device has through a layered Python interface.
 
 ![AutoAuto Fleet 1 Car](https://autoauto-static-uploads.s3.amazonaws.com/d452293bcac14e65a3370c54e9027e79.JPG)
 
@@ -18,36 +18,23 @@ If you are an advanced programmer, you are welcome to dive right into using this
 
 The library is segmented into three packages:
 
-- `auto`: The "core" package. Contains the critical components for _every_ AutoAuto device, such as the camera interface and ML models.
+- [auto](./auto/): The "core" package. Contains the critical components for _every_ AutoAuto device, such as the camera interface and ML models.
 
-- `cio`: A package whose only job is to know how to talk to the on-board microcontroller. The communication protocol is agnostic to the details of the microcontroller (such as the instruction set, clock rate, etc). The `cio` package can talk to any microcontroller that speaks the correct protocol. The name `cio` is short for "controller input/output".
+- [cio](./cio/): A package whose only job is to talk to the on-board microcontroller. The name `cio` is short for "controller input/output".
 
-- `car`: The `car` package contains helper functions that are only useful for AutoAuto _cars_. E.g. `car.forward()`, `car.left()`, `car.right()`, `car.reverse()`. If you look at the implementations of these helper functions, you'll find they use the `auto` and `cio` packages under the hood (pun intended).
+- [car](./car/): The `car` package contains helper functions that are only useful for AutoAuto _cars_. E.g. `car.forward()`, `car.left()`, `car.right()`, `car.reverse()`. If you look at the implementations of these helper functions, you'll find they use the `auto` and `cio` packages under the hood (pun intended).
 
-## RPC Everywhere
-
-You'll quickly notice that we do a lot of RPCs inside of this library. The nature of the beast is that we have limited, shared resources (there is only one microcontroller, only one camera, only one connection to AutoAuto Labs, only one LCD screen). But, we have many processes that need to access these shared resources (e.g. one process wants to talk to the microcontroller to monitor the battery level continually and another process wants to talk to the microcontroller to drive the device (i.e. run the motors); or maybe two processes both need to read frames from the camera to do unrelated computer vision things, or maybe two processes would like to write information to the LCD screen (to the _console_) and have it be interlaced for the user to see; and the list goes on).
-
-Currently, there are four RPC servers:
-
-- The CIO RPC server: If you want to talk to the microcontroller, go through him. He is the microcontroller broker/gatekeeper.
-
-- The camera RPC server: Same story, if you want frame(s) from the camera, talk to him. (Note: This server will keep the camera "open" for 60 seconds after the last RCP client disconnects, because a common usage-pattern while developing your program is to immediately re-run your code, and having the camera stay open speeds up the second run tremendously).
-
-- The Console UI RPC server: Same story, if you want to display something on the LCD screen, you know who to ask.
-
-- The CDP RPC server: If you want to send data to your AutoAuto Labs account, you go through this guy.
-
-Each of these servers has corresponding RCP clients that make their usages easy and transparent. See:
- - each client linked here
+To really grasp this library's internals, you'll also want to understand how/where/why Remote Procedure Calls (PRC) are used. See the section [RPC Everywhere](#rpc-everywhere).
 
 ## Connecting to Your Device
 
-You can either SSH into your device to gain command-line access (with `sudo`-powers), or you can access the Jupyter Notebook server (which runs by default in the background on every AutoAuto device), or you can use [AutoAuto Labs](https://labs.autoauto.ai/)'s programming interface (which is simple, yet pleasant to use).
+This library is of little use unless you can actually put a program onto your device! Here are the ways you can connect to your device:
 
-If you choose to SSH, you'll want to SSH into the account named `hacker`. I.e. Use the command: `ssh hacker@<ip_of_your_device>`. You must obtain your device's default password from [AutoAuto Labs](https://labs.autoauto.ai/autopair/) (from the "My Devices" page, you can view your device's "Info for Advanced Users"). Every device has a different default system password. You are encouraged to change your device's system password (using the usual `passwd` command).
+- **SSH:** SSH'ing into your device is the quickest way to gain privileged access (i.e. to get `sudo` powers; remember Uncle Ben's words: with great power comes great responsibility). You can log in to the device under the username `hacker` (in this context, "hacker" denotes a skilled computer expert!). You must obtain your device's default password from [AutoAuto Labs](https://labs.autoauto.ai/autopair/) (from the "My Devices" page, you can view your device's "Info for Advanced Users"). Every device has a different default system password. You are encouraged to change your device's system password (using the usual `passwd` command).
 
-If you choose to use Jupyter, connect to the Jupyter server running on your device on port 8888. I.e. You should navigate in your browser to `http://<ip_of_your_device>:8888/`. You must obtain the password for Jupyter from [AutoAuto Labs](https://labs.autoauto.ai/autopair/) (from the "My Devices" page, you can view your device's "Info for Advanced Users"). Every device has a different Jupyter password.
+- **Jupyter:** Every device runs a Jupyter Notebook server on port 8888. You must obtain the password for Jupyter from [AutoAuto Labs](https://labs.autoauto.ai/autopair/) (from the "My Devices" page, you can view your device's "Info for Advanced Users"). Every device has a different Jupyter password. Note the Jupyter server does not run as a privileged user, although you are welcome to change the device so that it **does** run as a privileged user -- your call.
+
+- **AutoAuto Labs:** AutoAuto Labs offers a simple editor where you can write and run programs. It is pleasant to use, but it is only good for small, basic programs.
 
 ## Examples
 
@@ -323,6 +310,23 @@ TODO
 ### Calibration
 
 TODO
+
+## RPC Everywhere
+
+You'll quickly notice that we do a lot of RPCs inside of this library. The nature of the beast is that we have limited, shared resources (there is only one microcontroller, only one camera, only one connection to AutoAuto Labs, only one LCD screen). But, we have many processes that need to access these shared resources (e.g. one process wants to talk to the microcontroller to monitor the battery level continually and another process wants to talk to the microcontroller to drive the device (i.e. run the motors); or maybe two processes both need to read frames from the camera to do unrelated computer vision things, or maybe two processes would like to write information to the LCD screen (to the _console_) and have it be interlaced for the user to see; and the list goes on).
+
+Currently, there are four RPC servers:
+
+- The CIO RPC server: If you want to talk to the microcontroller, go through him. He is the microcontroller broker/gatekeeper.
+
+- The camera RPC server: Same story, if you want frame(s) from the camera, talk to him. (Note: This server will keep the camera "open" for 60 seconds after the last RCP client disconnects, because a common usage-pattern while developing your program is to immediately re-run your code, and having the camera stay open speeds up the second run tremendously).
+
+- The Console UI RPC server: Same story, if you want to display something on the LCD screen, you know who to ask.
+
+- The CDP RPC server: If you want to send data to your AutoAuto Labs account, you go through this guy.
+
+Each of these servers has corresponding RCP clients that make their usages easy and transparent. See:
+ - each client linked here
 
 ## Project Ideas
 
