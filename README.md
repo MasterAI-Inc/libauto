@@ -349,15 +349,51 @@ See [Buzzer Language](#buzzer-language) to learn how to write notes as a string 
 
 ### Photoresistor
 
-TODO
+You can use the photoresistor as a very simple ambient light detector. Keep in mind that if you have, say, an AutoAuto _car_ with the car body on, the photoresistor will be covered up so its sensitivity will be much decreased. That said, it will still work but you'll have to experiment with it to get the proper threshold values for your application.
+
+```python
+from cio.rpc_client import acquire_component_interface
+import time
+
+photoresistor = acquire_component_interface('Photoresistor')
+
+for i in range(100):
+    millivolts, resistance = photoresistor.read()
+    print(resistance)
+    time.sleep(0.1)
+```
+
+The program above prints the resistance of the photoresistor (in Ohms). You can play around with where a good threshold is for your application, and you can quickly see the value change by simply covering the light with your hand (you'll see the resistance rise) or by shining a flashlight at the photoresistor (you'll see the resistance decrease).
 
 ### Push Buttons
 
-TODO
+```python
+from cio.rpc_client import acquire_component_interface
+import time
+
+buttons = acquire_component_interface('PushButtons')
+
+print("Press the buttons, and you'll see the events being printed below:")
+
+while True:
+    events = buttons.get_events()
+    for e in events:
+        print(e)
+    time.sleep(0.05)
+```
 
 ### Batter voltage
 
-TODO
+```python
+from cio.rpc_client import acquire_component_interface
+import time
+
+battery = acquire_component_interface('BatteryVoltageReader')
+
+print(battery.millivolts())
+```
+
+**Note:** There's a background task that will monitor the battery voltage for you and will buzz the buzzer when the batter gets lower than 10%. See [this script](./startup/battery_monitor/battery_monitor.py) which is started for you on-boot. You are welcome to modify or disable this script as you prefer.
 
 ### LEDs
 
