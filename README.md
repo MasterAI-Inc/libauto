@@ -2,15 +2,16 @@
 
 ## Introduction
 
-Use Python & A.I. to program a self-driving car. AutoAuto is a fun way to learn bleeding-edge skills, intended for beginner and advanced engineers alike. Drive your wonder with AutoAuto.
+Use Python & A.I. to program a self-driving car. AutoAuto is a fun way to learn leading-edge skills, intended for beginner and advanced engineers alike. Drive your wonder with AutoAuto.
 
-This library runs on AutoAuto devices and exposes all the functionality the device has through a layered Python interface.
+This library runs on AutoAuto devices and documents all functionality the device has through a layered Python interface.
 
 ![AutoAuto Fleet 1 Car](https://autoauto-static-uploads.s3.amazonaws.com/d452293bcac14e65a3370c54e9027e79.JPG)
 
 ## Beginner or Advanced?
 
 If you are a beginner programmer ("coder") you will want to follow along through the lessons on [AutoAuto Labs](https://labs.autoauto.ai/). After you've leveled-up through the beginner and intermediate lessons, you can come back here and explore this library's deeper implementation details.
+^Is this supposed to mean the library's more advanced functionality? 
 
 If you are an advanced programmer, you are welcome to dive right into using this library! This library is already installed on your AutoAuto device. Have a look at the section [Connecting to Your Device](#connecting-to-your-device) and the section [Examples](#examples), then you will be off-to-the-races programming your device using this library.
 
@@ -23,6 +24,8 @@ The library is segmented into three packages:
 - [cio](./cio/): A package whose only job is to talk to the on-board microcontroller. The name `cio` is short for "controller input/output".
 
 - [car](./car/): The `car` package contains helper functions that are only useful for AutoAuto _cars_. E.g. `car.forward()`, `car.left()`, `car.right()`, `car.reverse()`. If you look at the implementations of these helper functions, you'll find they use the `auto` and `cio` packages under the hood (pun intended). Overall the `car` package makes doing common operations take less code.
+
+
 
 To really grasp this library's internals, you'll also want to understand how/where/why Remote Procedure Calls (PRCs) are used. See the section [RPC Everywhere](#rpc-everywhere).
 
@@ -487,6 +490,8 @@ import car
 
 car.calibrate()
 ```
+
+Explanation here!
 
 ## RPC Everywhere
 
