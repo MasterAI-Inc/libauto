@@ -9,17 +9,33 @@
 ###############################################################################
 
 import time
+import sys
 
 from auto import console as c
 from auto import print_all
 
 from cio.rpc_client import acquire_component_interface
 
+from auto.db import default_db
+STORE = default_db()
+
 from auto import logger
 log = logger.init('battery_monitor', terminal=True)
 
 
 log.info("Starting battery monitoring process...")
+
+
+if STORE.get('BATTERY_MONITOR_DISABLED', False):
+    log.info("Battery monitor is disabled on this device... exiting.")
+    sys.exit()
+
+
+BATTERY_HIGH_MILLIVOLTS = STORE.get('BATTERY_HIGH_MILLIVOLTS', 8400)
+BATTERY_LOW_MILLIVOLTS =  STORE.get('BATTERY_LOW_MILLIVOLTS',  6500)
+
+log.info("Battery high millivolts: {}".format(BATTERY_HIGH_MILLIVOLTS))
+log.info("Battery low millivolts:  {}".format(BATTERY_LOW_MILLIVOLTS))
 
 
 buzz = acquire_component_interface("Buzzer")
@@ -33,8 +49,8 @@ def batt_voltage_to_pct(millivolts):
 
     See: https://github.com/AutoAutoAI/libauto/issues/7
     """
-    high = 8400
-    low = 6500
+    high = BATTERY_HIGH_MILLIVOLTS
+    low  = BATTERY_LOW_MILLIVOLTS
     if millivolts > high:
         return 100
     if millivolts < low:

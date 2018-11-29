@@ -189,3 +189,6 @@ def calibrate():
     if input("Calibrate steering PID? [n/y] ") == 'y':
         _calibrate_steering_pid()
 
+    if input("Disable battery monitor? [n/y] ") == 'y':
+        STORE.put('BATTERY_MONITOR_DISABLED', True)
+
