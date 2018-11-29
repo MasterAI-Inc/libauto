@@ -115,12 +115,13 @@ class WebSocketConnection:
 
             while not self.stop:
                 msg = ws.recv()
-                try:
-                    msg = json.loads(msg)
-                except:
-                    log.info("failed to parse JSON: {}".format(msg))
-                    raise
-                self.onMessage(msg)
+                if msg != '':
+                    try:
+                        msg = json.loads(msg)
+                    except:
+                        log.info("failed to parse JSON: {}".format(msg))
+                        raise
+                    self.onMessage(msg)
 
         except Exception as e:
             self.onError(e)
@@ -185,6 +186,9 @@ class WebSocketConnection:
             log.info("< {}".format(msg))
         if 'whothere' in msg:
             self.send({'me': True})
+        if 'ping' in msg:
+            self.send({'pong': True})
+            return
         if hasattr(self.delegate, 'onMessage'):
             self.delegate.onMessage(msg)
 
