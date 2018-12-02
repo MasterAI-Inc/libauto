@@ -13,9 +13,8 @@ Connects to the AutoAuto server.
 
 Built-in behavior:
  - Sends application-layer pings to the server every so often, and the server responds
-with an application-layer pong.
- - It sends a 'whothere' message immediately upon connect.
- - It will immediately respond to a 'whothere' message with a message saying 'me'.
+with an application-layer pong. Also responds to pings from the server by sending a pong.
+ - Responds to a 'whothere' message for legacy purposes.
 
 Of course it also publishes a simple send/receive interface so that you can do whatever
 else you want with it.
@@ -160,7 +159,6 @@ class WebSocketConnection:
 
     def onOpen(self, url):
         log.info("Connected: {}...".format(url[:44]))
-        self.send({'whothere': True})
         if hasattr(self.delegate, 'onOpen'):
             try:
                 self.delegate.onOpen()
@@ -186,6 +184,7 @@ class WebSocketConnection:
             log.info("< {}".format(msg))
         if 'whothere' in msg:
             self.send({'me': True})
+            return
         if 'ping' in msg:
             self.send({'pong': True})
             return
@@ -271,7 +270,7 @@ class StandardDelegate:
 
     def onMessage(self, msg):
         if 'origin' in msg:
-            if msg['origin'] == 'user' and 'username' in msg and 'user_session' in msg:
+            if msg['origin'] == 'server' and 'connect' in msg and msg['connect'] == 'user':
                 username = msg['username']
                 user_session = msg['user_session']
                 if self.add_user_with_session(username, user_session):
