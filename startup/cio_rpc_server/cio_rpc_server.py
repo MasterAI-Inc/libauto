@@ -189,10 +189,11 @@ class ComponentManager:
 
 class ControllerService(rpyc.Service):
 
-    def __init__(self, component_manager, global_lock):
+    def __init__(self, component_manager, global_lock, version):
         self.cm = component_manager
         self.lock = global_lock
         self.is_redirecting_stdio = False
+        self.version = version
 
     def on_connect(self, conn):
         with self.lock:
@@ -209,6 +210,12 @@ class ControllerService(rpyc.Service):
             log.info("Dead client: {}".format(self.conn_name))
             if self.is_redirecting_stdio:
                 self._restore_stdio()
+
+    def exposed_version(self):
+        if self.version is None:
+            return "unknown"
+        major, minor = self.version
+        return "{}.{}".format(major, minor)
 
     def exposed_capabilities(self):
         with self.lock:
@@ -269,7 +276,7 @@ if __name__ == "__main__":
 
     component_manager = ComponentManager(global_lock, always_enabled_components)
 
-    ControllerService = classpartial(ControllerService, component_manager, global_lock)
+    ControllerService = classpartial(ControllerService, component_manager, global_lock, version)
 
     rpc_server = GeventServer(ControllerService, port=18861)
 

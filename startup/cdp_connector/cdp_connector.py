@@ -24,11 +24,16 @@ from pty_manager import PtyManager
 from verification_method import Verification
 from dashboard import Dashboard
 
+from auto import print_all
+
 from auto.db import secure_db
 STORE = secure_db()
 
 from auto import logger
 log = logger.init('cdp_connector', terminal=True)
+
+from cio.rpc_client import VERSION as cio_version
+from auto import __version__ as libauto_version
 
 
 def get_token():
@@ -63,6 +68,12 @@ if __name__ == '__main__':
     system_priv_user = sys.argv[2]   # the "Privileged" system user
     log.info("Will run the PTY manager using the unprivileged user: {}".format(system_up_user))
     log.info("Will run the PTY manager using the privileged user:   {}".format(system_priv_user))
+
+    log.info("Libauto version:    {}".format(libauto_version))
+    log.info("Controller version: {}".format(cio_version))
+
+    print_all("Libauto version:    {}".format(libauto_version))
+    print_all("Controller version: {}".format(cio_version))
 
     consumers = [
         PtyManager(system_up_user, system_priv_user),

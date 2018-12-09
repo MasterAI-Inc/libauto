@@ -18,6 +18,7 @@ import auto
 from auto.camera_rpc_client import CameraRGB
 from auto.camera import wrap_frame_index_decorator, base64_encode_image
 from auto.inet import Wireless, get_ip_address
+from cio.rpc_client import VERSION as cio_version
 
 from auto import logger
 log = logger.init(__name__, terminal=True)
@@ -84,6 +85,8 @@ class Dashboard:
     def _query_component(self, component, query_id, send_func, user_session):
         if component == 'version':
             return self._get_version()
+        elif component == 'version_controller':
+            return cio_version
         elif component == 'wifi_ssid':
             return self.wireless.current()
         elif component == 'wifi_iface':

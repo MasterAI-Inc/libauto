@@ -24,6 +24,7 @@ CONN = rpyc.connect("localhost", 18861, config={'sync_request_timeout': 300})
 """
 The capabilities of the controller.
 """
+VERSION = CONN.root.version()
 CAPS = set(CONN.root.capabilities())
 
 
