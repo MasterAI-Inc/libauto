@@ -70,6 +70,18 @@ class ComponentManager:
         self.counts = {}         # map from iface to set-of-connection-names
         self.callbacks = {}      # map from (iface, connection-name) to callback
 
+        # The controller may have a few components pre-enabled. We will keep that state
+        # here so that we never disable those pre-enabled components (when a component
+        # is pre-enabled, it is intended to be enabled forever).
+        # Note: We need to do this because by default a component will be disabled when
+        # all connections to it are gone. Thus, if a connection grabbed a pre-enabled
+        # component then disconnected, that pre-enabled component would get disabled.
+        # The code below avoids this by creating a pseudo-connection for these pre-enabled
+        # components.
+        for component_name, component_state in get_h().CAPS.items():
+            if component_state['is_enabled']:
+                self.acquire('PRE_ENABLED', component_name, None)
+
     def _build_locked_method(self, method):
         lock = self.lock
 
