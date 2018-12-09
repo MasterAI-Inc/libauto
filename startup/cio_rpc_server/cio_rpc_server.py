@@ -63,7 +63,7 @@ def _format_args(args, kwargs):
 
 class ComponentManager:
 
-    def __init__(self, global_lock):
+    def __init__(self, global_lock, always_enabled_components):
         self.lock = global_lock
         self.iface_lookup = {}   # map from name to iface
         self.name_lookup = {}    # map from iface to name
@@ -78,9 +78,23 @@ class ComponentManager:
         # component then disconnected, that pre-enabled component would get disabled.
         # The code below avoids this by creating a pseudo-connection for these pre-enabled
         # components.
-        for component_name, component_state in get_h().CAPS.items():
-            if component_state['is_enabled']:
-                self.acquire('PRE_ENABLED', component_name, None)
+        try:
+            for component_name, component_state in get_h().CAPS.items():
+                if component_state['is_enabled']:
+                    self.acquire('PRE_ENABLED', component_name, None)
+        except Exception as e:
+            log.error("Failed to get component CAPS: {}".format(e))
+            # Allow the error to pass so that the server starts.
+
+        # Similarly, there is another list of components that we want to always be enabled.
+        try:
+            available_components = set(get_h().CAPS.keys())
+            for component_name in always_enabled_components:
+                if component_name in available_components:
+                    self.acquire('FORCE_ENABLED', component_name, None)
+        except Exception as e:
+            log.error("Failed to get component CAPS: {}".format(e))
+            # Allow the error to pass so that the server starts.
 
     def _build_locked_method(self, method):
         lock = self.lock
@@ -235,9 +249,25 @@ if __name__ == "__main__":
     from rpyc.utils.server import GeventServer
     from rpyc.utils.helpers import classpartial
 
+    try:
+        version_reader = get_h().acquire_component_interface('VersionInfo')
+        version = version_reader.version()
+        #get_h().dispose_component_interface(version_reader)   # <-- VersionInfo is always pre-enabled, so don't disable it.
+        log.info("Controller version: {}".format(version))
+    except Exception as e:
+        version = None
+        log.error("Unable to get controller version: {}".format(e))
+        # Allow error to pass, so that the server can start below.
+        # The server will report this error to clients.
+
     global_lock = Semaphore(value=1)
 
-    component_manager = ComponentManager(global_lock)
+    always_enabled_components = []
+    if version is not None:
+        if version < (1,1):
+            always_enabled_components.append('CarMotors')
+
+    component_manager = ComponentManager(global_lock, always_enabled_components)
 
     ControllerService = classpartial(ControllerService, component_manager, global_lock)
 
