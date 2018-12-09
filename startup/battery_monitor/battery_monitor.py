@@ -51,8 +51,12 @@ def batt_voltage_to_pct(millivolts):
     """
     high = BATTERY_HIGH_MILLIVOLTS
     low  = BATTERY_LOW_MILLIVOLTS
+    if millivolts > high * 1.05:
+        return None   # Something is wrong... the battery can't be this high.
     if millivolts > high:
         return 100
+    if millivolts < low * 0.95:
+        return None   # Something is wrong... if the battery was really this low, the battery protection would have kicked in and powered the whole device off.
     if millivolts < low:
         return 0
     return int(round((millivolts - low) / (high - low) * 100))
@@ -65,11 +69,11 @@ while True:
 
     log.info("Battery millivolts={}, percentage={}".format(millivolts, percentage))
 
-    c.set_battery_percent(percentage)
-
-    if percentage < 10:
-        buzz.play("EEE")
-        print_all("Warning: Battery <10%")
+    if percentage is not None:
+        c.set_battery_percent(percentage)
+        if percentage < 10:
+            buzz.play("EEE")
+            print_all("Warning: Battery <10%")
 
     time.sleep(10)
 
