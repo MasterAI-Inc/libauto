@@ -33,8 +33,21 @@ def global_camera(verbose=False):
     except NameError:
         GLOBAL_CAMERA = wrap_frame_index_decorator(CameraRGB())
         if verbose:
-            auto.print_all("Instantiated a camera object!")
+            auto.print_all("Instantiated a global camera object!")
         return GLOBAL_CAMERA
+
+
+def close_global_camera(verbose=False):
+    global GLOBAL_CAMERA
+    try:
+        GLOBAL_CAMERA   # <-- just to see if it exists
+        if verbose:
+            auto.print_all("Closing the global camera object...")
+        GLOBAL_CAMERA.close()
+        del GLOBAL_CAMERA
+    except NameError:
+        # There is no global camera, so nothing needs to be done.
+        pass
 
 
 def capture(num_frames=1, verbose=False):

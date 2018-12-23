@@ -32,7 +32,9 @@ def acquire_component_interface(component_name):
     """
     Enable and acquire the component with the given name.
     """
-    return CONN.root.acquire_component_interface(component_name)
+    remote_iface = CONN.root.acquire_component_interface(component_name)
+    interface = RemoteInterfaceWrapper(remote_iface)
+    return interface
 
 
 def dispose_component_interface(interface):
@@ -41,7 +43,8 @@ def dispose_component_interface(interface):
     to this component interfaces, then the component will also be
     disabled.
     """
-    return CONN.root.dispose_component_interface(interface)
+    remote_iface = interface._remote_iface
+    return CONN.root.dispose_component_interface(remote_iface)
 
 
 def redirect_stdio(stdin=None, stdout=None, stderr=None):
@@ -64,4 +67,32 @@ def restore_stdio():
     Restore the remote stdio to its original state.
     """
     CONN.root.restore_stdio()
+
+
+class RemoteInterfaceWrapper:
+    """
+    When you are dealing with a `netref` from `rpyc.core.netref`,
+    you cannot set local attributes. Everything you do to that `netref`
+    will be forwarded to the remote side (even creating new instance
+    attributes will be forwarded to the other side). I want to be able to
+    set local variables on my local object, and only have the things that
+    don't exist locally to be forwarded to the remote side. This class
+    gives me that behavior. You just pass your netref to this class
+    as the `remote_iface`, and this class wraps it so that you can
+    set local instance variables on objects of this class, but if
+    you access a variable that doesn't exist, it will give you a
+    remote reference to what you want.
+    """
+
+    def __init__(self, remote_iface):
+        self._remote_iface = remote_iface
+
+    def __getattr__(self, attr):
+        return getattr(self._remote_iface, attr)
+
+    def __str__(self):
+        return self._remote_iface.__str__()
+
+    def __repr__(self):
+        return self._remote_iface.__repr__()
 
