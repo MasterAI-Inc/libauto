@@ -277,48 +277,68 @@ The helper function `car.plot()` will both stream a single frame to your AutoAut
 
 **Note:** There is a bug where the first time you run `car.plot()`, the figure may not automatically show up under the cell. It seems that this only happens on the first run, and the figure will show up on all subsequent runs, as shown in the screenshot above.
 
+### List the devices' capabilities
+
+Different AutoAuto devices (and different versions of the same device) may have a different set of hardware capabilities. You can ask your device to list its capabilities like this:
+
+```python
+from auto.capabilities import list_caps, acquire, release
+
+my_capabilities = list_caps()
+
+print(my_capabilities)
+```
+
+**Note:** In the program above we also imported `acquire` and `release` (although we didn't use them). Those two functions will be used in many of the examples that follow to actually _use_ the capabilites that we listed above.
+
 ### Gyroscope
 
 You can get _instantanious_ measurements from the gyroscope like this:
 
 ```python
-from cio.rpc_client import acquire_component_interface
+from auto.capabilities import list_caps, acquire, release
 import time
 
-gyroscope = acquire_component_interface('Gyroscope')
+gyroscope = acquire('Gyroscope')
 
 for i in range(100):
     x, y, z = gyroscope.read()
     print(' '.join("{:10.3f}".format(v) for v in (x, y, z)))
     time.sleep(0.05)
+    
+release(gyroscope)
 ```
 
 Or you can get _accumulated_ (or _integrated_, if you prefer) measurements like this (which is likely what you actually want):
 
 ```python
-from cio.rpc_client import acquire_component_interface
+from auto.capabilities import list_caps, acquire, release
 import time
 
-gyroscope = acquire_component_interface('Gyroscope_accum')
+gyroscope = acquire('Gyroscope_accum')
 
 for i in range(100):
     x, y, z = gyroscope.read()
     print(' '.join("{:10.3f}".format(v) for v in (x, y, z)))
     time.sleep(0.05)
+
+release(gyroscope)
 ```
 
 ### Accelerometer
 
 ```python
-from cio.rpc_client import acquire_component_interface
+from auto.capabilities import list_caps, acquire, release
 import time
 
-accelerometer = acquire_component_interface('Accelerometer')
+accelerometer = acquire('Accelerometer')
 
 for i in range(100):
     x, y, z = accelerometer.read()
     print(' '.join("{:10.3f}".format(v) for v in (x, y, z)))
     time.sleep(0.05)
+
+release(accelerometer)
 ```
 
 ### Buzzer
@@ -333,16 +353,18 @@ car.buzz('!O4 L16 c e g >c8')
 car.honk()
 ```
 
-Or you can use the underlying CIO RPC client to connect with the buzzer.
+Or you can use the underlying buzzer interface.
 
 ```python
-from cio.rpc_client import acquire_component_interface
+from auto.capabilities import list_caps, acquire, release
 
-buzzer = acquire_component_interface("Buzzer")
+buzzer = acquire("Buzzer")
 
 buzzer.play('!O4 L16 c e g >c8')  # <-- asynchronous call
 
 buzzer.wait()   # <-- block the program until the buzzer finishes playing
+
+release(buzzer)
 ```
 
 See [Buzzer Language](#buzzer-language) to learn how to write notes as a string that the buzzer can interpret and play.
@@ -352,15 +374,17 @@ See [Buzzer Language](#buzzer-language) to learn how to write notes as a string 
 You can use the photoresistor as a very simple ambient light detector. Keep in mind that if you have, say, an AutoAuto _car_ with the car body on, the photoresistor will be covered up so its sensitivity will be much decreased. That said, it will still work but you'll have to experiment with it to get the proper threshold values for your application.
 
 ```python
-from cio.rpc_client import acquire_component_interface
+from auto.capabilities import list_caps, acquire, release
 import time
 
-photoresistor = acquire_component_interface('Photoresistor')
+photoresistor = acquire('Photoresistor')
 
 for i in range(100):
     millivolts, resistance = photoresistor.read()
     print(resistance)
     time.sleep(0.1)
+
+release(photoresistor)
 ```
 
 The program above prints the resistance of the photoresistor (in Ohms). You can play around with where a good threshold is for your application, and you can quickly see the value change by simply covering the light with your hand (you'll see the resistance rise) or by shining a flashlight at the photoresistor (you'll see the resistance decrease).
@@ -370,29 +394,33 @@ The program above prints the resistance of the photoresistor (in Ohms). You can 
 ### Push Buttons
 
 ```python
-from cio.rpc_client import acquire_component_interface
+from auto.capabilities import list_caps, acquire, release
 import time
 
-buttons = acquire_component_interface('PushButtons')
+buttons = acquire('PushButtons')
 
 print("Press the buttons, and you'll see the events being printed below:")
 
-while True:
+for i in range(100):
     events = buttons.get_events()
     for e in events:
         print(e)
     time.sleep(0.05)
+
+release(buttons)
 ```
 
 ### Batter voltage
 
 ```python
-from cio.rpc_client import acquire_component_interface
+from auto.capabilities import list_caps, acquire, release
 import time
 
-battery = acquire_component_interface('BatteryVoltageReader')
+battery = acquire('BatteryVoltageReader')
 
 print(battery.millivolts())
+
+release(battery)
 ```
 
 **Note:** There's a background task that will monitor the battery voltage for you and will buzz the buzzer when the batter gets lower than 10%. See [this script](./startup/battery_monitor/battery_monitor.py) which is started for you on-boot. You are welcome to modify or disable this script as you prefer.
@@ -402,11 +430,11 @@ print(battery.millivolts())
 The main PCB has three on-board LEDs that you can turn on/off programmatically. You can also plug in two external LEDs that can be driven using the same interface. (This, for example, could be used to install headlight or taillight (or both) onto an AutoAuto _car_ that can be programmatically controlled.)
 
 ```python
-from cio.rpc_client import acquire_component_interface
+from auto.capabilities import list_caps, acquire, release
 import time
 
-buttons = acquire_component_interface('PushButtons')
-leds = acquire_component_interface('LEDs')
+buttons = acquire('PushButtons')
+leds = acquire('LEDs')
 
 print("Press the buttons to turn on/off the on-board LEDs:")
 
@@ -427,6 +455,9 @@ while True:
         leds.set_values(*led_state)
 
     time.sleep(0.1)
+
+release(buttons)
+release(leds)
 ```
 
 LED index 0 also drives the external LED on J21. LED index 2 also drives the external LED on J16.
@@ -438,15 +469,15 @@ LED index 0 also drives the external LED on J21. LED index 2 also drives the ext
 The _cars_' microcontroller has a PID loop it can use to steer the car perfectly straight. See the example below (copied from the function named `straight()` that lives in `car.motors`). As the program runs, rotate your car side-to-side and you'll see it trying to correct by steering the opposite direction.
 
 ```python
-from cio.rpc_client import acquire_component_interface
+from auto.capabilities import list_caps, acquire, release
 import time
 
-MOTORS = acquire_component_interface('CarMotors')
+MOTORS = acquire('CarMotors')
 MOTORS.on()
 
-PID_STEERING = acquire_component_interface('PID_steering')
+PID_STEERING = acquire('PID_steering')
 
-GYRO_ACCUM = acquire_component_interface('Gyroscope_accum')
+GYRO_ACCUM = acquire('Gyroscope_accum')
 
 
 def straight(throttle, duration, invert_output):
@@ -492,7 +523,7 @@ car.calibrate()
 
 RPC = Remote Procedure Call
 
-You'll quickly notice that we do a lot of RPCs inside of this library. The nature of the beast is that we have limited, shared resources (there is only one microcontroller, only one camera, only one connection to AutoAuto Labs, only one LCD screen). But, we have many processes that need to access these resources (e.g. one process wants to talk to the microcontroller to monitor the battery level continually and another process wants to talk to the microcontroller to drive the device (i.e. run the motors); or maybe two processes both need to read frames from the camera to do unrelated computer vision things, or maybe two processes would like to write information to the LCD screen (to the _console_) and have it be interlaced for the user to see; and the list goes on).
+If you look under the hood of this library, you'll quickly notice that we do a lot of RPCs. The nature of the beast is that we have limited, shared resources (there is only one microcontroller, only one camera, only one connection to AutoAuto Labs, only one LCD screen). But, we have many processes that need to access these resources (e.g. one process wants to talk to the microcontroller to monitor the battery level continually and another process wants to talk to the microcontroller to drive the device (i.e. run the motors); or maybe two processes both need to read frames from the camera to do unrelated computer vision things, or maybe two processes would like to write information to the LCD screen (to the _console_) and have it be interlaced for the user to see; and the list goes on).
 
 Currently, there are four RPC servers:
 
