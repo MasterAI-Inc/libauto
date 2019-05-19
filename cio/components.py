@@ -138,14 +138,13 @@ def factory_calibrator(fd, reg_num):
             is running!
             """
             self._start_calibration()
-            print("Calibrating... please wait... this takes about 1 minute.\nDo not move your device while this calibration is running!")
+            yield "Calibrating... please wait... this takes about 1 minute.\nDo not move your device while this calibration is running!"
             while True:
-                time.sleep(1)
                 status = self._check_calibration_status()
                 if status == 1:
-                    print('.', end='', flush=True)
+                    yield '.'
                 elif status == 2:
-                    print("\nFinished calibrating!")
+                    yield 'Finished microcontroller calibration!'
                     break
                 else:
                     raise Exception("Got unknown status code...")
