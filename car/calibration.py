@@ -15,10 +15,11 @@ This module contains an end-to-end calibration routine for the car.
 from car.motors import STORE
 from car import motors as m
 from auto import console as c
-import time
-
 from cio import rpc_client as cio_rpc_client
 from auto.capabilities import acquire, release
+
+import time
+import itertools
 
 
 def _query_motor_params():
@@ -46,7 +47,7 @@ def _setup_motors(millisecond_timeout=1000, save=False):
 
 def _query_steering_pid_params():
     return {
-        'p'              : STORE.get('CAR_STEERING_PID_P', 2.0),
+        'p'              : STORE.get('CAR_STEERING_PID_P', 1.0),
         'i'              : STORE.get('CAR_STEERING_PID_I', 0.3),
         'd'              : STORE.get('CAR_STEERING_PID_D', 0.3),
         'error_accum_max': STORE.get('CAR_STEERING_PID_EAM', 0.0),
@@ -88,6 +89,7 @@ def _easy_ask(prompt, curr_val, cast_func, io_device, adj_delta=1, min_val=None,
 
 
 def _calibrate_microcontroller(io_device):
+    time.sleep(2)   # Allow user a few seconds to put the device down.
     calibrator = cio_rpc_client.acquire_component_interface('Calibrator')
     print_func = {
         'computer': print,
@@ -156,12 +158,14 @@ def _calibrate_servo_range(io_device):
             break  # break when the user doesn't change the value
         steering_right = v
 
-    while True:
+    for i in itertools.count():
         STORE.put('CAR_MOTOR_STEERING_MID', steering_mid)
         _setup_motors()
-        _demo_forward_reverse_no_pid()
+        m.set_steering(0.0)
+        if i > 0:
+            _demo_forward_reverse_no_pid()
         v = _easy_ask("Steering mid PWM value", steering_mid, int, io_device)
-        if v == steering_mid:
+        if i > 0 and v == steering_mid:
             break  # break when the user doesn't change the value
         steering_mid = v
 
