@@ -68,7 +68,7 @@ def _demo_forward_reverse_no_pid(duration=1.0):
     m.drive(0.0, m.CAR_THROTTLE_REVERSE_SAFE_SPEED, duration)
 
 
-def _easy_ask(prompt, curr_val, cast_func, io_device, adj_delta=1, min_val=None, max_val=None):
+def _easy_ask(prompt, curr_val, cast_func, io_device, adj_delta=1, min_val=None, max_val=None, change_callback=None):
     if io_device == 'computer':
         result = _keyboard_input(prompt=prompt,
                                  choices=None,
@@ -76,7 +76,8 @@ def _easy_ask(prompt, curr_val, cast_func, io_device, adj_delta=1, min_val=None,
     elif io_device == 'car':
         result = _button_numeric_input(prompt=prompt,
                                        initial=curr_val,
-                                       adj_delta=adj_delta)
+                                       adj_delta=adj_delta,
+                                       change_callback=change_callback)
     if result == curr_val:
         val = result
     else:
@@ -140,31 +141,42 @@ def _calibrate_servo_range(io_device):
     steering_mid   = motor_params['steering_mid']
     steering_right = motor_params['steering_right']
 
-    while True:
-        STORE.put('CAR_MOTOR_STEERING_LEFT', steering_left)
+    adj_delta = 10
+
+    def demo_left(new_val):
+        STORE.put('CAR_MOTOR_STEERING_LEFT', new_val)
         _setup_motors(30000)  # <-- nearabout the max possible timeout
-        m.set_steering(45.0)
-        v = _easy_ask("Steering left PWM value", steering_left, int, io_device)
+        m.set_steering(45.0)  # <-- max left
+
+    def demo_right(new_val):
+        STORE.put('CAR_MOTOR_STEERING_RIGHT', new_val)
+        _setup_motors(30000)  # <-- nearabout the max possible timeout
+        m.set_steering(-45.0) # <-- max right
+
+    def demo_mid(new_val):
+        STORE.put('CAR_MOTOR_STEERING_MID', new_val)
+        _setup_motors(30000)  # <-- nearabout the max possible timeout
+        m.set_steering(0.0)   # <-- mid-steering ("straight")
+
+    while True:
+        demo_left(steering_left)
+        v = _easy_ask("Steering left PWM value", steering_left, int, io_device, adj_delta=adj_delta, change_callback=lambda vals: demo_left(vals[0]))
         if v == steering_left:
             break  # break when the user doesn't change the value
         steering_left = v
 
     while True:
-        STORE.put('CAR_MOTOR_STEERING_RIGHT', steering_right)
-        _setup_motors(30000)  # <-- nearabout the max possible timeout
-        m.set_steering(-45.0)
-        v = _easy_ask("Steering right PWM value", steering_right, int, io_device)
+        demo_right(steering_right)
+        v = _easy_ask("Steering right PWM value", steering_right, int, io_device, adj_delta=adj_delta, change_callback=lambda vals: demo_right(vals[0]))
         if v == steering_right:
             break  # break when the user doesn't change the value
         steering_right = v
 
     for i in itertools.count():
-        STORE.put('CAR_MOTOR_STEERING_MID', steering_mid)
-        _setup_motors()
-        m.set_steering(0.0)
+        demo_mid(steering_mid)
         if i > 0:
             _demo_forward_reverse_no_pid()
-        v = _easy_ask("Steering mid PWM value", steering_mid, int, io_device)
+        v = _easy_ask("Steering mid PWM value", steering_mid, int, io_device, adj_delta=adj_delta, change_callback=lambda vals: demo_mid(vals[0]))
         if i > 0 and v == steering_mid:
             break  # break when the user doesn't change the value
         steering_mid = v
@@ -300,7 +312,7 @@ def _button_choice_input(prompt, choices):
     return choices[choice_i]
 
 
-def _button_numeric_input(prompt, initial=0, adj_delta=1):
+def _button_numeric_input(prompt, initial=0, adj_delta=1, change_callback=None):
     TIMER_RESET_VAL = 15
     adj_factor = [1, 10, 100]  # increase increment/decrement amount by factor
     adj = adj_rate = extra_delay = val_idx = 0
@@ -348,9 +360,12 @@ def _button_numeric_input(prompt, initial=0, adj_delta=1):
                     timer = TIMER_RESET_VAL
         vals[val_idx] = val
         output = f"[ {' / '.join([f'({v})' if i == val_idx else f' {v} ' for i, v in enumerate(vals)])} ]"
+        if change_callback is not None:
+            change_callback(vals)
         c.print(output, end='\r')
         time.sleep(0.05 + extra_delay)
 
     c.print('Finished choosing', vals)
     release(buttons)
     return vals[0] if len(vals) == 1 else ' '.join(str(v) for v in vals)
+
