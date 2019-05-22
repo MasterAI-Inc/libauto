@@ -54,6 +54,8 @@ class Wireless:
         for line in response.splitlines():
             iface, name = line.split(':')
             if iface == self.interface:
+                if name == '--':
+                    return None
                 return name
 
         return None

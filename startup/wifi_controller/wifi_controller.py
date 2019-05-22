@@ -192,7 +192,7 @@ while True:
                 if not did_connect or not has_internet:
                     if did_connect and not has_internet:
                         wireless.delete_connection(ssid)
-                        msg = 'Connected to WiFi...\nBut no internet detected.\nPlease connect to another network.'
+                        msg = 'Connected to WiFi...\nBut no internet detected.\nPlease use another network.'
                     else:
                         msg = 'WiFi credentials did not work.\nDid you type them correctly?\nPlease try again.'
                     log.info(msg)
