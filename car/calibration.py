@@ -17,6 +17,7 @@ from car import motors as m
 from auto import console as c
 from cio import rpc_client as cio_rpc_client
 from auto.capabilities import acquire, release
+from car import buzzer
 
 import time
 import itertools
@@ -106,6 +107,7 @@ def _calibrate_microcontroller(io_device):
                 break
         time.sleep(1)
     cio_rpc_client.dispose_component_interface(calibrator)
+    buzzer.honk()   # Let the user know the calibration finished!
 
 
 def _spinning_pinwheel():
@@ -239,11 +241,6 @@ def calibrate(io_device=['computer', 'car'][0]):
                      choices=['n', 'y'],
                      io_device=io_device) == 'y':
         _calibrate_steering_pid(io_device)
-
-    if _choice_input("Disable battery monitor?",
-                     choices=['n', 'y'],
-                     io_device=io_device) == 'y':
-        STORE.put('BATTERY_MONITOR_DISABLED', True)
 
     msg = 'Calibraton complete!'
     if io_device == 'computer':
