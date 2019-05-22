@@ -9,7 +9,7 @@
 ###############################################################################
 
 from auto.camera_rpc_client import CameraRGB
-from auto.inet import Wireless, get_ip_address
+from auto.inet import Wireless, list_wifi_ifaces, get_ip_address, has_internet_access
 from auto.db import secure_db
 from auto import print_all
 from auto import console
@@ -29,7 +29,7 @@ log = logger.init('wifi_controller', terminal=True)
 
 STORE = secure_db()
 
-wireless = Wireless('wlan0')
+wireless = Wireless(list_wifi_ifaces()[0])
 
 
 system_priv_user = sys.argv[1]   # the "Privileged" system user
@@ -151,7 +151,7 @@ def ensure_token():
 
 
 def print_connection_info():
-    iface = wireless.interface()
+    iface = wireless.interface
     print_all("WiFi interface name: {}".format(iface))
 
     current = wireless.current()
@@ -188,11 +188,16 @@ while True:
                 console.big_image('images/wifi_pending.png')
                 console.big_status('Trying to connect...')
                 did_connect = wireless.connect(ssid, password)
-                if not did_connect:
-                    time.sleep(2)
-                    log.info("Failed to connect... :( Will try again.")
+                has_internet = has_internet_access() if did_connect else False
+                if not did_connect or not has_internet:
+                    if did_connect and not has_internet:
+                        wireless.delete_connection(ssid)
+                        msg = 'Connected to WiFi...\nBut no internet detected.\nPlease connect to another network.'
+                    else:
+                        msg = 'WiFi credentials did not work.\nDid you type them correctly?\nPlease try again.'
+                    log.info(msg)
                     console.big_image('images/wifi_error.png')
-                    console.big_status('Failed to connect. Try again!')
+                    console.big_status(msg)
                 else:
                     log.info("Success! Connected to SSID: {}".format(ssid))
                     console.big_image('images/wifi_success.png')

@@ -13,6 +13,7 @@ import socket
 import fcntl
 import struct
 import signal
+import time
 from contextlib import contextmanager
 
 
@@ -44,6 +45,7 @@ class Wireless:
         if not did_connect:
             self.delete_connection(ssid)
 
+        time.sleep(2)    # Allow connection (and DHCP) to settle.
         return did_connect
 
     def current(self):
