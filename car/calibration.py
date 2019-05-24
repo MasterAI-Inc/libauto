@@ -15,7 +15,6 @@ This module contains an end-to-end calibration routine for the car.
 from car.motors import STORE
 from car import motors as m
 from auto import console as c
-from cio import rpc_client as cio_rpc_client
 from auto.capabilities import acquire, release
 from car import buzzer
 
@@ -92,7 +91,7 @@ def _easy_ask(prompt, curr_val, cast_func, io_device, adj_delta=1, min_val=None,
 
 def _calibrate_microcontroller(io_device):
     time.sleep(2)   # Allow user a few seconds to put the device down.
-    calibrator = cio_rpc_client.acquire_component_interface('Calibrator')
+    calibrator = acquire('Calibrator')
     print_func = {
         'computer': print,
         'car'     : c.print,
@@ -106,7 +105,7 @@ def _calibrate_microcontroller(io_device):
             if status == 'Finished microcontroller calibration!':
                 break
         time.sleep(1)
-    cio_rpc_client.dispose_component_interface(calibrator)
+    release(calibrator)
     buzzer.honk()   # Let the user know the calibration finished!
 
 
@@ -222,20 +221,34 @@ def calibrate(io_device=['computer', 'car'][0]):
     """
     _set_globals()
 
+    if _choice_input(prompt="Do you want to calibrate your car?",
+                     choices=['n', 'y'],
+                     io_device=io_device) == 'n':
+        msg = 'Exiting calibration.'
+        _device_print(msg, io_device=io_device)
+        return
+
     if _choice_input(prompt="Calibrate microcontroller (e.g. gyro & accelerometer)?",
                      choices=['n', 'y'],
                      io_device=io_device) == 'y':
         _calibrate_microcontroller(io_device=io_device)
 
-    if _choice_input("Calibrate safe throttle speed?",
+    if _choice_input(prompt="Run fully automatic calibration?\n[EXPERIMENTAL]",
                      choices=['n', 'y'],
                      io_device=io_device) == 'y':
-        _calibrate_safe_throttle(io_device)
+        from car.calibration_self import calibrate as calibrate_self
+        calibrate_self(io_device)
 
-    if _choice_input("Calibrate servo range?",
-                     choices=['n', 'y'],
-                     io_device=io_device) == 'y':
-        _calibrate_servo_range(io_device)
+    else:
+        if _choice_input("Calibrate safe throttle speed?",
+                         choices=['n', 'y'],
+                         io_device=io_device) == 'y':
+            _calibrate_safe_throttle(io_device)
+
+        if _choice_input("Calibrate servo range?",
+                         choices=['n', 'y'],
+                         io_device=io_device) == 'y':
+            _calibrate_servo_range(io_device)
 
     if _choice_input("Calibrate steering PID?",
                      choices=['n', 'y'],
@@ -243,10 +256,7 @@ def calibrate(io_device=['computer', 'car'][0]):
         _calibrate_steering_pid(io_device)
 
     msg = 'Calibraton complete!'
-    if io_device == 'computer':
-        print(msg)
-    elif io_device == 'car':
-        c.print(msg)
+    _device_print(msg, io_device=io_device)
 
 
 def _set_globals():
@@ -275,6 +285,14 @@ def _keyboard_input(prompt, choices=None, curr_val=None):
         msg_opts = f" [ {' / '.join(choices)} ] "
     response = input(prompt + msg_opts + msg_curr_val)
     return response if response else curr_val
+
+
+def _device_print(*args, **kwargs):
+    io_device = kwargs.pop('io_device', 'computer')
+    if io_device == 'computer':
+        print(*args, **kwargs)
+    elif io_device == 'car':
+        c.print(*args, **kwargs)
 
 
 def _is_pressed(button, e):

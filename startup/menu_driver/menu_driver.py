@@ -25,7 +25,7 @@ buttons = acquire("PushButtons")
 
 button_stream = deque()
 
-combo = [1, 1, 2, 1, 3, 1]
+combo = [1, 2, 3, 3, 2, 1]
 
 
 def _run_menu():
