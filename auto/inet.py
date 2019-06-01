@@ -14,6 +14,7 @@ import fcntl
 import struct
 import signal
 import time
+import requests
 from contextlib import contextmanager
 
 
@@ -137,8 +138,15 @@ def has_internet_access():
     sock.settimeout(2.0)
     try:
         sock.connect(sockaddr)   # <-- blocking, but respects the `settimeout()` call above
-        return True
     except socket.timeout:
+        sock.close()
+        return False
+    sock.close()
+    try:
+        req = requests.get('https://api.autoauto.ai/ping', timeout=3.0)
+        data = req.json()
+        return req.status_code == 200 and data['text'] == 'pong'
+    except:
         return False
 
 
