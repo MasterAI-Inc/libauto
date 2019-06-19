@@ -108,11 +108,18 @@ def draw_header():
 
 def parse_text(new_text, old_lines, outer_rect):
 
+    if old_lines:
+        if len(old_lines[-1]) == 1 and old_lines[-1][0][0] == '\r':
+            old_lines.pop()
+            if old_lines:
+                old_lines.pop()
+            old_lines.append([])
+
     for char in new_text:
 
         if char == '\r':
+            old_lines.append([('\r', None)])
             continue
-
         sprite = console_font.render(char, True, CONSOLE_TXT_COLOR, CONSOLE_TXT_BG_COLOR)
         rect = sprite.get_rect()
 
@@ -135,6 +142,8 @@ def parse_text(new_text, old_lines, outer_rect):
 def draw_lines(lines, outer_rect):
     x, y = outer_rect.topleft
     for line in lines:
+        if len(line)==1 and line[0][0] == '\r':
+            continue
         for char, sprite in line:
             rect = sprite.get_rect()
             rect.topleft = (x, y)

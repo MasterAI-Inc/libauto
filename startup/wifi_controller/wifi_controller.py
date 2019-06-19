@@ -9,7 +9,8 @@
 ###############################################################################
 
 from auto.camera_rpc_client import CameraRGB
-from auto.inet import Wireless, get_ip_address
+from auto.inet import Wireless, list_wifi_ifaces, get_ip_address, has_internet_access
+from auto.capabilities import acquire, release
 from auto.db import secure_db
 from auto import print_all
 from auto import console
@@ -29,12 +30,25 @@ log = logger.init('wifi_controller', terminal=True)
 
 STORE = secure_db()
 
-wireless = Wireless('wlan0')
+wireless = Wireless(list_wifi_ifaces()[0])
 
 
 system_priv_user = sys.argv[1]   # the "Privileged" system user
 
 log.info("Starting Wifi controller using the privileged user: {}".format(system_priv_user))
+
+
+def _get_one_button_press():
+    buttons = acquire('PushButtons')
+    try:
+        while True:
+            events = buttons.get_events()
+            presses = [e['button'] for e in events if e['action'] == 'pressed']
+            if presses:
+                return presses[0]
+            time.sleep(0.1)
+    finally:
+        release(buttons)
 
 
 def stream_frame(frame):
@@ -151,7 +165,7 @@ def ensure_token():
 
 
 def print_connection_info():
-    iface = wireless.interface()
+    iface = wireless.interface
     print_all("WiFi interface name: {}".format(iface))
 
     current = wireless.current()
@@ -188,11 +202,36 @@ while True:
                 console.big_image('images/wifi_pending.png')
                 console.big_status('Trying to connect...')
                 did_connect = wireless.connect(ssid, password)
-                if not did_connect:
-                    time.sleep(2)
-                    log.info("Failed to connect... :( Will try again.")
-                    console.big_image('images/wifi_error.png')
-                    console.big_status('Failed to connect. Try again!')
+                has_internet = has_internet_access() if did_connect else False
+                if not did_connect or not has_internet:
+                    if did_connect and not has_internet:
+                        msg = 'Connected to WiFi...\nbut no internet detected.\nPress BUTTON #1 to connect.\nPress BUTTON #2 to disconnect.'
+                        log.info(msg)
+                        console.big_image('images/wifi_error.png')
+                        console.big_status(msg)
+                        while True:
+                            choice = _get_one_button_press()
+                            if choice in (1, 2):
+                                break
+                        if choice == 1:
+                            log.info("Success! Connected to SSID: {}".format(ssid))
+                            console.big_image('images/wifi_success.png')
+                            console.big_status('WiFi connection success!\n(no internet detected)')
+                            time.sleep(5)
+                            print_connection_info()
+                            break
+                        else:
+                            wireless.delete_connection(ssid)
+                            msg = 'Disconnected.\nPlease use another WiFi network.'
+                            log.info(msg)
+                            console.big_image('images/wifi_error.png')
+                            console.big_status(msg)
+                            time.sleep(2)
+                    else:
+                        msg = 'WiFi credentials did not work.\nDid you type them correctly?\nPlease try again.'
+                        log.info(msg)
+                        console.big_image('images/wifi_error.png')
+                        console.big_status(msg)
                 else:
                     log.info("Success! Connected to SSID: {}".format(ssid))
                     console.big_image('images/wifi_success.png')

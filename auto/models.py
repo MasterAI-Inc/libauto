@@ -17,6 +17,7 @@ provide easy interfaces which abstract the underlying algorithms.
 import os
 import cv2
 import numpy as np
+from collections import defaultdict
 
 
 RESOURCE_DIR_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'resources')
@@ -26,59 +27,70 @@ class ColorClassifier:
     """
     This class processes images and classifies the color which appears in the
     center region of each image. It classifies the center region as containing
-    one of:
-      - "red"         <-- the center of the image appears RED
-      - "yellow"      <-- the center of the image appears YELLOW
-      - "green"       <-- the center of the image appears GREEN
-      - "background"  <-- the center of the image appears to be a mix of colors
+    one of the RAINBOW or NEUTRAL colors.
     """
 
-    # Canonical colors: ordered: red, yellow, green
-    DEFAULT_COLORS = np.array([[160,  50, 50],
-                               [180, 120,  0],
-                               [ 50, 180,  0]])
-
-    DEFAULT_STD_THRESH = np.array([20, 20, 20])
+    RAINBOW = {
+        'red'     : (255,   0,   0),
+        'orange'  : (255, 128,   0),
+        'yellow'  : (255, 255,   0),
+        'green'   : (  0, 255,   0),
+        'sky blue': (  0, 255, 255),
+        'blue'    : (  0,   0, 255),
+        'purple'  : (127,   0, 255),
+        'pink'    : (255,   0, 255),
+    }
+    NEUTRAL = {
+        'black'   : (  0,   0,   0),
+        'white'   : (255, 255, 255),
+    }
 
     def __init__(self, center_region_width=0.25,
                        center_region_height=0.25,
-                       colors=DEFAULT_COLORS,
-                       std_thresh=DEFAULT_STD_THRESH):
+                       colors={**RAINBOW, **NEUTRAL},
+                       min_thresh_to_classify=0.5,
+                       ):
         """
         Build a color classifier object which looks at the center region of
-        an image and determines if it contains primarily either "red", "yellow",
-        or "green", or none of those ("background"). The size of the center
+        an image and determines if it contains primarily any of the RAINBOW
+        or NEUTRAL colors. If the prominent color does not appear in at
+        least 10% (min_thresh_to_classify) of the center region then the
+        classified color will be 'background'. The size of the center
         region is given by the parameters `center_region_width` and
-        `center_region_height`.
+        `center_region_height`.  If colors is passed in then the keys must
+        be a subset of RAINBOW/NEUTRAL.
         """
+
         self.center_region_width  = center_region_width
         self.center_region_height = center_region_height
 
         # Colors as canonical vectors [R,G,B]:
         self.colors = colors
-        self.color_names = ['red', 'yellow', 'green']
 
-        # Threshold for std deviation cutoff:
-        self.std_thresh = std_thresh
+        # minimum proportion of pixels in order to classify as color
+        self.min_thresh_to_classify = min_thresh_to_classify
+
+        # Cache the color HSV spans.
+        self.hsv_span_cache = {color: self._get_hsv_spans(color) for color in self.colors}
 
     def classify(self, frame, annotate=False, print_debug=False):
         """
-        Classify the center region of `frame` as having either primarily "red",
-        "yellow", or "green, or none of those ("background").
+        Classify the center region of `frame` as having primarily one of
+        the RAINBOW or NEUTRAL colors or 'background'.
 
         The `frame` parameter must be a numpy array containing an RGB image.
 
-        Returns a tuple of the form (`p1`, `p2`, `classific`).
+        Returns a tuple of the form (`p1`, `p2`, `color_label).
         """
 
         # Check `frame` for correct shape. It should be an 3-channel, 2d image.
-        if len(frame.shape) != 3 or frame.shape[2] != 3:
+        if frame.ndim != 3 or frame.shape[2] != 3:
             raise Exception("incorrect frame shape: Please input an RGB image.")
 
         # Define the center region of `frame`.
-        height, width = frame.shape[0], frame.shape[1]
-        y_center      = height/2
-        x_center      = width/2
+        height, width, _ = frame.shape
+        y_center         = height/2
+        x_center         = width/2
         p1 = int(x_center - (width  * self.center_region_width)/2), \
              int(y_center - (height * self.center_region_height)/2)
         p2 = int(x_center + (width  * self.center_region_width)/2), \
@@ -87,69 +99,116 @@ class ColorClassifier:
         # Crop the center region.
         center_frame = frame[ p1[1]:p2[1], p1[0]:p2[0] ]
 
-        # Get mean and std dev values of the pixels in `center_frame`.
-        h, w, p = center_frame.shape
-        center_reshaped = center_frame.reshape((h*w, p))
-        center_mean = np.average(center_reshaped, axis=0).reshape(1, -1)
-        center_std = np.std(center_reshaped, axis=0)
-        if print_debug:
-            print(center_mean)
-            print(center_std)
-
-        # Assume the image is just background when all channels have "too big" of
-        # standard deviation.
-        if (center_std > self.std_thresh).all():
-            classific = 'background'
-
-        # Otherwise, find which canonical color is most similar to the center
-        # region's mean color.
-        else:
-            from sklearn.metrics.pairwise import cosine_similarity
-            cosine_sims = cosine_similarity(center_mean, self.colors)[0]
-            classific = self.color_names[np.argmax(cosine_sims)]
+        color_name = self._get_prominent_color(center_frame)
 
         if annotate:
-            self.annotate(p1, p2, classific, frame)
+            self.annotate(p1, p2, color_name, frame)
 
-        return p1, p2, classific
+        return p1, p2, color_name
 
-    def annotate(self, p1, p2, classific, frame):
+    def _get_prominent_color(self, rgb_img):
+      """
+      Parameters:
+          rgb_img (numpy array [shape=(height, width, 3)]):
+              image containing 3-channel RGB values
+
+      Returns:
+          prominent_color (str):
+              name of prominent color
+
+      Convert the image from RGB to the HSV color model. Using
+      predefined regions of the HSV model, identify the pixels
+      belonging to each color.  The prominent color is the color
+      which has the largest proportion of pixels.  If the
+      prominent color is less than the min_thresh_to_classify
+      then 'background' is the prominent color.
+      """
+      hsv_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2HSV)
+      height, width, _ = hsv_img.shape
+      pixel_count = height * width
+      # dictionary to identify which pixels match a given color {color: pixels}
+      bool_pixel_mask = defaultdict(lambda: np.zeros(hsv_img.shape[:2]))
+      for color in self.colors:
+          for low_hsv, high_hsv in self.hsv_span_cache[color]:
+              bool_pixel_mask[color] += (cv2.inRange(hsv_img, low_hsv, high_hsv) == 255)
+      proportion = {color: (mask.sum()/pixel_count) for color, mask in bool_pixel_mask.items()}
+      prominent_color = max(proportion, key=proportion.get)
+      if proportion[prominent_color] < self.min_thresh_to_classify:
+          prominent_color = 'background'
+      return prominent_color
+
+    def _get_hsv_spans(self, color):
+      """
+      Parameters:
+          color (str):
+              name of color
+
+      Returns:
+          hsv_spans (list of lists of tuples of ints):
+              hsv_spans        : [<hsv_span_1>, <hsv_span_2>]  # only red has more than 1 span
+              hsv_span         : [<low_hsv>, <high_hsv>]
+              low_hsv/high_hsv : (h,s,v)
+
+      The HSV color model defines a 3d space (cylinder) in which colors are represented.
+
+      Hue:        [ <red>   0 ~ 360 <also red> ] (in the case of cv2: [0 ~ 180])
+        The color expressed as an angle on the color wheel, think ROYGBIV-R.
+      Saturation: [ <faint> 0 ~ 255 <bold> ]
+        The intensity of the color
+      Value:      [ <vader> 0 ~ 255 <rice> ]
+        The darkness / lightness of the color
+
+      Just as a rectangle can be defined using 2 points, a chunk of the HSV 3d space
+      can be identified using 2 HSV values (low, high).  All color variations
+      belonging to this chunk (HSV values between low and high) are assigned a
+      common color name. This captures deviations in hues, saturations, and values
+      for each the common colors.
+
+      Ex:
+      green => low_hsv:(42,51,51) ~ high_hsv:(87,255,255)
+      """
+
+      SAT_THRESH_WHITE = 50
+      # white:   (0 ~ SAT_THRESH_WHITE)
+      # rainbow: (SAT_THRESH_WHITE+1 ~ 255)
+      VAL_THRESH_BLACK = 50
+      # black:   (0 ~ VAL_THRESH_BLACK)
+      # rainbow: (VAL_THRESH_BLACK+1 ~ 255)
+      HUE_RANGES = {
+          'red'     : [(  0,   8),      # lower red
+                       (170, 180)],     # upper red
+          'orange'  : [(  9,  15)],
+          'yellow'  : [( 16,  41)],
+          'green'   : [( 42,  87)],
+          'sky blue': [( 88,  98)],
+          'blue'    : [( 99, 126)],
+          'purple'  : [(127, 149)],
+          'pink'    : [(150, 169)],
+      }
+      SAT_RANGES = {
+          'black'   :  (  0, 255),
+          'white'   :  (  0, SAT_THRESH_WHITE),
+      }
+      VAL_RANGES = {
+          'black'   :  (  0, VAL_THRESH_BLACK),
+          'white'   :  (100, 255),   # low end is grey to allow capturing white in low light
+      }
+      hue_ranges = HUE_RANGES.get(color, [(0, 180)])
+      sat_range  = SAT_RANGES.get(color, (SAT_THRESH_WHITE+1, 255))
+      val_range  = VAL_RANGES.get(color, (VAL_THRESH_BLACK+1, 255))
+
+      hsv_spans = [list(zip(hue_range, sat_range, val_range)) for hue_range in hue_ranges]
+      return hsv_spans
+
+    def annotate(self, p1, p2, color_name, frame):
         """
         Annotate the image by adding a box around the center region and
-        writing the classification on the image to show the result of
+        writing the color name on the image to show the result of
         the color classification.
         """
-        box_color = None
-        text = None
-        text_color = None
-
-        if classific == 'green':
-            box_color = (0, 255, 0)
-            text = 'GREEN'
-            text_color = (0, 255, 0)
-
-        elif classific == 'yellow':
-            box_color = (255, 255, 0)
-            text = 'YELLOW'
-            text_color = (0, 0, 0)
-
-        elif classific == 'red':
-            box_color = (255, 0, 0)
-            text = 'RED'
-            text_color = (255, 0, 0)
-
-        elif classific == 'background':
-            box_color = (0, 0, 0)
-            text = 'background'
-            text_color = (0, 0, 0)
-
-        else:
-            box_color = (204, 204, 204)
-
-        if box_color:
-            cv2.rectangle(frame, p1, p2, box_color, 3)
-        if text and text_color:
-            cv2.putText(frame, text, p1, cv2.FONT_HERSHEY_SIMPLEX, 1, text_color, 2)
+        box_color = text_color = self.colors.get(color_name, ColorClassifier.NEUTRAL['black'])
+        cv2.rectangle(frame, p1, p2, box_color, 3)
+        cv2.putText(frame, color_name.upper(), p1, cv2.FONT_HERSHEY_SIMPLEX, 1, text_color, 2)
 
 
 class ObjectDetector:
@@ -402,4 +461,3 @@ class PedestrianDetector(ObjectDetector):
             self.annotate(frame, rectangles)
 
         return rectangles
-

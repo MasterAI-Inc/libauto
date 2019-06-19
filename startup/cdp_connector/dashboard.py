@@ -17,7 +17,7 @@ from threading import Thread
 import auto
 from auto.camera_rpc_client import CameraRGB
 from auto.camera import wrap_frame_index_decorator, base64_encode_image
-from auto.inet import Wireless, get_ip_address
+from auto.inet import Wireless, list_wifi_ifaces, get_ip_address
 from cio.rpc_client import VERSION as cio_version
 
 from auto import logger
@@ -27,7 +27,7 @@ log = logger.init(__name__, terminal=True)
 class Dashboard:
 
     def __init__(self):
-        self.wireless = Wireless('wlan0')
+        self.wireless = Wireless(list_wifi_ifaces()[0])
         self.capture_streams = {}
 
     def connected_cdp(self):
@@ -90,9 +90,9 @@ class Dashboard:
         elif component == 'wifi_ssid':
             return self.wireless.current()
         elif component == 'wifi_iface':
-            return self.wireless.interface()
+            return self.wireless.interface
         elif component == 'local_ip_addr':
-            return get_ip_address(self.wireless.interface())
+            return get_ip_address(self.wireless.interface)
         elif component == 'capture_one_frame':
             return self._capture_one_frame(query_id, send_func, user_session)
         else:
