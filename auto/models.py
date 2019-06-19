@@ -48,7 +48,7 @@ class ColorClassifier:
     def __init__(self, center_region_width=0.25,
                        center_region_height=0.25,
                        colors={**RAINBOW, **NEUTRAL},
-                       min_thresh_to_classify=0.1,
+                       min_thresh_to_classify=0.5,
                        ):
         """
         Build a color classifier object which looks at the center region of
@@ -69,6 +69,9 @@ class ColorClassifier:
 
         # minimum proportion of pixels in order to classify as color
         self.min_thresh_to_classify = min_thresh_to_classify
+
+        # Cache the color HSV spans.
+        self.hsv_span_cache = {color: self._get_hsv_spans(color) for color in self.colors}
 
     def classify(self, frame, annotate=False, print_debug=False):
         """
@@ -96,14 +99,14 @@ class ColorClassifier:
         # Crop the center region.
         center_frame = frame[ p1[1]:p2[1], p1[0]:p2[0] ]
 
-        color_name = self.get_prominent_color(center_frame)
+        color_name = self._get_prominent_color(center_frame)
 
         if annotate:
             self.annotate(p1, p2, color_name, frame)
 
         return p1, p2, color_name
 
-    def get_prominent_color(self, rgb_img):
+    def _get_prominent_color(self, rgb_img):
       """
       Parameters:
           rgb_img (numpy array [shape=(height, width, 3)]):
@@ -126,15 +129,15 @@ class ColorClassifier:
       # dictionary to identify which pixels match a given color {color: pixels}
       bool_pixel_mask = defaultdict(lambda: np.zeros(hsv_img.shape[:2]))
       for color in self.colors:
-          for low_hsv, high_hsv in self.get_hsv_spans(color):
-              bool_pixel_mask[color] += cv2.inRange(hsv_img, low_hsv, high_hsv)/255
+          for low_hsv, high_hsv in self.hsv_span_cache[color]:
+              bool_pixel_mask[color] += (cv2.inRange(hsv_img, low_hsv, high_hsv) == 255)
       proportion = {color: (mask.sum()/pixel_count) for color, mask in bool_pixel_mask.items()}
       prominent_color = max(proportion, key=proportion.get)
       if proportion[prominent_color] < self.min_thresh_to_classify:
           prominent_color = 'background'
       return prominent_color
 
-    def get_hsv_spans(self, color):
+    def _get_hsv_spans(self, color):
       """
       Parameters:
           color (str):
