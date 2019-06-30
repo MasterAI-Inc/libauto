@@ -168,7 +168,7 @@ class ColorClassifier:
       green => low_hsv:(42,51,51) ~ high_hsv:(87,255,255)
       """
 
-      SAT_THRESH_WHITE = 50
+      SAT_THRESH_WHITE = 40
       # white:   (0 ~ SAT_THRESH_WHITE)
       # rainbow: (SAT_THRESH_WHITE+1 ~ 255)
       VAL_THRESH_BLACK = 50
@@ -188,6 +188,7 @@ class ColorClassifier:
       SAT_RANGES = {
           'black'   :  (  0, 255),
           'white'   :  (  0, SAT_THRESH_WHITE),
+          'yellow'  :  (SAT_THRESH_WHITE+20, 255)
       }
       VAL_RANGES = {
           'black'   :  (  0, VAL_THRESH_BLACK),
