@@ -6,7 +6,7 @@ Use Python & A.I. to program a self-driving car. AutoAuto is a fun way to learn 
 
 This library runs on AutoAuto devices and exposes all the functionality the device has through a layered Python interface.
 
-![AutoAuto Fleet 1 Car](https://autoauto-static-uploads.s3.amazonaws.com/d452293bcac14e65a3370c54e9027e79.JPG)
+![AutoAuto Fleet 1 Car](https://static.autoauto.ai/uploads/d452293bcac14e65a3370c54e9027e79.JPG)
 
 ## Beginner or Advanced?
 
@@ -273,7 +273,7 @@ while True:
 
 The helper function `car.plot()` will both stream a single frame to your AutoAuto Labs account _and_ it returns a `matplotlib` object, so you can conveniently use it from Jupyter. See the screenshot below:
 
-![](https://autoauto-static-uploads.s3.amazonaws.com/8183a8fbf783457685d21e711dd98069.png)
+![](https://static.autoauto.ai/uploads/8183a8fbf783457685d21e711dd98069.png)
 
 **Note:** There is a bug where the first time you run `car.plot()`, the figure may not automatically show up under the cell. It seems that this only happens on the first run, and the figure will show up on all subsequent runs, as shown in the screenshot above.
 
@@ -305,7 +305,7 @@ for i in range(100):
     x, y, z = gyroscope.read()
     print(' '.join("{:10.3f}".format(v) for v in (x, y, z)))
     time.sleep(0.05)
-    
+
 release(gyroscope)
 ```
 
