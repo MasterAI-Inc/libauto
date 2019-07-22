@@ -42,7 +42,7 @@ class Verification:
         pass
 
     def _show_verification_text(self, username, verification_text, expire_minutes):
-        text = "Hi {}!\nAuthentication Code: {}".format(username, verification_text)
+        text = "Hi {}!\nAuthentication Code:\n{}\n".format(username, verification_text)
         console.big_image('images/pair_pending.png')
         console.big_status(text)
         print_all(text + "\n")
