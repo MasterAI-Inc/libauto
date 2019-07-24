@@ -42,7 +42,7 @@ class Verification:
         pass
 
     def _show_verification_text(self, username, verification_text, expire_minutes):
-        text = "Hi {}!\nAuthentication Code: {}".format(username, verification_text)
+        text = "Hi {}!\nAuthentication Code:\n{}\n".format(username, verification_text)
         console.big_image('images/pair_pending.png')
         console.big_status(text)
         print_all(text + "\n")
@@ -50,7 +50,7 @@ class Verification:
         # and auto-close the pairing image when the countdown expires.
 
     def _show_verification_success(self, username):
-        text = "Congrats {}!\nYou are paired with this device.".format(username)
+        text = "Congrats {}!\nYou are paired with this device.\n\n".format(username)
         console.big_image('images/pair_success.png')
         console.big_status(text)
         print_all(text + "\n")
@@ -59,10 +59,9 @@ class Verification:
 
     def _show_verification_failed(self, reason):
         reason = re.sub(r'\<.*?\>', '', reason)
-        text = "Error:\n{}".format(reason)
+        text = "Error:\n{}\n\n".format(reason)
         console.big_image('images/pair_error.png')
         console.big_status("Error:\nTry again.")
         print_all(text + "\n")
         time.sleep(5)   # <-- TODO Remove this hack. Do something that's async.
         console.big_clear()
-
