@@ -297,10 +297,14 @@ def buzz(notes):
     buzzer.buzz(notes)
 
 
-def honk():
+def honk(count=1):
     """
     Make a car horn ("HONK") sound.
     """
+    MAX_HONKS = 5
+    count = min(MAX_HONKS, count)
     from car import buzzer
-    buzzer.honk()
+    for _ in range(count):
+        buzzer.honk()
+        time.sleep(0.2)
 
