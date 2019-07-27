@@ -50,7 +50,7 @@ class Verification:
         # and auto-close the pairing image when the countdown expires.
 
     def _show_verification_success(self, username):
-        text = "Congrats {}!\nYou are paired with this device.\n\n".format(username)
+        text = "Congrats {}!\nYou are now paired\nwith this device.\n".format(username)
         console.big_image('images/pair_success.png')
         console.big_status(text)
         print_all(text + "\n")
