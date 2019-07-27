@@ -14,6 +14,8 @@ fi
 
 sudo -u "$LIBAUTO_PRIV_USER" -i /bin/bash -c "cd $LIBAUTO_PATH && git pull"
 
+sudo sync
+
 sleep 2    # Allows the user time to see what happened.
 
 sudo reboot

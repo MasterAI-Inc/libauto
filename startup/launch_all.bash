@@ -3,6 +3,8 @@
 # Change to the `libauto` directory.
 cd "$(dirname "$0")"/..
 
+sync
+
 for i in `seq 1 3`
 do
     echo '=========================================================='
