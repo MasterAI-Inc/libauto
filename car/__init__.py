@@ -40,7 +40,7 @@ def forward(duration=1.0, verbose=True):
         print("Driving forward for {} seconds.".format(duration))
     if duration <= 0.0:
         return
-    motors.forward(duration)
+    motors.straight(motors.CAR_THROTTLE_FORWARD_SAFE_SPEED, duration, invert_output=False)
 
 
 def reverse(duration=1.0, verbose=True):
@@ -55,7 +55,7 @@ def reverse(duration=1.0, verbose=True):
         print("Driving in reverse for {} seconds.".format(duration))
     if duration <= 0.0:
         return
-    motors.reverse(duration)
+    motors.straight(motors.CAR_THROTTLE_REVERSE_SAFE_SPEED, duration, invert_output=True)
 
 
 def left(duration=1.0, verbose=True):
@@ -70,7 +70,7 @@ def left(duration=1.0, verbose=True):
         print("Driving left for {} seconds.".format(duration))
     if duration <= 0.0:
         return
-    motors.left(duration)
+    motors.drive(45.0, motors.CAR_THROTTLE_FORWARD_SAFE_SPEED, duration)
 
 
 def right(duration=1.0, verbose=True):
@@ -85,7 +85,7 @@ def right(duration=1.0, verbose=True):
         print("Driving right for {} seconds.".format(duration))
     if duration <= 0.0:
         return
-    motors.right(duration)
+    motors.drive(-45.0, motors.CAR_THROTTLE_FORWARD_SAFE_SPEED, duration)
 
 
 def pause(duration=1.0, verbose=True):

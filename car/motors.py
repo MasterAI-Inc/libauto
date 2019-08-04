@@ -39,26 +39,6 @@ PID_STEERING = acquire_component_interface('PID_steering')
 GYRO_ACCUM = acquire_component_interface('Gyroscope_accum')
 
 
-def forward(duration):
-    """
-    Drive the car forward for `duration` seconds.
-
-    This function is synchronous, thus it will not return for
-    approximately `duration` seconds.
-    """
-    straight(CAR_THROTTLE_FORWARD_SAFE_SPEED, duration, invert_output=False)
-
-
-def reverse(duration):
-    """
-    Drive the car in reverse for `duration` seconds.
-
-    This function is synchronous, thus it will not return for
-    approximately `duration` seconds.
-    """
-    straight(CAR_THROTTLE_REVERSE_SAFE_SPEED, duration, invert_output=True)
-
-
 def straight(throttle, duration, invert_output):
     """
     Drive the car "straight". This function uses the car's gyroscope to
@@ -67,7 +47,7 @@ def straight(throttle, duration, invert_output):
     This function is synchronous, thus it will not return until after these
     instructions are finish, which takes approximately `duration` seconds.
     """
-    MOTORS.set_steering(0.0)
+    set_steering(0.0)
     time.sleep(0.1)
     _, _, z = GYRO_ACCUM.read()
     start_time = time.time()
@@ -77,31 +57,11 @@ def straight(throttle, duration, invert_output):
         curr_time = time.time()
         if curr_time - start_time >= duration:
             break
-        MOTORS.set_throttle(throttle)
+        set_throttle(throttle)
         time.sleep(min(0.1, curr_time - start_time))
-    MOTORS.set_throttle(0.0)
+    set_throttle(0.0)
     time.sleep(0.1)
     PID_STEERING.disable()
-
-
-def left(duration):
-    """
-    Drive the car forward and left for `duration` seconds.
-
-    This function is synchronous, thus it will not return for
-    approximately `duration` seconds.
-    """
-    drive(45.0, CAR_THROTTLE_FORWARD_SAFE_SPEED, duration)
-
-
-def right(duration):
-    """
-    Drive the car forward and right for `duration` seconds.
-
-    This function is synchronous, thus it will not return for
-    approximately `duration` seconds.
-    """
-    drive(-45.0, CAR_THROTTLE_FORWARD_SAFE_SPEED, duration)
 
 
 def drive(angle, throttle, duration):
@@ -116,17 +76,17 @@ def drive(angle, throttle, duration):
           car's gyroscope. This is unlike the `straight()` function, which _does_
           use the car's gyroscope.
     """
-    MOTORS.set_steering(angle)
+    set_steering(angle)
     time.sleep(0.1)
     start_time = time.time()
     while True:
         curr_time = time.time()
         if curr_time - start_time >= duration:
             break
-        MOTORS.set_throttle(throttle)
-        MOTORS.set_steering(angle)
+        set_throttle(throttle)
+        set_steering(angle)
         time.sleep(min(0.1, curr_time - start_time))
-    MOTORS.set_throttle(0.0)
+    set_throttle(0.0)
     time.sleep(0.1)
 
 

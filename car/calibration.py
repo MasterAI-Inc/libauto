@@ -206,8 +206,8 @@ def _calibrate_steering_pid(io_device):
 
         _setup_steering_pid()
 
-        m.forward(2.5)  # <-- uses gyro
-        m.reverse(2.5)  # <-- uses gyro
+        m.straight(m.CAR_THROTTLE_FORWARD_SAFE_SPEED, 2.5, invert_output=False)  # <-- uses gyro
+        m.straight(m.CAR_THROTTLE_REVERSE_SAFE_SPEED, 2.5, invert_output=True)   # <-- uses gyro
 
         if _choice_input(prompt="Keep?", choices=['n', 'y'], io_device=io_device) == 'y':
             break

@@ -462,53 +462,6 @@ release(leds)
 
 LED index 0 also drives the external LED on J21. LED index 2 also drives the external LED on J16.
 
-### PID loop for steering
-
-**Note:** Only applicable to AutoAuto _cars_, not other devices.
-
-The _cars_' microcontroller has a PID loop it can use to steer the car perfectly straight. See the example below (copied from the function named `straight()` that lives in `car.motors`). As the program runs, rotate your car side-to-side and you'll see it trying to correct by steering the opposite direction.
-
-```python
-from auto.capabilities import list_caps, acquire, release
-import time
-
-MOTORS = acquire('CarMotors')
-MOTORS.on()
-
-PID_STEERING = acquire('PID_steering')
-
-GYRO_ACCUM = acquire('Gyroscope_accum')
-
-
-def straight(throttle, duration, invert_output):
-    """
-    Drive the car "straight". This function uses the car's gyroscope to
-    continually keep the car in the same direction in which it started.
-
-    This function is synchronous, thus it will not return until after these
-    instructions are finish, which takes approximately `duration` seconds.
-    """
-    MOTORS.set_steering(0.0)
-    time.sleep(0.1)
-    _, _, z = GYRO_ACCUM.read()
-    start_time = time.time()
-    PID_STEERING.set_point(z)
-    PID_STEERING.enable(invert_output=invert_output)
-    while True:
-        curr_time = time.time()
-        if curr_time - start_time >= duration:
-            break
-        MOTORS.set_throttle(throttle)
-        time.sleep(min(0.1, curr_time - start_time))
-    MOTORS.set_throttle(0.0)
-    time.sleep(0.1)
-    PID_STEERING.disable()
-
-
-# Now we call the `straight()` function!
-straight(20, 4.0, False)
-```
-
 ### Calibration
 
 If you are running as a privileged user (`root` or `hacker`, via `ssh` most likely), you can calibrate your device (a car, in the example below).
