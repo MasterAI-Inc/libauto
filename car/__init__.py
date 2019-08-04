@@ -102,6 +102,8 @@ def capture(num_frames=1, verbose=True):
     Capture `num_frames` frames from the car's camera and return
     them as a numpy ndarray.
     """
+    MAX_FRAMES = 5
+    num_frames = min(MAX_FRAMES, num_frames)
     from auto import camera
     return camera.capture(num_frames, verbose)
 
