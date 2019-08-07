@@ -36,7 +36,7 @@ RESOURCE_DIR_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname
 # Settings:
 CONSOLE_FONT_SIZE = 20
 HEADER_FONT_SIZE = 25
-BIG_STATUS_FONT_SIZE = 30
+BIG_STATUS_FONT_SIZE = 25
 BG_COLOR = (0, 0, 0)
 HEADER_BG_COLOR = (136, 204, 136)
 HEADER_TXT_COLOR = (0, 68, 0)
