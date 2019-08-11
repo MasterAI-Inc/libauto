@@ -170,6 +170,26 @@ def factory_read_3axis_floats(fd, reg_num):
     return ThreeAxisFloats()
 
 
+def factory_read_3axis_floats_rotate_z_180(fd, reg_num):
+
+    class ThreeAxisFloats:
+        def __init__(self):
+            pass
+
+        @i2c_retry(N_I2C_TRIES)
+        def read(self):
+            """
+            Read an (x, y, z) tuple-of-floats from one of the controller's components.
+            E.g. Read from the Accelerometer, Gyroscope, or Magnetometer.
+            """
+            buf = write_read_i2c_with_integrity(fd, [reg_num], 3*4)
+            x, y, z = struct.unpack('3f', buf)
+            x, y = -x, -y    # rotate 180 degrees around z
+            return x, y, z
+
+    return ThreeAxisFloats()
+
+
 def factory_read_one_float(fd, reg_num):
 
     class OneFloat:
@@ -649,9 +669,9 @@ KNOWN_COMPONENTS = {
     'BatteryVoltageReader':  factory_read_battery_millivolts,
     'Buzzer':                factory_play_buzzer_notes,
     'Calibrator':            factory_calibrator,
-    'Accelerometer':         factory_read_3axis_floats,
-    'Gyroscope':             factory_read_3axis_floats,
-    'Gyroscope_accum':       factory_read_3axis_floats,
+    'Accelerometer':         factory_read_3axis_floats_rotate_z_180,
+    'Gyroscope':             factory_read_3axis_floats_rotate_z_180,
+    'Gyroscope_accum':       factory_read_3axis_floats_rotate_z_180,
     'Magnetometer':          factory_read_3axis_floats,
     'Temperature':           factory_read_one_float,
     'PushButtons':           factory_push_buttons,
