@@ -61,40 +61,101 @@ def plot(frames, also_stream=True, verbose=False, **fig_kwargs):
     if verbose:
         print_all("Plotting {} frame{}...".format(n, 's' if n != 1 else ''))
 
-    # Create the figure grid.
-    if 'figsize' not in fig_kwargs:
-        fig_kwargs['figsize'] = (5, 5) if n == 1 else (10, 10)
-    fig, axes = plt.subplots(width, height, **fig_kwargs)
-    canvas = FigureCanvasAgg(fig)
+    # need to test
+    if _in_notebook():
+        # Create the figure grid.
+        if 'figsize' not in fig_kwargs:
+            fig_kwargs['figsize'] = (5, 5) if n == 1 else (10, 10)
+        fig, axes = plt.subplots(width, height, **fig_kwargs)
+        canvas = FigureCanvasAgg(fig)
 
-    # Ensure `axes` is a 1d iterable.
-    try:
-        axes = axes.flatten()
-    except AttributeError:
-        # This ^^ exception happens when width=height=1.
-        axes = [axes]
+        # Ensure `axes` is a 1d iterable.
+        try:
+            axes = axes.flatten()
+        except AttributeError:
+            # This ^^ exception happens when width=height=1.
+            axes = [axes]
 
-    # Plot each frame into the grid.
-    from itertools import zip_longest
-    for ax, frame in zip_longest(axes, frames):
-        if frame is not None:
-            if frame.shape[2] == 1:
-                frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
-            ax.imshow(frame)
-        ax.axis('off')
-    fig.tight_layout()
+        # Plot each frame into the grid.
+        from itertools import zip_longest
+        for ax, frame in zip_longest(axes, frames):
+            if frame is not None:
+                if frame.shape[2] == 1:
+                    frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+                ax.imshow(frame)
+            ax.axis('off')
+        fig.tight_layout()
+    else:
+        fig = None
+        axes = []
 
     # Also stream... if told to.
     if also_stream:
-        if n > 1:
-            canvas.draw()
-            canvas_width, canvas_height = [int(v) for v in fig.get_size_inches() * fig.get_dpi()]
-            canvas_frame = np.fromstring(canvas.tostring_rgb(), dtype='uint8').reshape(canvas_height, canvas_width, 3)
-            stream(canvas_frame, to_labs=True, verbose=False)  # We say `verbose=False` here because we don't want ANOTHER printout, even if verbose is True for this `plot()` function.
-        else:
-            stream(frames[0], to_labs=True, verbose=False)     # ... same ...
+        # need to test
+        montage = _create_montage(frames)
+        stream(montage, to_labs=True, verbose=False)   # We say `verbose=False` here because we don't want ANOTHER printout, even if verbose is True for this `plot()` function.
 
     return fig, axes[:len(frames)]
+
+
+def _in_notebook():
+    """
+    Determine if the current process is running in a jupyter notebook / iPython shell
+    Returns: boolean
+    """
+    try:
+        shell = get_ipython().__class__.__name__
+        if shell == 'ZMQInteractiveShell':
+            result = True   # jupyter notebook or qtconsole
+        elif shell == 'TerminalInteractiveShell':
+            result = True   # iPython via terminal
+        else:
+            result = False  # unknown shell type
+    except NameError:
+        result = False      # most likely standard Python interpreter
+    return result
+
+
+def _create_montage(frames):
+    """
+    Stitch together all frames into 1 montage image:
+    Each frame shape is (height x width x 3 channels).
+        frame_count | result
+            1       | 1 row x 1 col
+            2       | 1 row x 2 col
+            3       | 2 row x 2 col (4th frame all white)
+            4       | 2 row x 2 col
+    Args:
+        frames: list of nd-arrays
+
+    Returns: nd array of shape (row_count * frame_height, column_count * frame_width, 3 channels)
+    """
+    MAX_COLS = 2
+    frames = np.array(frames)
+    if frames.shape[0] == 1:
+        montage = frames[0]
+    else:
+        frames = [_shrink_img(frame, factor=1/MAX_COLS) for frame in frames]
+        rows_of_frames = [frames[i:i+MAX_COLS] for i in range(0, frames.shape[0], MAX_COLS)]
+        rows_of_combined_frames = [
+            (np.hstack(row)
+             if row.shape[0] == MAX_COLS
+             else np.hstack([row[0], np.full_like(row[0],255)]))
+            for row in rows_of_frames]
+        montage = np.vstack(rows_of_combined_frames)
+    return montage
+
+
+def _shrink_img(img, factor=0.5):
+    """
+    Reduce the img dimensions by half.
+    Args:
+        img: nd array with shape (height, width, 3 channels)
+
+    Returns: nd array with shape (height*factor, width*factor, 3)
+    """
+    shrunk_image = cv2.resize(img,None,fx=factor,fy=factor,interpolation=cv2.INTER_AREA)
+    return shrunk_image
 
 
 def stream(frame, to_console=True, to_labs=False, verbose=False):

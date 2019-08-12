@@ -60,10 +60,8 @@ def capture(num_frames=1, verbose=False):
     camera = global_camera(verbose)
 
     if num_frames > 1:
-        frames = []
-        for _, frame in zip(range(num_frames), camera.stream()):
-            frames.append(frame)
-        frames = np.array(frames)
+        # need to test
+        frames = np.array([camera.stream() for f in range(num_frames)])
         if verbose:
             auto.print_all("Captured {} frames.".format(num_frames))
         return frames
