@@ -304,7 +304,9 @@ def honk(count=1):
     MAX_HONKS = 5
     count = min(MAX_HONKS, count)
     from car import buzzer
-    for _ in range(count):
+    # need to test
+    for _ in range(count - 1):
         buzzer.honk()
         time.sleep(0.2)
+    buzzer.honk() # final honk
 
