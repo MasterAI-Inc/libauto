@@ -10,7 +10,6 @@
 
 from auto.camera_rpc_client import CameraRGB
 from auto.inet import Wireless, list_wifi_ifaces, get_ip_address, has_internet_access
-from auto.capabilities import acquire, release
 from auto.db import secure_db
 from auto import print_all
 from auto import console
@@ -38,19 +37,6 @@ system_priv_user = sys.argv[1]   # the "Privileged" system user
 log.info("Starting Wifi controller using the privileged user: {}".format(system_priv_user))
 
 
-def _get_one_button_press():
-    buttons = acquire('PushButtons')
-    try:
-        while True:
-            events = buttons.get_events()
-            presses = [e['button'] for e in events if e['action'] == 'pressed']
-            if presses:
-                return presses[0]
-            time.sleep(0.1)
-    finally:
-        release(buttons)
-
-
 def stream_frame(frame):
     if frame.ndim == 2:
         height, width = frame.shape
@@ -60,7 +46,7 @@ def stream_frame(frame):
     else:
         return  # :(
     shape = [width, height, channels]
-    rect = [0, 0, width//3, height//3]
+    rect = [22, 20, width, height]
     console.stream_image(rect, shape, frame.tobytes())
 
 
@@ -91,6 +77,7 @@ def get_wifi_info_from_user():
                 password = None
                 break
 
+    console.clear_image()
     camera.close()
 
     return ssid, password
@@ -137,10 +124,11 @@ def ensure_token():
             except:
                 pass
 
+    console.clear_image()
+    camera.close()
+
     console.big_image('images/token_success.png')
     console.big_status('Success. Token: {}...'.format(token[:5]))
-
-    camera.close()
 
     STORE.put('DEVICE_TOKEN', token)
     print_all("Stored Device token: {}...".format(token[:5]))
@@ -158,10 +146,9 @@ def ensure_token():
     util.change_system_password(system_priv_user, system_password)
     print_all("Successfully changed {}'s password!".format(system_priv_user))
 
-    time.sleep(5)
+    time.sleep(2)
 
     console.big_clear()
-    console.clear_image()
 
 
 def print_connection_info():
@@ -204,34 +191,14 @@ while True:
                 did_connect = wireless.connect(ssid, password)
                 has_internet = has_internet_access() if did_connect else False
                 if not did_connect or not has_internet:
-                    if did_connect and not has_internet:
-                        msg = 'Connected to WiFi...\nbut no internet detected.\nPress BUTTON #1 to connect.\nPress BUTTON #2 to disconnect.'
-                        log.info(msg)
-                        console.big_image('images/wifi_error.png')
-                        console.big_status(msg)
-                        while True:
-                            choice = _get_one_button_press()
-                            if choice in (1, 2):
-                                break
-                        if choice == 1:
-                            log.info("Success! Connected to SSID: {}".format(ssid))
-                            console.big_image('images/wifi_success.png')
-                            console.big_status('WiFi connection success!\n(no internet detected)')
-                            time.sleep(5)
-                            print_connection_info()
-                            break
-                        else:
-                            wireless.delete_connection(ssid)
-                            msg = 'Disconnected.\nPlease use another WiFi network.'
-                            log.info(msg)
-                            console.big_image('images/wifi_error.png')
-                            console.big_status(msg)
-                            time.sleep(2)
+                    if did_connect:
+                        wireless.delete_connection(ssid)
+                        msg = 'Connected to WiFi...\nbut no internet detected.\nPlease use another network.'
                     else:
                         msg = 'WiFi credentials did not work.\nDid you type them correctly?\nPlease try again.'
-                        log.info(msg)
-                        console.big_image('images/wifi_error.png')
-                        console.big_status(msg)
+                    log.info(msg)
+                    console.big_image('images/wifi_error.png')
+                    console.big_status(msg)
                 else:
                     log.info("Success! Connected to SSID: {}".format(ssid))
                     console.big_image('images/wifi_success.png')
@@ -240,7 +207,6 @@ while True:
                     print_connection_info()
                     break
             console.big_clear()
-            console.clear_image()
 
             update_and_reboot_if_no_token()
 
