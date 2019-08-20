@@ -27,6 +27,10 @@ from auto import logger
 log = logger.init('wifi_controller', terminal=True)
 
 
+NUM_INTERNET_ATTEMPTS = 5
+INTERNET_ATTEMPT_SLEEP = 4
+
+
 STORE = secure_db()
 
 wireless = Wireless(list_wifi_ifaces()[0])
@@ -35,6 +39,18 @@ wireless = Wireless(list_wifi_ifaces()[0])
 system_priv_user = sys.argv[1]   # the "Privileged" system user
 
 log.info("Starting Wifi controller using the privileged user: {}".format(system_priv_user))
+
+
+def has_internet_access_multi_try():
+    for i in range(NUM_INTERNET_ATTEMPTS-1):
+        if has_internet_access():
+            return True
+        log.info("Check for internet FAILED.")
+        time.sleep(INTERNET_ATTEMPT_SLEEP)
+    if has_internet_access():
+        return True
+    log.info("Check for internet FAILED last attempt. Concluding there is no internet access.")
+    return False
 
 
 def stream_frame(frame):
@@ -189,7 +205,7 @@ while True:
                 console.big_image('images/wifi_pending.png')
                 console.big_status('Trying to connect...')
                 did_connect = wireless.connect(ssid, password)
-                has_internet = has_internet_access() if did_connect else False
+                has_internet = has_internet_access_multi_try() if did_connect else False
                 if not did_connect or not has_internet:
                     if did_connect:
                         wireless.delete_connection(ssid)

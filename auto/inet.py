@@ -53,7 +53,10 @@ class Wireless:
         response = _run_cmd("nmcli --terse --field DEVICE,CONNECTION dev".split(' '))
 
         for line in response.splitlines():
-            iface, name = line.split(':')
+            lst = line.split(':')
+            if len(lst) != 2:
+                continue
+            iface, name = lst
             if iface == self.interface:
                 if name == '--':
                     return None
@@ -65,7 +68,10 @@ class Wireless:
         response = _run_cmd("nmcli --terse --fields UUID,NAME,TYPE con show".split(' '))
 
         for line in response.splitlines():
-            uuid, name, type_ = line.split(':')
+            lst = line.split(':')
+            if len(lst) != 3:
+                continue
+            uuid, name, type_ = lst
             if type_ == '802-11-wireless' and ssid_to_delete in name:
                 _run_cmd("nmcli con delete uuid".split(' ') + [uuid])
 
@@ -155,7 +161,10 @@ def list_ifaces():
 
     interfaces = []
     for line in response.splitlines():
-        iface, type_ = line.split(':')
+        lst = line.split(':')
+        if len(lst) != 2:
+            continue
+        iface, type_ = lst
         interfaces.append(iface)
 
     return interfaces
@@ -166,7 +175,10 @@ def list_wifi_ifaces():
 
     interfaces = []
     for line in response.splitlines():
-        iface, type_ = line.split(':')
+        lst = line.split(':')
+        if len(lst) != 2:
+            continue
+        iface, type_ = lst
         if type_ == 'wifi':
             interfaces.append(iface)
 
