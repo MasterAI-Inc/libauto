@@ -39,7 +39,7 @@ class Wireless:
 
         response = _run_cmd("nmcli dev wifi connect".split(' ') +
                             [ssid, 'password', password, 'ifname', self.interface,
-                             'name', ssid, 'hidden', 'yes'])
+                             'name', ssid])   # , 'hidden', 'yes'
 
         did_connect = not self._error_in_response(response)
 
