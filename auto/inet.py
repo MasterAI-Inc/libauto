@@ -143,7 +143,7 @@ def has_internet_access():
         return False
     sock.close()
     try:
-        req = requests.get('https://api.autoauto.ai/ping', timeout=3.0)
+        req = requests.get('http://api.autoauto.ai/ping', timeout=3.0)
         data = req.json()
         return req.status_code == 200 and data['text'] == 'pong'
     except:
