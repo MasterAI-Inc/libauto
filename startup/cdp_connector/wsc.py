@@ -214,6 +214,7 @@ class StandardDelegate:
         self.known_user_sessions = set()
         self.consumers = consumers
         self.send_queue = send_queue
+        self.did_error = False
 
     def add_user_with_session(self, username, user_session):
         with self.known_lock:
@@ -300,6 +301,7 @@ class StandardDelegate:
         for c in self.consumers:
             c.connected_cdp()
         print_all('Connected to CDP. Standing by...')
+        self.did_error = False
 
     def onClose(self):
         for c in self.consumers:
@@ -307,7 +309,9 @@ class StandardDelegate:
         print_all('Connection to CDP lost. Reconnecting...')
 
     def onError(self, e):
-        print_all('CDP connection error:', e)
+        if not self.did_error:
+            print_all('Attempting to connect...')
+            self.did_error = True   # We only want to print on the _first_ error.
 
 
 def run_forever(conn, send_queue):
