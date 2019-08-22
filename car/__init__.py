@@ -108,11 +108,12 @@ def capture(num_frames=1, verbose=True):
     return camera.capture(num_frames, verbose)
 
 
-def plot(frames, also_stream=True, verbose=True, **fig_kwargs):
+def plot(frames, also_stream=True, verbose=True):
     """
-    Plot the given `frames` (a numpy ndarray) into a matplotlib figure,
-    returning the figure object which can be shown. This function by
-    default also streams the image to your `labs` account.
+
+    Stitch together the given `frames` (a numpy nd-array) into a single nd-array.
+    If running in a notebook then the PIL image will be returned (and displayed).
+    This function by default also streams the image to your `labs` account.
 
     The `frames` parameter must be a numpy ndarray with one of the
     following shapes:
@@ -123,7 +124,7 @@ def plot(frames, also_stream=True, verbose=True, **fig_kwargs):
         -    (h, w)      meaning a single 1-channel gray image of size `w`x`h`
     """
     from auto import frame_streamer
-    return frame_streamer.plot(frames, also_stream, verbose, **fig_kwargs)
+    return frame_streamer.plot(frames, also_stream, verbose)
 
 
 def stream(frame, to_console=True, to_labs=False, verbose=True):

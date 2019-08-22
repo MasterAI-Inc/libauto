@@ -25,7 +25,7 @@ import PIL.Image
 OPTIMAL_ASPECT_RATIO = 4/3
 
 
-def plot(frames, also_stream=True, verbose=False, **fig_kwargs):
+def plot(frames, also_stream=True, verbose=False):
     """
     Stitch together the given `frames` (a numpy nd-array) into a single nd-array.
     If running in a notebook then the PIL image will be returned (and displayed).
@@ -166,15 +166,17 @@ def stream(frame, to_console=True, to_labs=False, verbose=False):
             frame = np.expand_dims(frame, axis=2)
             assert frame.ndim == 3 and frame.shape[2] == 1
         else:
-            raise Exception("invalid frame ndarray ndim")
+            raise Exception(f"invalid frame ndarray ndim: {frame.ndim}")
         height, width, channels = frame.shape
         aspect_ratio = width / height
         if aspect_ratio != OPTIMAL_ASPECT_RATIO:
-            frame = add_white_bars(frame)
-            height, width, channels = frame.shape
-            shape = [width, height, channels]
+            final_frame = add_white_bars(frame)
+            height, width, channels = final_frame.shape
+        else:
+            final_frame = frame
+        shape = [width, height, channels]
         rect = [0, 0, 0, 0]
-        console.stream_image(rect, shape, frame.tobytes())
+        console.stream_image(rect, shape, final_frame.tobytes())
 
     # Convert the frame to a JPG buffer and publish to the network connection.
     if to_labs:
