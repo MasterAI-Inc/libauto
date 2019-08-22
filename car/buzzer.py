@@ -25,9 +25,12 @@ def buzz(notes):
     BUZZER.wait()
 
 
-def honk():
+def honk(count=1):
     """
     Make a car horn ("HONK") sound.
     """
-    buzz('!T95 O4 G#16 R16 G#4')
-
+    MAX_HONKS = 5
+    count = min(MAX_HONKS, count)
+    for _ in range(count - 1):
+        buzz('!T95 O4 G#16 R16') # short honk
+    buzz('!T95 O4 G#4') # final long honk
