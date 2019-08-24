@@ -273,7 +273,7 @@ while True:
 
 The helper function `car.plot()` will both stream a single frame to your AutoAuto Labs account _and_ it returns a `PIL.Image` object, so you can conveniently use it from Jupyter. See the screenshot below:
 
-![](https://static.autoauto.ai/uploads/8183a8fbf783457685d21e711dd98069.png)
+![](https://static.autoauto.ai/uploads/abecaaf6d4d34146bd802be839f1f993.png)
 
 ### List the devices' capabilities
 
