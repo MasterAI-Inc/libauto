@@ -170,7 +170,7 @@ def stream(frame, to_console=True, to_labs=False, verbose=False):
         height, width, channels = frame.shape
         aspect_ratio = width / height
         if aspect_ratio != OPTIMAL_ASPECT_RATIO:
-            final_frame = add_white_bars(frame)
+            final_frame = _add_white_bars(frame)
             height, width, channels = final_frame.shape
         else:
             final_frame = frame
@@ -188,7 +188,7 @@ def stream(frame, to_console=True, to_labs=False, verbose=False):
         print_all("Streamed frame of size {}x{}.".format(w, h))
 
 
-def add_white_bars(frame):
+def _add_white_bars(frame):
     """
     This function is intended for a wide image that needs white bars
     on top and bottom so as to not be stretched when displayed full
