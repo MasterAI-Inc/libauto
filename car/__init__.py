@@ -297,10 +297,9 @@ def buzz(notes):
     buzzer.buzz(notes)
 
 
-def honk():
+def honk(count=1):
     """
     Make a car horn ("HONK") sound.
     """
     from car import buzzer
-    buzzer.honk()
-
+    buzzer.honk(count)
