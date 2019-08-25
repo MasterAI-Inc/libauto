@@ -9,7 +9,7 @@
 ###############################################################################
 
 BASE_URL = "wss://ws.autoauto.ai/autopair/device"
-#BASE_URL = "ws://192.168.1.4:8000/autopair/device"
+#BASE_URL = "ws://192.168.1.117:8001/autopair/device"
 
 from wsc import WebSocketConnection, StandardDelegate, run_forever
 
@@ -59,7 +59,7 @@ class CdpService(rpyc.Service):
 
     def exposed_send(self, msg):
         log.info('Will send to CDP from RPC, message: {}...'.format(msg[:10]))
-        delegate.smart_send(msg)
+        return delegate.smart_send(msg)
 
 
 if __name__ == '__main__':
