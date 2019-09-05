@@ -134,14 +134,14 @@ def _raise_on_timeout(time):
 
 def has_internet_access():
     try:
-        with _raise_on_timeout(2.0):
+        with _raise_on_timeout(60.0):
             params = socket.getaddrinfo('ws.autoauto.ai', 'https', proto=socket.IPPROTO_TCP)[0]
     except OSError:
         return False
     family, type_, proto = params[:3]
     sockaddr = params[4]
     sock = socket.socket(family, type_, proto)
-    sock.settimeout(2.0)
+    sock.settimeout(20.0)
     try:
         sock.connect(sockaddr)   # <-- blocking, but respects the `settimeout()` call above
     except socket.timeout:
@@ -149,7 +149,7 @@ def has_internet_access():
         return False
     sock.close()
     try:
-        req = requests.get('http://api.autoauto.ai/ping', timeout=3.0)
+        req = requests.get('http://api.autoauto.ai/ping', timeout=80.0)
         data = req.json()
         return req.status_code == 200 and data['text'] == 'pong'
     except:
