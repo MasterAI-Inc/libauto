@@ -23,6 +23,7 @@ import sys
 from pty_manager import PtyManager
 from verification_method import Verification
 from dashboard import Dashboard
+from proxy import Proxy
 
 from auto import print_all
 
@@ -79,6 +80,7 @@ if __name__ == '__main__':
         PtyManager(system_up_user, system_priv_user),
         Verification(),
         Dashboard(),
+        Proxy(),
     ]
 
     send_queue = queue.Queue(maxsize=100)
