@@ -8,28 +8,14 @@
 #
 ###############################################################################
 
-import os
-import uuid
+import sys
 import base64
-import subprocess
-from queue import Queue, Empty
+import asyncio
+import traceback
 from threading import Thread
-
-import auto
-from auto.camera_rpc_client import CameraRGB
-from auto.camera import wrap_frame_index_decorator, base64_encode_image
-from auto.inet import Wireless, list_wifi_ifaces, get_ip_address
-from cio.rpc_client import VERSION as cio_version
 
 from auto import logger
 log = logger.init(__name__, terminal=True)
-
-
-RESPONSE = '\r\n'.join('''HTTP/1.1 200 OK
-Content-Length: 4
-Content-Type: text/html
-
-Hi!!'''.splitlines()).encode('ascii')
 
 
 class Proxy:
@@ -38,21 +24,59 @@ class Proxy:
         pass
 
     def connected_cdp(self):
-        pass
+        self.connections = {}
+        self.loop = asyncio.new_event_loop()
+        self.thread = Thread(target=self._run_event_loop)
+        self.thread.start()
+        log.info("Started proxy thread.")
 
     def new_user_session(self, username, user_session):
         pass
 
     def got_message(self, msg, send_func):
         if 'origin' in msg and msg['origin'] == 'proxy':
-            print(msg)
+            asyncio.run_coroutine_threadsafe(self._new_message(msg, send_func), self.loop)
+
+    def end_user_session(self, username, user_session):
+        pass
+
+    def disconnected_cdp(self):
+        log.info("Will stop proxy event loop...")
+        self.loop.call_soon_threadsafe(self.loop.stop)
+        log.info("Will join with proxy thread...")
+        self.thread.join()
+        self.loop = None
+        self.thread = None
+        log.info("Joined proxy thread!")
+
+    def _run_event_loop(self):
+        asyncio.set_event_loop(self.loop)
+        log.info("Proxy event loop will start!")
+        self.loop.run_forever()
+        self.loop.close()
+        log.info("Proxy event loop has stopped.")
+        # TODO clean up open connections
+
+    async def _new_message(self, msg, send_func):
+        print(msg)
+        try:
             if 'open' in msg:
-                send_func({
-                    'type': 'proxy_send',
-                    'channel': msg['channel'],
-                    'data_b85': base64.b85encode(b'==local-connection-success==').decode('ascii'),
-                    #'close': True,
-                })
+                port = msg['open']
+                try:
+                    reader, writer = await asyncio.wait_for(asyncio.open_connection('localhost', port), 1.0)
+                    send_func({
+                        'type': 'proxy_send',
+                        'channel': msg['channel'],
+                        'data_b85': base64.b85encode(b'==local-connection-success==').decode('ascii'),
+                        #'close': True,
+                    })
+                except (asyncio.TimeoutError, ConnectionRefusedError, OSError) as e:
+                    send_func({
+                        'type': 'proxy_send',
+                        'channel': msg['channel'],
+                        'data_b85': base64.b85encode(b'==local-connection-failed==').decode('ascii'),
+                        'close': True,
+                    })
             else:
                 if 'data_b85' in msg and msg['data_b85']:
                     send_func({
@@ -68,10 +92,6 @@ class Proxy:
                         'data_b85': '',
                         'close': True,
                     })
-
-    def end_user_session(self, username, user_session):
-        pass
-
-    def disconnected_cdp(self):
-        pass
+        except:
+            traceback.print_exc(file=sys.stderr)
 
