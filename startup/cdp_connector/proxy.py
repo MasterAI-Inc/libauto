@@ -58,7 +58,8 @@ class Proxy:
         # TODO clean up open connections
 
     async def _new_message(self, msg, send_func):
-        print(msg)
+        channel = msg['channel']
+
         try:
             if 'open' in msg:
                 port = msg['open']
@@ -66,32 +67,55 @@ class Proxy:
                     reader, writer = await asyncio.wait_for(asyncio.open_connection('localhost', port), 1.0)
                     send_func({
                         'type': 'proxy_send',
-                        'channel': msg['channel'],
+                        'channel': channel,
                         'data_b85': base64.b85encode(b'==local-connection-success==').decode('ascii'),
-                        #'close': True,
                     })
+                    read_task = asyncio.ensure_future(self._read(channel, reader, send_func))  # <-- Change `asyncio.ensure_future` to `asyncio.create_task` in Python3.7+.
+                    self.connections[channel] = (reader, writer, read_task)
                 except (asyncio.TimeoutError, ConnectionRefusedError, OSError) as e:
                     send_func({
                         'type': 'proxy_send',
-                        'channel': msg['channel'],
+                        'channel': channel,
                         'data_b85': base64.b85encode(b'==local-connection-failed==').decode('ascii'),
                         'close': True,
                     })
+
+            elif 'close' in msg:
+                if channel in self.connections:
+                    reader, writer, read_task = self.connections[channel]
+                    writer.close()
+                    #await writer.wait_closed()  # <-- Introduced in Python3.7+
+                    del self.connections[channel]
+
             else:
-                if 'data_b85' in msg and msg['data_b85']:
-                    send_func({
-                        'type': 'proxy_send',
-                        'channel': msg['channel'],
-                        'data_b85': base64.b85encode(RESPONSE).decode('ascii'),
-                        #'close': True,
-                    })
-                else:
-                    send_func({
-                        'type': 'proxy_send',
-                        'channel': msg['channel'],
-                        'data_b85': '',
-                        'close': True,
-                    })
+                if channel in self.connections:
+                    reader, writer, read_task = self.connections[channel]
+                    buf = base64.b85decode(msg['data_b85'])
+                    if buf != b'':
+                        writer.write(buf)
+                        await writer.drain()
+                    else:
+                        writer.write_eof()
+                        await writer.drain()
+
+        except:
+            traceback.print_exc(file=sys.stderr)
+
+
+    async def _read(self, channel, reader, send_func):
+        try:
+            while True:
+                buf = await reader.read(4096)
+                extra = {'close': True} if buf == b'' else {}
+                send_func({
+                    'type': 'proxy_send',
+                    'channel': channel,
+                    'data_b85': base64.b85encode(buf).decode('ascii'),
+                    **extra
+                })
+                if buf == b'':
+                    break
+
         except:
             traceback.print_exc(file=sys.stderr)
 
