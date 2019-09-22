@@ -21,10 +21,9 @@ log = logger.init(__name__, terminal=True)
 class Proxy:
 
     def __init__(self):
-        pass
+        self.connections = {}
 
     def connected_cdp(self):
-        self.connections = {}
         self.loop = asyncio.new_event_loop()
         self.thread = Thread(target=self._run_event_loop)
         self.thread.start()
@@ -42,7 +41,7 @@ class Proxy:
 
     def disconnected_cdp(self):
         log.info("Will stop proxy event loop...")
-        self.loop.call_soon_threadsafe(self.loop.stop)
+        asyncio.run_coroutine_threadsafe(self._shutdown_loop(), self.loop)
         log.info("Will join with proxy thread...")
         self.thread.join()
         self.loop = None
@@ -55,7 +54,21 @@ class Proxy:
         self.loop.run_forever()
         self.loop.close()
         log.info("Proxy event loop has stopped.")
-        # TODO clean up open connections
+
+    async def _shutdown_loop(self):
+        read_tasks = []
+        writers = []
+        for reader, writer, read_task in self.connections:
+            writers.append(writer)
+            read_tasks.append(read_task)
+        self.connections = {}
+        for writer in writers:
+            writer.close()
+            #await writer.wait_closed()  # <-- Introduced in Python3.7+
+        for read_task in read_tasks:
+            read_task.cancel()
+            await read_task
+        self.loop.stop()
 
     async def _new_message(self, msg, send_func):
         channel = msg['channel']
@@ -72,6 +85,7 @@ class Proxy:
                     })
                     read_task = asyncio.ensure_future(self._read(channel, reader, send_func))  # <-- Change `asyncio.ensure_future` to `asyncio.create_task` in Python3.7+.
                     self.connections[channel] = (reader, writer, read_task)
+                    log.info('Opened proxy for: {}'.format(channel))
                 except (asyncio.TimeoutError, ConnectionRefusedError, OSError) as e:
                     send_func({
                         'type': 'proxy_send',
@@ -83,9 +97,12 @@ class Proxy:
             elif 'close' in msg:
                 if channel in self.connections:
                     reader, writer, read_task = self.connections[channel]
+                    del self.connections[channel]
                     writer.close()
                     #await writer.wait_closed()  # <-- Introduced in Python3.7+
-                    del self.connections[channel]
+                    read_task.cancel()
+                    await read_task
+                    log.info('Closed proxy for: {}'.format(channel))
 
             else:
                 if channel in self.connections:
@@ -101,8 +118,14 @@ class Proxy:
         except:
             traceback.print_exc(file=sys.stderr)
 
-
     async def _read(self, channel, reader, send_func):
+        # NOTE: The process below is a little simplified. It assumes
+        # that we want to close the connection as soon as we see EOF on
+        # the reader. This isn't strictly correct. It's possible a TCP
+        # connection can write EOF but still expect to read data. We
+        # should revisit this in the future. For now, it works for all
+        # the application-layer protocols we care about (i.e. HTTP/Websockets).
+
         try:
             while True:
                 buf = await reader.read(4096)
@@ -114,7 +137,11 @@ class Proxy:
                     **extra
                 })
                 if buf == b'':
+                    log.info("Read task ending: {}".format(channel))
                     break
+
+        except asyncio.CancelledError:
+            log.info("Read task canceled: {}".format(channel))
 
         except:
             traceback.print_exc(file=sys.stderr)
