@@ -56,19 +56,27 @@ class Proxy:
         log.info("Proxy event loop has stopped.")
 
     async def _shutdown_loop(self):
-        read_tasks = []
-        writers = []
-        for reader, writer, read_task in self.connections:
-            writers.append(writer)
-            read_tasks.append(read_task)
-        self.connections = {}
-        for writer in writers:
-            writer.close()
-            #await writer.wait_closed()  # <-- Introduced in Python3.7+
-        for read_task in read_tasks:
-            read_task.cancel()
-            await read_task
-        self.loop.stop()
+        try:
+            read_tasks = []
+            writers = []
+            for channel, (reader, writer, read_task) in self.connections.items():
+                writers.append(writer)
+                read_tasks.append(read_task)
+
+            self.connections = {}
+
+            for writer in writers:
+                writer.close()
+                #await writer.wait_closed()  # <-- Introduced in Python3.7+
+
+            for read_task in read_tasks:
+                read_task.cancel()
+                await read_task
+
+            self.loop.stop()
+
+        except:
+            traceback.print_exc(file=sys.stderr)
 
     async def _new_message(self, msg, send_func):
         channel = msg['channel']
