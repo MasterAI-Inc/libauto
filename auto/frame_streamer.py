@@ -62,7 +62,7 @@ def plot(frames, also_stream=True, verbose=False):
     if also_stream:
         stream(montage, to_labs=True, verbose=False)
 
-    return PIL.Image.fromarray(montage) if _in_notebook() else None
+    return PIL.Image.fromarray(np.squeeze(montage)) if _in_notebook() else None
 
 
 def _in_notebook():
