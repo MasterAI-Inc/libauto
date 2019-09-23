@@ -20,13 +20,16 @@ from auto.camera import base64_encode_image
 
 import cv2
 import numpy as np
+import PIL.Image
+
+OPTIMAL_ASPECT_RATIO = 4/3
 
 
-def plot(frames, also_stream=True, verbose=False, **fig_kwargs):
+def plot(frames, also_stream=True, verbose=False):
     """
-    Plot the given `frames` (a numpy ndarray) into a matplotlib figure,
-    returning the figure object which can be shown. This function by
-    default also streams the image to your `labs` account.
+    Stitch together the given `frames` (a numpy nd-array) into a single nd-array.
+    If running in a notebook then the PIL image will be returned (and displayed).
+    This function by default also streams the image to your `labs` account.
 
     The `frames` parameter must be a numpy ndarray with one of the
     following shapes:
@@ -36,8 +39,6 @@ def plot(frames, also_stream=True, verbose=False, **fig_kwargs):
         -    (h, w, 1)   meaning a single 1-channel gray image of size `w`x`h`
         -    (h, w)      meaning a single 1-channel gray image of size `w`x`h`
     """
-    import matplotlib.pyplot as plt
-    from matplotlib.backends.backend_agg import FigureCanvasAgg
 
     # Ensure the proper shape of `frames`.
     if frames.ndim == 4:
@@ -52,49 +53,80 @@ def plot(frames, also_stream=True, verbose=False, **fig_kwargs):
     if frames.shape[3] != 3 and frames.shape[3] != 1:
         raise Exception("invalid number of channels")
 
-    # Compute the figure grid size (this will be (height x width) subplots).
-    n = frames.shape[0]
-    width = int(round((float(n)**0.5)))
-    height = n // width
-    if (n % width) > 0:
-        height += 1
     if verbose:
+        n = frames.shape[0]
         print_all("Plotting {} frame{}...".format(n, 's' if n != 1 else ''))
 
-    # Create the figure grid.
-    if 'figsize' not in fig_kwargs:
-        fig_kwargs['figsize'] = (5, 5) if n == 1 else (10, 10)
-    fig, axes = plt.subplots(width, height, **fig_kwargs)
-    canvas = FigureCanvasAgg(fig)
+    montage = _create_montage(frames)
 
-    # Ensure `axes` is a 1d iterable.
-    try:
-        axes = axes.flatten()
-    except AttributeError:
-        # This ^^ exception happens when width=height=1.
-        axes = [axes]
-
-    # Plot each frame into the grid.
-    from itertools import zip_longest
-    for ax, frame in zip_longest(axes, frames):
-        if frame is not None:
-            if frame.shape[2] == 1:
-                frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
-            ax.imshow(frame)
-        ax.axis('off')
-    fig.tight_layout()
-
-    # Also stream... if told to.
     if also_stream:
-        if n > 1:
-            canvas.draw()
-            canvas_width, canvas_height = [int(v) for v in fig.get_size_inches() * fig.get_dpi()]
-            canvas_frame = np.fromstring(canvas.tostring_rgb(), dtype='uint8').reshape(canvas_height, canvas_width, 3)
-            stream(canvas_frame, to_labs=True, verbose=False)  # We say `verbose=False` here because we don't want ANOTHER printout, even if verbose is True for this `plot()` function.
-        else:
-            stream(frames[0], to_labs=True, verbose=False)     # ... same ...
+        stream(montage, to_labs=True, verbose=False)
 
-    return fig, axes[:len(frames)]
+    return PIL.Image.fromarray(np.squeeze(montage)) if _in_notebook() else None
+
+
+def _in_notebook():
+    """
+    Determine if the current process is running in a jupyter notebook / iPython shell
+    Returns: boolean
+    """
+    try:
+        shell = get_ipython().__class__.__name__
+        if shell == 'ZMQInteractiveShell':
+            result = True   # jupyter notebook
+        elif shell == 'TerminalInteractiveShell':
+            result = True   # iPython via terminal
+        else:
+            result = False  # unknown shell type
+    except NameError:
+        result = False      # most likely standard Python interpreter
+    return result
+
+
+def _create_montage(frames):
+    """
+    Stitch together all frames into 1 montage image:
+    Each frame shape is (height x width x channels).
+
+    Only supports 1 to 4 frames:
+        frame_count | result
+            1       | 1 row x 1 col
+            2       | 1 row x 2 col
+            3       | 2 row x 2 col (4th frame all white)
+            4       | 2 row x 2 col
+
+    Args:
+        frames: nd-array or list of nd-arrays
+
+    Returns: nd-array of shape (row_count * frame_height, column_count * frame_width, channels)
+    """
+    n = frames.shape[0]
+    if n > 4:
+        raise NotImplementedError("currently you may only montage up to 4 frames")
+    MAX_COLS = 2
+    frames = np.array(frames)
+    if n == 1:
+        montage = frames[0]
+    else:
+        frames = [_shrink_img(frame, factor=1/MAX_COLS) for frame in frames]
+        rows_of_frames = [frames[i:i+MAX_COLS] for i in range(0, len(frames), MAX_COLS)]
+        rows_of_combined_frames = [(np.hstack(row) if len(row) == MAX_COLS             # stitch frames together
+                                    else np.hstack([row[0], np.full_like(row[0],255)]) # stitch frame with white frame
+                                   ) for row in rows_of_frames]
+        montage = np.vstack(rows_of_combined_frames)
+    return montage
+
+
+def _shrink_img(img, factor=0.5):
+    """
+    Reduce the img dimensions to factor*100 percent.
+    Args:
+        img: nd-array with shape (height, width, channels)
+
+    Returns: nd-array with shape (height*factor, width*factor, channels)
+    """
+    shrunk_image = cv2.resize(img,None,fx=factor,fy=factor,interpolation=cv2.INTER_AREA)
+    return shrunk_image
 
 
 def stream(frame, to_console=True, to_labs=False, verbose=False):
@@ -129,11 +161,17 @@ def stream(frame, to_console=True, to_labs=False, verbose=False):
             frame = np.expand_dims(frame, axis=2)
             assert frame.ndim == 3 and frame.shape[2] == 1
         else:
-            raise Exception("invalid frame ndarray ndim")
+            raise Exception(f"invalid frame ndarray ndim: {frame.ndim}")
         height, width, channels = frame.shape
+        aspect_ratio = width / height
+        if aspect_ratio != OPTIMAL_ASPECT_RATIO:
+            final_frame = _add_white_bars(frame)
+            height, width, channels = final_frame.shape
+        else:
+            final_frame = frame
         shape = [width, height, channels]
         rect = [0, 0, 0, 0]
-        console.stream_image(rect, shape, frame.tobytes())
+        console.stream_image(rect, shape, final_frame.tobytes())
 
     # Convert the frame to a JPG buffer and publish to the network connection.
     if to_labs:
@@ -144,3 +182,24 @@ def stream(frame, to_console=True, to_labs=False, verbose=False):
         h, w = frame.shape[:2]
         print_all("Streamed frame of size {}x{}.".format(w, h))
 
+
+def _add_white_bars(frame):
+    """
+    This function is intended for a wide image that needs white bars
+    on top and bottom so as to not be stretched when displayed.
+    Args:
+        frame: nd-array (height, width, channels)
+
+    Returns: nd-array (height, width, channels) with the OPTIMAL_ASPECT_RATIO
+    """
+    height, width, channels = frame.shape
+    aspect_ratio = width / height
+    if aspect_ratio > OPTIMAL_ASPECT_RATIO:
+        # add horizontal bars
+        bar_height = int(((width / OPTIMAL_ASPECT_RATIO) - height )/ 2)
+        bar = np.ones((bar_height, width, channels), dtype=frame.dtype) * 255
+        frame = np.vstack((bar, frame, bar))
+    else:
+        # add vertical bars
+        pass
+    return frame

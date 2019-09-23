@@ -271,11 +271,9 @@ while True:
 
 ### Plot frames in Jupyter
 
-The helper function `car.plot()` will both stream a single frame to your AutoAuto Labs account _and_ it returns a `matplotlib` object, so you can conveniently use it from Jupyter. See the screenshot below:
+The helper function `car.plot()` will both stream a single frame to your AutoAuto Labs account _and_ it returns a `PIL.Image` object, so you can conveniently use it from Jupyter. See the screenshot below:
 
-![](https://static.autoauto.ai/uploads/8183a8fbf783457685d21e711dd98069.png)
-
-**Note:** There is a bug where the first time you run `car.plot()`, the figure may not automatically show up under the cell. It seems that this only happens on the first run, and the figure will show up on all subsequent runs, as shown in the screenshot above.
+![](https://static.autoauto.ai/uploads/abecaaf6d4d34146bd802be839f1f993.png)
 
 ### List the devices' capabilities
 
