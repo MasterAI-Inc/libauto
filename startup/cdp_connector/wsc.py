@@ -260,6 +260,8 @@ class StandardDelegate:
                 # We don't send to a user who has zero user sessions
                 # right now.
                 return False
+        elif 'type' in msg and msg['type'] == 'proxy_send':
+            pass   # Allow these message through.
         else:
             if not self.has_any_sessions():
                 # If a device falls in the woods...
