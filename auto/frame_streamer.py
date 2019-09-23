@@ -53,27 +53,16 @@ def plot(frames, also_stream=True, verbose=False):
     if frames.shape[3] != 3 and frames.shape[3] != 1:
         raise Exception("invalid number of channels")
 
-    # Compute the figure grid size (this will be (height x width) subplots).
-    n = frames.shape[0]
-    width = int(round((float(n)**0.5)))
-    height = n // width
-    if (n % width) > 0:
-        height += 1
     if verbose:
+        n = frames.shape[0]
         print_all("Plotting {} frame{}...".format(n, 's' if n != 1 else ''))
 
     montage = _create_montage(frames)
 
-    if _in_notebook():
-        result_obj = PIL.Image.fromarray(montage)
-    else:
-        result_obj = None
-
-    # Also stream... if told to.
     if also_stream:
-        stream(montage, to_labs=True, verbose=False)   # We say `verbose=False` here because we don't want ANOTHER printout, even if verbose is True for this `plot()` function.
+        stream(montage, to_labs=True, verbose=False)
 
-    return result_obj
+    return PIL.Image.fromarray(montage) if _in_notebook() else None
 
 
 def _in_notebook():
@@ -98,19 +87,25 @@ def _create_montage(frames):
     """
     Stitch together all frames into 1 montage image:
     Each frame shape is (height x width x channels).
+
+    Only supports 1 to 4 frames:
         frame_count | result
             1       | 1 row x 1 col
             2       | 1 row x 2 col
             3       | 2 row x 2 col (4th frame all white)
             4       | 2 row x 2 col
+
     Args:
-        frames: list of nd-arrays
+        frames: nd-array or list of nd-arrays
 
     Returns: nd-array of shape (row_count * frame_height, column_count * frame_width, channels)
     """
+    n = frames.shape[0]
+    if n > 4:
+        raise NotImplementedError("currently you may only montage up to 4 frames")
     MAX_COLS = 2
     frames = np.array(frames)
-    if frames.shape[0] == 1:
+    if n == 1:
         montage = frames[0]
     else:
         frames = [_shrink_img(frame, factor=1/MAX_COLS) for frame in frames]
@@ -191,8 +186,7 @@ def stream(frame, to_console=True, to_labs=False, verbose=False):
 def _add_white_bars(frame):
     """
     This function is intended for a wide image that needs white bars
-    on top and bottom so as to not be stretched when displayed full
-    screen on the car display.
+    on top and bottom so as to not be stretched when displayed.
     Args:
         frame: nd-array (height, width, channels)
 

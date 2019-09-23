@@ -103,14 +103,15 @@ def capture(num_frames=1, verbose=True):
     them as a numpy ndarray.
     """
     MAX_FRAMES = 4
-    num_frames = min(MAX_FRAMES, num_frames)
+    if num_frames > MAX_FRAMES:
+        print(f"Warning: You may capture at most {MAX_FRAMES} frames with this function.")
+        num_frames = MAX_FRAMES
     from auto import camera
     return camera.capture(num_frames, verbose)
 
 
 def plot(frames, also_stream=True, verbose=True):
     """
-
     Stitch together the given `frames` (a numpy nd-array) into a single nd-array.
     If running in a notebook then the PIL image will be returned (and displayed).
     This function by default also streams the image to your `labs` account.
