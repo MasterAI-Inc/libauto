@@ -36,6 +36,8 @@ def _serialize_interface(thing, name):
         return {
             'name': name,
             'typename': type(thing).__name__,
+            'module': type(thing).__module__,
+            'doc': type(thing).__doc__,
             'ifaces': exported,
         }
 
