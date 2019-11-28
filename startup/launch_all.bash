@@ -13,52 +13,15 @@ done
 
 echo "Starting at $(date) in directory $(pwd) as user $(whoami)"
 
-if ! diff -qN resources/scripts/profile_d_libauto.sh /etc/profile.d/libauto.sh
-then
-    cp resources/scripts/profile_d_libauto.sh /etc/profile.d/libauto.sh
-    chmod 0755 /etc/profile.d/libauto.sh
-    echo "Updated /etc/profile.d/libauto.sh, will now reboot!"
-    reboot
-else
-    echo "The script at /etc/profile.d/libauto.sh is already up-to-date."
-fi
-
-if ! diff -qN resources/scripts/update_curriculum /usr/local/bin/update_curriculum
-then
-    cp resources/scripts/update_curriculum /usr/local/bin/update_curriculum
-    chmod 0755 /usr/local/bin/update_curriculum
-    echo "Updated the update_curriculum script."
-else
-    echo "The update_curriculum script is already up-to-date."
-fi
-
-if ! diff -qN resources/scripts/set_hostname /usr/local/bin/set_hostname
-then
-    cp resources/scripts/set_hostname /usr/local/bin/set_hostname
-    chmod 0755 /usr/local/bin/set_hostname
-    echo "Updated the set_hostname script."
-else
-    echo "The set_hostname script is already up-to-date."
-fi
-
-if ! diff -qN resources/scripts/update_libauto /usr/local/bin/update_libauto
-then
-    cp resources/scripts/update_libauto /usr/local/bin/update_libauto
-    chmod 0755 /usr/local/bin/update_libauto
-    echo "Updated the update_libauto script."
-else
-    echo "The update_libauto script is already up-to-date."
-fi
-
 if [ -z "$LIBAUTO_UP_USER" ] || [ -z "$LIBAUTO_PRIV_USER" ]
 then
     echo "Error: The LIBAUTO_UP_USER and LIBAUTO_PRIV_USER variable is not set."
     exit 1
 fi
 
-if [ -z "$LIBAUTO_SERVICES_PYTHON" ] || [ -z "$LIBAUTO_CONSOLE_UI_PYTHON" ]
+if [ -z "$PYTHON_EXE" ]
 then
-    echo "Error: The LIBAUTO_SERVICES_PYTHON and LIBAUTO_CONSOLE_UI_PYTHON variable is not set."
+    echo "Error: The PYTHON_EXE variable is not set."
     exit 1
 fi
 
