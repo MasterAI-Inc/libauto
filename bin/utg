@@ -1,9 +1,0 @@
-#!/bin/bash
-
-if [ $# != 1 ] || [ ! -f "$1" ]
-then
-    echo "Usage: $(basename "$0") <path_to_archive>" 1>&2
-    exit 1
-fi
-
-tar -xvzf "$1"

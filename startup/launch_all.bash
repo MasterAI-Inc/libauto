@@ -25,27 +25,6 @@ then
     exit 1
 fi
 
-if [ ! -f /var/lib/libauto/secure.db ]
-then
-    mkdir -p /var/lib/libauto
-    chmod 755 /var/lib/libauto
-    chown "$LIBAUTO_PRIV_USER":"$LIBAUTO_PRIV_USER" /var/lib/libauto
-
-    touch /var/lib/libauto/settings.db
-    chmod 644 /var/lib/libauto/settings.db
-    chown "$LIBAUTO_PRIV_USER":"$LIBAUTO_PRIV_USER" /var/lib/libauto/settings.db
-
-    touch /var/lib/libauto/secure.db
-    chmod 600 /var/lib/libauto/secure.db
-fi
-
-if [ ! -f /var/lib/libauto/env_setup ]
-then
-    sudo -u "$LIBAUTO_UP_USER"   -i "$(pwd)/environment/install_environment.bash"
-    sudo -u "$LIBAUTO_PRIV_USER" -i "$(pwd)/environment/install_environment.bash"
-    touch /var/lib/libauto/env_setup
-fi
-
 "$LIBAUTO_SERVICES_PYTHON" startup/cio_rpc_server/cio_rpc_server.py &
 CIO_RPC_SERVER_PID=$!
 
