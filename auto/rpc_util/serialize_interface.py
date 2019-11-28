@@ -4,8 +4,8 @@ import inspect
 EXPORT_PREFIX = 'export_'
 
 
-def serialize_interface(thing):
-    iface = _serialize_interface(thing, 'root')
+def serialize_interface(thing, name='root'):
+    iface = _serialize_interface(thing, name)
     impl = _separate_implementation(iface)
     return iface, impl
 
