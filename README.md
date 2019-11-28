@@ -1,5 +1,13 @@
 # The AutoAuto Device Library
 
+Desktop environment:
+
+```bash
+conda create -n libauto python=3.7
+conda activate libauto
+pip install -r requirements.txt
+```
+
 ## Introduction
 
 Use Python & A.I. to program a self-driving car. AutoAuto is a fun way to learn bleeding-edge skills, intended for beginner and advanced engineers alike. Drive your wonder with AutoAuto.
