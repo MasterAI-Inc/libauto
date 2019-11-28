@@ -28,20 +28,17 @@ def _build_server_func(iface, impl):
     return serve_func
 
 
-def serve(root, inet_addr='localhost', inet_port=7000):
+async def serve(root, inet_addr='localhost', inet_port=7000):
     iface, impl = serialize_interface(root, name='root')
 
     serve_func = _build_server_func(iface, impl)
 
     start_server = websockets.serve(serve_func, inet_addr, inet_port)
 
-    loop = asyncio.get_event_loop()
-
-    loop.run_until_complete(start_server)
-    loop.run_forever()
+    return await start_server
 
 
-if __name__ == '__main__':
+async def _demo():
 
     class Thing:
         def export_foo(self, x):
@@ -50,5 +47,11 @@ if __name__ == '__main__':
 
     thing = Thing()
 
-    serve(thing)
+    server = await serve(thing)
+
+
+if __name__ == '__main__':
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(_demo())
+    loop.run_forever()
 
