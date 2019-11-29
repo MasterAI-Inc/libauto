@@ -1,49 +1,72 @@
 import asyncio
 import websockets
-import json
 
+from auto.rpc.packer import pack, unpack
 from auto.rpc.serialize_interface import serialize_interface
 
 
-async def serve(root, inet_addr='localhost', inet_port=7000):
+async def serve(root, pubsub=None, inet_addr='localhost', inet_port=7000):
     iface, impl = serialize_interface(root, name='root')
 
-    handle_client = _build_server_func(iface, impl)
+    subscribers = {}
+
+    handle_client = _build_client_handler(iface, impl, pubsub, subscribers)
 
     start_server = websockets.serve(handle_client, inet_addr, inet_port)
 
-    return await start_server
+    server = await start_server
+
+    async def publish_func(channel, payload):
+        client_list = subscribers.get(channel, [])
+        if client_list:
+            message = {
+                'type': 'publish',
+                'channel': channel,
+                'payload': payload,
+            }
+            message_buf = pack(message)
+            tasks = []
+            for client in client_list:
+                task = asyncio.create_task(client.send(message_buf))
+                tasks.append(task)
+            await asyncio.wait(tasks)
+
+    return server, publish_func
 
 
-def _build_server_func(iface, impl):
-    iface_json = json.dumps(iface)
+def _build_client_handler(iface, impl, pubsub, subscribers):
+    iface_buf = pack(iface)
+
+    channels = pubsub['channels'] if pubsub is not None else []
+    channels_buf = pack(channels)
 
     async def handle_client(ws, path):
-        await ws.send(iface_json)
-        return await _handle_client(ws, impl)
+        await ws.send(iface_buf)
+        await ws.send(channels_buf)
+        return await _handle_client(ws, impl, pubsub, subscribers)
 
     return handle_client
 
 
-async def _handle_client(ws, impl):
+async def _handle_client(ws, impl, pubsub, subscribers):
     try:
         while True:
             cmd = await ws.recv()
             cmd = cmd.strip()
-            cmd = json.loads(cmd)
+            cmd = unpack(cmd)
             type_ = cmd['type']
 
             if type_ == 'invoke':
                 await _handle_client_invoke(ws, cmd, impl)
 
             elif type_ == 'subscribe':
-                await _handle_client_subscribe(ws, cmd)
+                await _handle_client_subscribe(ws, cmd, pubsub, subscribers)
 
             elif type_ == 'unsubscribe':
-                await _handle_client_unsubscribe(ws, cmd)
+                await _handle_client_unsubscribe(ws, cmd, pubsub, subscribers)
 
     except websockets.exceptions.ConnectionClosed:
-        print('...closed...')
+        await _handle_client_unsubscribe_all(ws, pubsub, subscribers)
 
 
 async def _handle_client_invoke(ws, cmd, impl):
@@ -53,21 +76,64 @@ async def _handle_client_invoke(ws, cmd, impl):
     func = impl[path]
     val = await func(*args)   # TODO: catch, serialize, and transmit any exception which is thrown by `func`.
     result = {
+        'type': 'invoke_result',
         'id': id_,
         'val': val,
     }
-    result_json = json.dumps(result)
-    await ws.send(result_json)
+    result_buf = pack(result)
+    await ws.send(result_buf)
 
 
-async def _handle_client_subscribe(ws, cmd):
-    service = cmd['service']
-    # TODO
+async def _handle_client_subscribe(ws, cmd, pubsub, subscribers):
+    channel = cmd['channel']
+
+    if (pubsub is None) or (channel not in pubsub['channels']):
+        return   # TODO: send an error to the client so they know they messed up.
+
+    if channel not in subscribers:
+        subscribers[channel] = set()
+
+    if ws not in subscribers[channel]:
+        subscribers[channel].add(ws)
+
+        sub_callback = pubsub['subscribe']
+        if sub_callback is not None:
+            await sub_callback(channel)
 
 
-async def _handle_client_unsubscribe(ws, cmd):
-    service = cmd['service']
-    # TODO
+async def _handle_client_unsubscribe(ws, cmd, pubsub, subscribers):
+    channel = cmd['channel']
+
+    if (pubsub is None) or (channel not in pubsub['channels']):
+        return   # TODO: send an error to the client so they know they messed up.
+
+    if (channel in subscribers) and (ws in subscribers[channel]):
+        subscribers[channel].remove(ws)
+
+        if len(subscribers[channel]) == 0:
+            del subscribers[channel]
+
+        unsub_callback = pubsub['unsubscribe']
+        if unsub_callback is not None:
+            await unsub_callback(channel)
+
+
+async def _handle_client_unsubscribe_all(ws, pubsub, subscribers):
+    if pubsub is None:
+        return
+
+    unsub_callback = pubsub['unsubscribe']
+
+    channels = [c for c, ws_set in subscribers.items() if ws in ws_set]
+
+    for c in channels:
+        subscribers[c].remove(ws)
+        if len(subscribers[c]) == 0:
+            del subscribers[c]
+
+    if unsub_callback:
+        for c in channels:
+            await unsub_callback(c)
 
 
 async def _demo():
@@ -78,11 +144,22 @@ async def _demo():
 
     thing = Thing()
 
-    server = await serve(thing)
+    pubsub = {
+        'channels': [
+            'ping',
+        ],
+        'subscribe': None,
+        'unsubscribe': None,
+    }
+
+    server, publish_func = await serve(thing, pubsub)
+
+    for i in range(1, 1000000):
+        await publish_func('ping', f'Ping #{i}')
+        await asyncio.sleep(1)
 
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     loop.run_until_complete(_demo())
-    loop.run_forever()
 
