@@ -57,7 +57,7 @@ async def _handle_client(ws, impl, pubsub, subscribers):
             type_ = cmd['type']
 
             if type_ == 'invoke':
-                await _handle_client_invoke(ws, cmd, impl)
+                asyncio.create_task(_handle_client_invoke(ws, cmd, impl))
 
             elif type_ == 'subscribe':
                 await _handle_client_subscribe(ws, cmd, pubsub, subscribers)

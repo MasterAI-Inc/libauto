@@ -23,6 +23,6 @@ else:
         return buf
 
     def unpack(buf):
-        obj = msgpack.unpackb(buf, raw=False)
+        obj = msgpack.unpackb(buf, use_list=False, raw=False)
         return obj
 
