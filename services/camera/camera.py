@@ -142,7 +142,7 @@ async def init(loop=None):
 
     camera_rpc, pubsub = _init_interface(loop, frame_callback)
 
-    server, publish_func = await serve(camera_rpc, pubsub)
+    server, publish_func = await serve(camera_rpc, pubsub, 'localhost', 7001)
 
     log.info("RUNNING!")
 
