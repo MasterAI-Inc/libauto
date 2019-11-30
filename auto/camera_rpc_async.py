@@ -105,10 +105,12 @@ async def _demo():
 
     i = 0
 
+    import time
+
     async for frame in cam.stream():
-        print(frame.shape)
+        print(time.time(), frame.shape)
         i += 1
-        if i == 10:
+        if i == 50:
             break
 
 
