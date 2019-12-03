@@ -22,7 +22,7 @@ import time
 # It is common that another client will reconnect quickly after the last one disconnects,
 # thus keeping the camera open for some amount of time helps make things faster for the
 # next client.
-CAMERA_TIMEOUT_SECONDS = 60
+CAMERA_TIMEOUT_SECONDS = 30
 
 
 # Camera parameters. For options, see: http://picamera.readthedocs.io/en/release-1.10/fov.html
@@ -61,6 +61,7 @@ def _init_bg_capture_thread(ctl_queue, frame_callback, loop):
             time.sleep(1)
 
     thread = Thread(target=camera_thread_main)
+    thread.daemon = True     # <-- thread will exit when main thread exists
     thread.start()
     return thread
 

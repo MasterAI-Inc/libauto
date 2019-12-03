@@ -21,6 +21,7 @@ import numpy as np
 
 import auto
 from auto.camera_rpc_sync import CameraRGB
+from auto.asyncio_tools import get_loop
 
 
 def global_camera(verbose=False):
@@ -33,7 +34,7 @@ def global_camera(verbose=False):
     try:
         return GLOBAL_CAMERA
     except NameError:
-        GLOBAL_CAMERA = wrap_frame_index_decorator(CameraRGB())
+        GLOBAL_CAMERA = wrap_frame_index_decorator(CameraRGB(get_loop()))
         if verbose:
             auto.print_all("Instantiated a global camera object!")
         return GLOBAL_CAMERA
