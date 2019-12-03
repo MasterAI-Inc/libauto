@@ -10,13 +10,11 @@
 
 import time
 from pprint import pprint
-from cio import default_handle as h
+from cio.aa_controller_v1 import default_handle as h
 
 pprint(h.CAPS)
 
-accel = h.acquire_component_interface('Accelerometer')
+version = h.acquire_component_interface('VersionInfo')
 
-for i in range(1000):
-    print(accel.read())
-    time.sleep(0.1)
+print(version.version())
 

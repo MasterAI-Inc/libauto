@@ -10,11 +10,18 @@
 
 import time
 from pprint import pprint
-from cio import default_handle as h
+from cio.aa_controller_v1 import default_handle as h
 
 pprint(h.CAPS)
 
-version = h.acquire_component_interface('VersionInfo')
+b = h.acquire_component_interface('PushButtons')
 
-print(version.version())
+while True:
+
+    events = b.get_events()
+
+    for e in events:
+        pprint(e)
+
+    time.sleep(0.5)
 

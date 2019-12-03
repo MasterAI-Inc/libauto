@@ -10,16 +10,13 @@
 
 import time
 from pprint import pprint
-from cio import default_handle as h
+from cio.aa_controller_v1 import default_handle as h
 
 pprint(h.CAPS)
 
-gyro       = h.acquire_component_interface('Gyroscope')
-gyro_accum = h.acquire_component_interface('Gyroscope_accum')
+p = h.acquire_component_interface('Photoresistor')
 
 for i in range(1000):
-    print(gyro.read())
-    print(gyro_accum.read())
-    print()
+    print(p.read(), p.read_millivolts(), p.read_ohms())
     time.sleep(0.1)
 

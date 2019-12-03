@@ -10,7 +10,7 @@
 
 import time
 from pprint import pprint
-from cio import default_handle as h
+from cio.aa_controller_v1 import default_handle as h
 
 pprint(h.CAPS)
 

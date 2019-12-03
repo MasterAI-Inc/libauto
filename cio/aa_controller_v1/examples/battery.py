@@ -10,13 +10,13 @@
 
 import time
 from pprint import pprint
-from cio import default_handle as h
+from cio.aa_controller_v1 import default_handle as h
 
 pprint(h.CAPS)
 
-p = h.acquire_component_interface('Photoresistor')
+batt = h.acquire_component_interface('BatteryVoltageReader')
 
-for i in range(1000):
-    print(p.read(), p.read_millivolts(), p.read_ohms())
+while True:
+    print(batt.millivolts())
     time.sleep(0.1)
 

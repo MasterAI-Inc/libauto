@@ -9,7 +9,7 @@
 ###############################################################################
 
 """
-The current controller acts as an I2C slave. Let's get a connection to it.
+The microcontroller acts as an I2C slave. Let's get a connection to it.
 """
 CONTROLLER_I2C_SLAVE_ADDRESS = 0x14
 from . import easyi2c

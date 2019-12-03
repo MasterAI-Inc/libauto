@@ -10,13 +10,24 @@
 
 import time
 from pprint import pprint
-from cio import default_handle as h
+from cio.aa_controller_v1 import default_handle as h
 
 pprint(h.CAPS)
 
-batt = h.acquire_component_interface('BatteryVoltageReader')
+leds = h.acquire_component_interface('LEDs')
 
-while True:
-    print(batt.millivolts())
-    time.sleep(0.1)
+leds.set_mode(1)
+
+time.sleep(3)
+
+leds.set_mode(0)
+leds.set_values()
+
+time.sleep(1)
+
+for i in range(8):
+    binary = "{0:{fill}3b}".format(i, fill='0')
+    red, green, blue = [int(b) for b in binary]
+    leds.set_values(red, green, blue)
+    time.sleep(1)
 

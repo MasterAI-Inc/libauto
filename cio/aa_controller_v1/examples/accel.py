@@ -10,18 +10,13 @@
 
 import time
 from pprint import pprint
-from cio import default_handle as h
+from cio.aa_controller_v1 import default_handle as h
 
 pprint(h.CAPS)
 
-b = h.acquire_component_interface('PushButtons')
+accel = h.acquire_component_interface('Accelerometer')
 
-while True:
-
-    events = b.get_events()
-
-    for e in events:
-        pprint(e)
-
-    time.sleep(0.5)
+for i in range(1000):
+    print(accel.read())
+    time.sleep(0.1)
 
