@@ -11,6 +11,8 @@
 """
 This module provides the default, easy, global camera interface.
 Internally, it obtains frames by querying the camera RPC server.
+
+This is a **synchronous** interface.
 """
 
 import cv2
@@ -18,7 +20,7 @@ import base64
 import numpy as np
 
 import auto
-from auto.camera_rpc_client import CameraRGB
+from auto.camera_rpc_sync import CameraRGB
 
 
 def global_camera(verbose=False):

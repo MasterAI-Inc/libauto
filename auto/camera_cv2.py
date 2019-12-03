@@ -10,6 +10,8 @@
 
 """
 This modules provides camera class abstractions which use OpenCV internally.
+
+This is a **synchronous** interface.
 """
 
 import cv2

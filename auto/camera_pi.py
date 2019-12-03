@@ -11,6 +11,8 @@
 """
 This modules provides camera class abstractions which use the `picamera`
 library internally.
+
+This is a **synchronous** interface.
 """
 
 from picamera import PiCamera
@@ -30,7 +32,7 @@ class CameraRGB:
         """
         self.camera = PiCamera(resolution=(width, height), framerate=fps)
         self.array = PiRGBArray(self.camera, size=(width, height))
-        time.sleep(1.0)
+        time.sleep(0.5)
 
     def capture(self):
         """

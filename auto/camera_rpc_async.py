@@ -46,9 +46,9 @@ class CameraRGB:
         Connect the camera RPC server.
         """
         if not self.is_connected:
-            self.is_connected = True
             self._proxy_interface, self._pubsub_channels, self._subscribe_func, self._close = \
                     await client(self.inet_addr, self.inet_port)
+            self.is_connected = True
 
     async def capture(self):
         """
