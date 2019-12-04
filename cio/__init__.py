@@ -9,10 +9,7 @@ import abc
 
 """
 Todo:
-    - 'Calibrator'
     - 'PID_steering'
-    - 'Timer1PWM'
-    - 'Timer3PWM'
 
 Checklist for New Components:
     - Double space between classes
@@ -411,6 +408,77 @@ class CarMotorsIface(abc.ABC):
     async def off(self):
         """
         Turn off the car's PWM motor control.
+        """
+        pass
+
+
+class PWMsIface(abc.ABC):
+    """
+    Control the PWM-capable Pins on the Controller
+
+    Required: False
+
+    Capability Identifier: 'PWMs'
+    """
+
+    @abc.abstractmethod
+    async def num_pins(self):
+        """
+        Return the number of pins which support PWM on this controller.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def enable(self, pin_index, frequency):
+        """
+        Enable PWM on a given pin at a given frequency (in Hz). The first pin is index-0.
+        An error will be thrown if the desired frequency is not possible. The duty cycle
+        will be 0% by default when you enable the pin; call `set_duty()` to change the duty
+        cycle of this pin once it is enabled.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def set_duty(self, pin_index, duty):
+        """
+        Set the duty cycle of the pin's PWM output. The duty
+        cycle is given as a percentage in the range [0.0, 100.0].
+        You may pass integer or float values. The controller
+        will match the desired duty cycle as closely as possible
+        subject to its internal resolution.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def disable(self, pin_index):
+        """
+        Disable PWM on a given pin. The first pin is index-0.
+        """
+        pass
+
+
+class CalibratorIface(abc.ABC):
+    """
+    Instruct the Controller to Start the Calibration Process
+
+    Required: False
+
+    Capability Identifier: 'Calibrator'
+    """
+
+    @abc.abstractmethod
+    async def start(self):
+        """
+        Instruct the controller to start its calibration process.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def check(self):
+        """
+        Check if the calibration process is running.
+        Returns True if the controller is currently
+        running its calibration, False otherwise.
         """
         pass
 
