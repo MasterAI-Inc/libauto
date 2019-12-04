@@ -7,30 +7,6 @@ It's name is CIO (Controller Input/Output).
 import abc
 
 
-"""
-Todo:
-    - 'PID_steering'
-
-Checklist for New Components:
-    - Double space between classes
-    - Single space between methods
-    - All classes end in 'Iface'
-    - All classes inherit 'abc.ABC'
-    - All classes have properly formatted docstring
-    - All classes have short and accurate docstring description
-    - All classes have `Required` set correctly
-    - All classes have the correct Capability Identifier
-    - All classes have same name as Capability Identifier
-    - All methods are decorated with `abc.abstractmethod`
-    - All methods take `self` as first parameter
-    - All methods have a docstring
-    - All methods have `pass` as the impl
-    - Correct, generic, simple methods to form interface of each class?
-    - All methods have a short and accuracte docstring
-    - All methods are async!
-"""
-
-
 class VersionInfoIface(abc.ABC):
     """
     Check the Controller Version
@@ -481,4 +457,58 @@ class CalibratorIface(abc.ABC):
         running its calibration, False otherwise.
         """
         pass
+
+
+class PidIface(abc.ABC):
+    """
+    Control a PID Loop on the Controller
+
+    THIS INTERFACE IS GENERIC; SPECIFIC PID LOOPS WILL
+    INHERIT FROM IT AND IMPLEMENT IT. FOR EXAMPLE, SEE:
+        `PID_steering`
+    """
+
+    @abc.abstractmethod
+    async def set_pid(self, p, i, d, error_accum_max=0.0):
+        """
+        Sets P, I, and D. It is best to do this before enabling the loop.
+
+        `error_accum_max` is the max accumulated error that will be accumulated.
+        This is a common thing that is done to tame the PID loop and not crazy overshoot
+        due to `I` accumulating unreasonably high. Zero means there is no limit.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def enable(self, invert_output=False):
+        """
+        Enable the PID loop within the controller (i.e. begin to drive the actuator).
+        """
+        pass
+
+    @abc.abstractmethod
+    async def set_point(self, point):
+        """
+        Set the sensor's "set point". The actuator will be controlled so that
+        the sensor stays at the "set point".
+        """
+        pass
+
+    @abc.abstractmethod
+    async def disable(self):
+        """
+        Disable the PID loop within the controller (i.e. stop driving the actuator).
+        """
+        pass
+
+
+class PidSteeringIface(PidIface):
+    """
+    Control the Car's Steering with a PID Loop
+
+    Required: False
+
+    Capability Identifier: 'PID_steering'
+    """
+    pass   # <-- See abstract methods of `PidIface`
 
