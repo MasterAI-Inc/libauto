@@ -27,46 +27,66 @@ lot of cool Linux system calls through python. [link](https://pypi.python.org/py
 import os
 import time
 import errno
+import asyncio
 from fcntl import ioctl
 from functools import wraps
 
 from . import integrity
 
 
-def open_i2c(device_index, slave_address):
+async def open_i2c(device_index, slave_address):
     """
     Open and configure a file description to the given
     slave (`slave_address`) over the given Linux device
     interface index (`device_index`).
     """
+    loop = asyncio.get_event_loop()
     path = "/dev/i2c-{}".format(device_index)
     flags = os.O_RDWR
-    fd = os.open(path, flags)            # <-- throws if fails
-    I2C_SLAVE = 0x0703                   # <-- a constant from `linux/i2c-dev.h`.
-    ioctl(fd, I2C_SLAVE, slave_address)  # <-- throws if fails
+    fd = await loop.run_in_executor(
+            None,
+            os.open,            # <-- throws if fails
+            path, flags
+    )
+    I2C_SLAVE = 0x0703          # <-- a constant from `linux/i2c-dev.h`.
+    await loop.run_in_executor(
+            None,
+            ioctl,              # <-- throws if fails
+            fd, I2C_SLAVE, slave_address
+    )
     return fd
 
 
-def read_i2c(fd, n):
+async def read_i2c(fd, n):
     """
     Read `n` bytes from the I2C slave connected to `fd`.
     """
-    buf = os.read(fd, n)  # <-- throws if fails, but not if short read
+    loop = asyncio.get_event_loop()
+    buf = await loop.run_in_executor(
+            None,
+            os.read,    # <-- throws if fails, but not if short read
+            fd, n
+    )
     if len(buf) != n:
         raise OSError(errno.EIO, os.strerror(errno.EIO))
     return buf
 
 
-def write_i2c(fd, buf):
+async def write_i2c(fd, buf):
     """
     Write the `buf` (a `bytes`-buffer) to the I2C slave at `fd`.
     """
-    w = os.write(fd, buf)  # <-- throws if fails, but not if short write
+    loop = asyncio.get_event_loop()
+    w = await loop.run_in_executor(
+            None,
+            os.write,   # <-- throws if fails, but not if short write
+            fd, buf
+    )
     if len(buf) != w:
         raise OSError(errno.EIO, os.strerror(errno.EIO))
 
 
-def write_read_i2c(fd, write_buf, read_len):
+async def write_read_i2c(fd, write_buf, read_len):
     """
     Write-to then read-from the I2C slave at `fd`.
 
@@ -76,11 +96,11 @@ def write_read_i2c(fd, write_buf, read_len):
           when you read/write to the I2C bus. See the next function
           in this module for how to do this.
     """
-    write_i2c(fd, bytes(write_buf))
-    return read_i2c(fd, read_len)
+    await write_i2c(fd, bytes(write_buf))
+    return await read_i2c(fd, read_len)
 
 
-def write_read_i2c_with_integrity(fd, write_buf, read_len):
+async def write_read_i2c_with_integrity(fd, write_buf, read_len):
     """
     Same as `write_read_i2c` but uses integrity checks for
     both the outgoing and incoming buffers. See the `integrity`
@@ -88,8 +108,8 @@ def write_read_i2c_with_integrity(fd, write_buf, read_len):
     """
     read_len = integrity.read_len_with_integrity(read_len)
     write_buf = integrity.put_integrity(write_buf)
-    write_i2c(fd, write_buf)
-    read_buf = read_i2c(fd, read_len)
+    await write_i2c(fd, write_buf)
+    read_buf = await read_i2c(fd, read_len)
     read_buf = integrity.check_integrity(read_buf)
     if read_buf is None:
         raise OSError(errno.ECOMM, os.strerror(errno.ECOMM))
@@ -103,20 +123,20 @@ def i2c_retry(n):
     """
     def decorator(func):
         @wraps(func)
-        def func_wrapper(*args, **kwargs):
+        async def func_wrapper(*args, **kwargs):
             for _ in range(n-1):
                 try:
-                    return func(*args, **kwargs)
+                    return await func(*args, **kwargs)
                 except OSError:
-                    time.sleep(0.05)  # <-- allow the I2C bus to chill-out before we try again
-            return func(*args, **kwargs)
+                    await asyncio.sleep(0.05)  # <-- allow the I2C bus to chill-out before we try again
+            return await func(*args, **kwargs)
 
         return func_wrapper
 
     return decorator
 
 
-def i2c_poll_until(func, desired_return_value, timeout_ms):
+async def i2c_poll_until(func, desired_return_value, timeout_ms):
     """
     Helper for I2C-dependent functions which polls the `func`
     until its return value is the `desired_return_value`. It
@@ -130,7 +150,7 @@ def i2c_poll_until(func, desired_return_value, timeout_ms):
 
     while True:
         try:
-            ret = func()
+            ret = await func()
             if ret == desired_return_value:
                 return ret, (time.time() - start_time) * 1000
         except OSError:
@@ -138,21 +158,4 @@ def i2c_poll_until(func, desired_return_value, timeout_ms):
 
         if (time.time() - start_time) * 1000 > timeout_ms:
             raise TimeoutError("{} did not return {} before {} milliseconds".format(func, desired_return_value, timeout_ms))
-
-
-def i2c_reliability_test(func, iterations=1000):
-    """
-    Call `func` repeatedly to get a feel for its reliability.
-    It will be called `iterations` number of times, and it
-    is assumed to work as long as it doesn't raise `OSError`.
-    A short report is printed to summarize its reliability.
-    """
-    num_fails = 0
-    for _ in range(iterations):
-        try:
-            func()
-        except OSError:
-            num_fails += 1
-    return "{} fails ({:.2f}%) of {} iterations" \
-            .format(num_fails, num_fails / iterations * 100, iterations)
 
