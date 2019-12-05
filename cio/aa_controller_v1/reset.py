@@ -12,10 +12,14 @@ from . import capabilities
 from .easyi2c import i2c_poll_until
 
 
-def soft_reset(fd):
+async def soft_reset(fd):
     """
     Instruct the controller to reset itself. This is a software-reset only.
     """
-    capabilities.soft_reset(fd)
-    i2c_poll_until(lambda: capabilities.is_ready(fd), True, timeout_ms=1000)
+    await capabilities.soft_reset(fd)
+
+    async def _is_ready():
+        return await capabilities.is_ready(fd)
+
+    await i2c_poll_until(_is_ready, True, timeout_ms=1000)
 

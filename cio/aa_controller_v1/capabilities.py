@@ -140,7 +140,7 @@ async def get_capabilities(fd, soft_reset_first=False, only_enabled=False, detec
     """
     if soft_reset_first:
         await soft_reset(fd)
-        async _is_ready():
+        async def _is_ready():
             return await is_ready(fd)
         await i2c_poll_until(_is_ready, True, timeout_ms=1000)
 
@@ -174,7 +174,7 @@ async def acquire_component_interface(fd, caps, component_name):
     register_number = caps[component_name]['register_number']
     interface = KNOWN_COMPONENTS[component_name](fd, register_number)
     await enable_component(fd, register_number)
-    async _get_component_status():
+    async def _get_component_status():
         return await get_component_status(fd, register_number)
     await i2c_poll_until(_get_component_status, 'ENABLED', timeout_ms=1000)
     interface.__fd__ = fd
@@ -190,7 +190,7 @@ async def dispose_component_interface(interface):
     fd = interface.__fd__
     register_number = interface.__reg__
     await disable_component(fd, register_number)
-    async _get_component_status():
+    async def _get_component_status():
         return await get_component_status(fd, register_number)
     await i2c_poll_until(_get_component_status, 'DISABLED', timeout_ms=1000)
 

@@ -26,7 +26,7 @@ class VersionInfo(cio.VersionInfoIface):
         self.reg_num = reg_num
 
     async def name(self):
-        return "AutoAuto v1.x Controller"
+        return "AutoAuto v1 Controller"
 
     @i2c_retry(N_I2C_TRIES)
     async def version(self):
@@ -400,21 +400,21 @@ class CarMotors(cio.CarMotorsIface):
         This is a non-standard method which is not a part of the CarMotors interface.
         """
         @i2c_retry(N_I2C_TRIES)
-        def set_top():
+        async def set_top():
             payload = list(struct.pack("1H", top))
             status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x04] + payload, 1)
             if status != 104:
                 raise Exception("failed to set params: top")
 
         @i2c_retry(N_I2C_TRIES)
-        def set_steering_params():
+        async def set_steering_params():
             payload = list(struct.pack("4H", steering_left, steering_mid, steering_right, steering_millis))
             status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x05] + payload, 1)
             if status != 104:
                 raise Exception("failed to set params: steering_left, steering_mid, steering_right, steering_millis")
 
         @i2c_retry(N_I2C_TRIES)
-        def set_throttle_params():
+        async def set_throttle_params():
             payload = list(struct.pack("4H", throttle_forward, throttle_mid, throttle_reverse, throttle_millis))
             status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x06] + payload, 1)
             if status != 104:
@@ -430,13 +430,13 @@ class CarMotors(cio.CarMotorsIface):
         This is a non-standard method which is not a part of the CarMotors interface.
         """
         @i2c_retry(N_I2C_TRIES)
-        def save():
+        async def save():
             status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x07], 1)
             if status != 104:
                 raise Exception("failed to tell car to save motor params")
 
         @i2c_retry(N_I2C_TRIES)
-        def is_saved():
+        async def is_saved():
             status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x08], 1)
             return status == 0
 
@@ -486,7 +486,7 @@ class PidSteering(cio.PidSteeringIface):
 
     async def set_pid(self, p, i, d, error_accum_max=0.0):
         @i2c_retry(N_I2C_TRIES)
-        def set_val(instruction, val):
+        async def set_val(instruction, val):
             payload = list(struct.pack("1f", val))
             status, = await write_read_i2c_with_integrity(fd, [reg_num, instruction] + payload, 1)
             if status != 52:
@@ -520,13 +520,13 @@ class PidSteering(cio.PidSteeringIface):
         Save P, I, D (and `error_accum_max`) to the EEPROM.
         """
         @i2c_retry(N_I2C_TRIES)
-        def save():
+        async def save():
             status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x05], 1)
             if status != 52:
                 raise Exception("failed to save PID params")
 
         @i2c_retry(N_I2C_TRIES)
-        def is_saved():
+        async def is_saved():
             status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x06], 1)
             return status == 0
 

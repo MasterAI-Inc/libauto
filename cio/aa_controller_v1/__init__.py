@@ -68,7 +68,7 @@ def _setup_cleanup():
     We clean up by telling the microcontroller to reset itself.
     """
     from . import reset
-    import atexit, time, signal
+    import atexit, time, signal, asyncio
 
     def cleanup():
         time.sleep(0.1)
