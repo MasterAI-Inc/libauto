@@ -26,7 +26,7 @@ CAMERA_TIMEOUT_SECONDS = 30
 
 
 # Camera parameters. For options, see: http://picamera.readthedocs.io/en/release-1.10/fov.html
-# Consider 640x480 or 320x240. Unfortunately, 640x480 seems to bog-down the CPU too much.
+# If 640x480 bogs down the CPU too much, use 320x240 instead.
 CAM_WIDTH = 640
 CAM_HEIGHT = 480
 CAM_FPS = 8

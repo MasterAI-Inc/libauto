@@ -19,10 +19,11 @@ async def run():
     pprint(caps)
 
     iface = await c.acquire('VersionInfo')
+    name = await iface.name()
     version = await iface.version()
     await c.release(iface)
 
-    print(version)
+    print(name, version)
 
 
 if __name__ == '__main__':

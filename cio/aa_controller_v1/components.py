@@ -135,7 +135,6 @@ class GyroscopeAccum(cio.GyroscopeAccumIface):
         self.y_off = y
         self.z_off = z
 
-    @i2c_retry(N_I2C_TRIES)
     async def read(self):
         x, y, z = await self._read_raw()
         return (x - self.x_off), (y - self.y_off), (z - self.z_off)
@@ -440,7 +439,7 @@ class CarMotors(cio.CarMotorsIface):
             status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x08], 1)
             return status == 0
 
-        save()
+        await save()
         await i2c_poll_until(is_saved, True, timeout_ms=1000)
 
 
@@ -513,7 +512,9 @@ class PidSteering(cio.PidSteeringIface):
 
     @i2c_retry(N_I2C_TRIES)
     async def disable(self):
-        pass
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x00], 1)
+        if status != 52:
+            raise Exception("failed to disable PID loop")
 
     async def _save_pid(self):
         """
@@ -530,7 +531,7 @@ class PidSteering(cio.PidSteeringIface):
             status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x06], 1)
             return status == 0
 
-        save()
+        await save()
         await i2c_poll_until(is_saved, True, timeout_ms=1000)
 
 
