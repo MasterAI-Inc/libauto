@@ -8,22 +8,33 @@
 #
 ###############################################################################
 
-import time
+import asyncio
 from pprint import pprint
-from cio.aa_controller_v1 import default_handle as h
 
-pprint(h.CAPS)
+import cio.aa_controller_v1 as c
 
-b = h.acquire_component_interface('Buzzer')
 
-time.sleep(2)
+async def run():
+    caps = await c.init()
+    pprint(caps)
 
-#b.play()                   # defaults to the 'on' sound
-#b.play('o4l16ceg>c8')      # the 'on' sound (explicit this time)
-#b.play('v10>>g16>>>c16')   # the soft reset sound
-#b.play('>E>E>E R >C>E>G')
-#b.play('!L16 V12 cdefgab>cbagfedc')   # C-major scale up and down
-b.play('!T240 L8 agafaea dac+adaea fa<aa<bac#a dac#adaea f4')   # "Bach's fugue in D-minor"
+    b = await c.acquire('Buzzer')
 
-time.sleep(5)
+    await asyncio.sleep(2)
+
+    #await b.play()                   # defaults to the 'on' sound
+    #await b.play('o4l16ceg>c8')      # the 'on' sound (explicit this time)
+    #await b.play('v10>>g16>>>c16')   # the soft reset sound
+    #await b.play('>E>E>E R >C>E>G')
+    #await b.play('!L16 V12 cdefgab>cbagfedc')   # C-major scale up and down
+    await b.play('!T240 L8 agafaea dac+adaea fa<aa<bac#a dac#adaea f4')   # "Bach's fugue in D-minor"
+    await b.wait()
+
+    await asyncio.sleep(2)
+
+    await c.release(b)
+
+
+if __name__ == '__main__':
+    asyncio.run(run())
 

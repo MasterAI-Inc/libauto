@@ -8,34 +8,44 @@
 #
 ###############################################################################
 
-import time
+import asyncio
 from pprint import pprint
-from cio.aa_controller_v1 import default_handle as h
 
-pprint(h.CAPS)
+import cio.aa_controller_v1 as c
 
-loop = h.acquire_component_interface('LoopFrequency')
 
-for i in range(50):
-    print(loop.read())
-    time.sleep(0.05)
+async def run():
+    caps = await c.init()
+    pprint(caps)
 
-gyro = h.acquire_component_interface('Gyroscope')
+    loop = await c.acquire('LoopFrequency')
 
-for i in range(50):
-    print(loop.read())
-    time.sleep(0.05)
+    for i in range(50):
+        print(await loop.read())
+        await asyncio.sleep(0.05)
 
-accel = h.acquire_component_interface('Accelerometer')
+    gyro = await c.acquire('Gyroscope')
 
-for i in range(50):
-    print(loop.read())
-    time.sleep(0.05)
+    for i in range(50):
+        print(await loop.read())
+        await asyncio.sleep(0.05)
 
-h.dispose_component_interface(gyro)
-h.dispose_component_interface(accel)
+    accel = await c.acquire('Accelerometer')
 
-for i in range(50):
-    print(loop.read())
-    time.sleep(0.05)
+    for i in range(50):
+        print(await loop.read())
+        await asyncio.sleep(0.05)
+
+    await c.release(gyro)
+    await c.release(accel)
+
+    for i in range(50):
+        print(await loop.read())
+        await asyncio.sleep(0.05)
+
+    await c.release(loop)
+
+
+if __name__ == '__main__':
+    asyncio.run(run())
 

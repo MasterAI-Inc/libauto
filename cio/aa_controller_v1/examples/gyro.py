@@ -8,18 +8,31 @@
 #
 ###############################################################################
 
-import time
+import asyncio
 from pprint import pprint
-from cio.aa_controller_v1 import default_handle as h
 
-pprint(h.CAPS)
+import cio.aa_controller_v1 as c
 
-gyro       = h.acquire_component_interface('Gyroscope')
-gyro_accum = h.acquire_component_interface('Gyroscope_accum')
 
-for i in range(1000):
-    print(gyro.read())
-    print(gyro_accum.read())
-    print()
-    time.sleep(0.1)
+async def run():
+    caps = await c.init()
+    pprint(caps)
+
+    gyro       = await c.acquire('Gyroscope')
+    gyro_accum = await c.acquire('Gyroscope_accum')
+
+    for i in range(500):
+        print(await gyro.read())
+        print(await gyro_accum.read())
+        print()
+        if i % 50 == 0:
+            await gyro_accum.reset()
+        await asyncio.sleep(0.1)
+
+    await c.release(gyro)
+    await c.release(gyro_accum)
+
+
+if __name__ == '__main__':
+    asyncio.run(run())
 

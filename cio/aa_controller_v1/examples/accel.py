@@ -8,15 +8,25 @@
 #
 ###############################################################################
 
-import time
+import asyncio
 from pprint import pprint
-from cio.aa_controller_v1 import default_handle as h
 
-pprint(h.CAPS)
+import cio.aa_controller_v1 as c
 
-accel = h.acquire_component_interface('Accelerometer')
 
-for i in range(1000):
-    print(accel.read())
-    time.sleep(0.1)
+async def run():
+    caps = await c.init()
+    pprint(caps)
+
+    accel = await c.acquire('Accelerometer')
+
+    for i in range(100):
+        print(await accel.read())
+        await asyncio.sleep(0.05)
+
+    await c.release(accel)
+
+
+if __name__ == '__main__':
+    asyncio.run(run())
 

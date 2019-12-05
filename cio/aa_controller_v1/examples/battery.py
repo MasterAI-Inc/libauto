@@ -8,15 +8,27 @@
 #
 ###############################################################################
 
-import time
+import asyncio
 from pprint import pprint
-from cio.aa_controller_v1 import default_handle as h
 
-pprint(h.CAPS)
+import cio.aa_controller_v1 as c
 
-batt = h.acquire_component_interface('BatteryVoltageReader')
 
-while True:
-    print(batt.millivolts())
-    time.sleep(0.1)
+async def run():
+    caps = await c.init()
+    pprint(caps)
+
+    batt = await c.acquire('BatteryVoltageReader')
+
+    for i in range(100):
+        mv = await batt.millivolts()
+        mi = await batt.minutes()
+        print(mv, mi)
+        await asyncio.sleep(0.1)
+
+    await c.release(batt)
+
+
+if __name__ == '__main__':
+    asyncio.run(run())
 

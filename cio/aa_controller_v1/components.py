@@ -100,11 +100,13 @@ class Buzzer(cio.BuzzerIface):
             """Split `seq` into sublists of size `n`"""
             return [seq[i * n:(i + 1) * n] for i in range((len(seq) + n - 1) // n)]
 
-        await i2c_poll_until(self.is_currently_playing, False, timeout_ms=100000)
+        await self.wait()
+
         pos = 0
         for chunk in chunkify(notes, 4):
             chunk_len = await send_new_notes(chunk, pos)
             pos += chunk_len
+
         await start_playback()
 
 
