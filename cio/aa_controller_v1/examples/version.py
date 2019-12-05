@@ -8,13 +8,23 @@
 #
 ###############################################################################
 
-import time
+import asyncio
 from pprint import pprint
-from cio.aa_controller_v1 import default_handle as h
 
-pprint(h.CAPS)
+import cio.aa_controller_v1 as c
 
-version = h.acquire_component_interface('VersionInfo')
 
-print(version.version())
+async def run():
+    caps = await c.init()
+    pprint(caps)
+
+    iface = await c.acquire('VersionInfo')
+    version = await iface.version()
+    await c.release(iface)
+
+    print(version)
+
+
+if __name__ == '__main__':
+    asyncio.run(run())
 

@@ -40,7 +40,7 @@ async def open_i2c(device_index, slave_address):
     slave (`slave_address`) over the given Linux device
     interface index (`device_index`).
     """
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     path = "/dev/i2c-{}".format(device_index)
     flags = os.O_RDWR
     fd = await loop.run_in_executor(
@@ -61,7 +61,7 @@ async def read_i2c(fd, n):
     """
     Read `n` bytes from the I2C slave connected to `fd`.
     """
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     buf = await loop.run_in_executor(
             None,
             os.read,    # <-- throws if fails, but not if short read
@@ -76,7 +76,7 @@ async def write_i2c(fd, buf):
     """
     Write the `buf` (a `bytes`-buffer) to the I2C slave at `fd`.
     """
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     w = await loop.run_in_executor(
             None,
             os.write,   # <-- throws if fails, but not if short write

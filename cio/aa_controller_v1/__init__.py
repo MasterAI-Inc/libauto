@@ -39,7 +39,7 @@ CONTROLLER_I2C_SLAVE_ADDRESS = 0x14
 Every concrete controller implements the following standardized asynchronous interface:
     - async function: init(): no parameters, returns list of capability strings
     - async function: acquire(str): capability string as parameter, returns object implementing that capability's interface
-    - async function: dispose(obj): dispose of a previously acquired capability object
+    - async function: release(obj): release a previously acquired capability object
 """
 
 from . import capabilities
@@ -58,8 +58,8 @@ async def acquire(capability_id):
     return await capabilities.acquire_component_interface(FD, CAPS, capability_id)
 
 
-async def dispose(capability_obj):
-    return await capabilities.dispose_component_interface(capability_obj)
+async def release(capability_obj):
+    return await capabilities.release_component_interface(capability_obj)
 
 
 def _setup_cleanup():
@@ -72,7 +72,15 @@ def _setup_cleanup():
 
     def cleanup():
         time.sleep(0.1)
-        asyncio.get_event_loop().run_until_complete(reset.soft_reset(FD))
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        coro = reset.soft_reset(FD)
+        if loop is not None:
+            loop.run_until_complete(coro)
+        else:
+            asyncio.run(coro)
 
     atexit.register(cleanup)
 

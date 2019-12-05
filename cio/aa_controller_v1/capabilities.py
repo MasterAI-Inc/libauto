@@ -107,7 +107,7 @@ async def disable_component(fd, register_number):
     on error.
     Note: After you disable a component, you should wait for the controller to tell
           you that it has _actually_ been disabled. See how it is done in
-          `dispose_component_interface()`.
+          `release_component_interface()`.
     """
     indicator, = await write_read_i2c_with_integrity(fd, [CAPABILITIES_REG_NUM, 0x06, register_number], 1)
     if indicator == 0: return "already disabled"
@@ -169,7 +169,7 @@ async def acquire_component_interface(fd, caps, component_name):
         2. Wait for the controller to be ready.
         3. Lookup, build, and return the interface object for the component.
     Note, when you are finished using the components interface, you should
-    call `dispose_component_interface`.
+    call `release_component_interface`.
     """
     register_number = caps[component_name]['register_number']
     interface = KNOWN_COMPONENTS[component_name](fd, register_number)
@@ -182,9 +182,9 @@ async def acquire_component_interface(fd, caps, component_name):
     return interface
 
 
-async def dispose_component_interface(interface):
+async def release_component_interface(interface):
     """
-    Dispose the component `interface` by disabling the underlying component.
+    Release the component `interface` by disabling the underlying component.
     This function only works for interfaces returned by `acquire_component_interface`.
     """
     fd = interface.__fd__

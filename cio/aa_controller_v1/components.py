@@ -30,7 +30,7 @@ class VersionInfo(cio.VersionInfoIface):
 
     @i2c_retry(N_I2C_TRIES)
     async def version(self):
-        major, minor = await write_read_i2c_with_integrity(fd, [reg_num], 2)
+        major, minor = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 2)
         return major, minor
 
 
@@ -41,7 +41,7 @@ class LoopFrequency(cio.LoopFrequencyIface):
 
     @i2c_retry(N_I2C_TRIES)
     async def read(self):
-        buf = await write_read_i2c_with_integrity(fd, [reg_num], 4)
+        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 4)
         return struct.unpack('1I', buf)[0]
 
 
@@ -52,7 +52,7 @@ class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
 
     @i2c_retry(N_I2C_TRIES)
     async def millivolts(self):
-        lsb, msb = await write_read_i2c_with_integrity(fd, [reg_num], 2)
+        lsb, msb = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 2)
         return (msb << 8) | lsb   # <-- You can also use int.from_bytes(...) but I think doing the bitwise operations explicitely is cooler.
 
     async def minutes(self):
@@ -73,7 +73,7 @@ class Buzzer(cio.BuzzerIface):
 
     @i2c_retry(N_I2C_TRIES)
     async def is_currently_playing(self):
-        can_play, = await write_read_i2c_with_integrity(fd, [reg_num, 0x00], 1)
+        can_play, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x00], 1)
         return can_play == 0
 
     async def wait(self):
@@ -85,14 +85,14 @@ class Buzzer(cio.BuzzerIface):
         @i2c_retry(N_I2C_TRIES)
         async def send_new_notes(notes, pos):
             buf = list(notes.encode())
-            can_play, = await write_read_i2c_with_integrity(fd, [reg_num, 0x01, pos] + buf, 1)
+            can_play, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01, pos] + buf, 1)
             if can_play != 1:
                 raise Exception("failed to send notes to play")
             return len(buf)
 
         @i2c_retry(N_I2C_TRIES)
         async def start_playback():
-            can_play, = await write_read_i2c_with_integrity(fd, [reg_num, 0x02], 1)
+            can_play, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x02], 1)
             if can_play != 1:
                 raise Exception("failed to start playback")
 
@@ -115,7 +115,7 @@ class Gyroscope(cio.GyroscopeIface):
 
     @i2c_retry(N_I2C_TRIES)
     async def read(self):
-        buf = await write_read_i2c_with_integrity(fd, [reg_num], 3*4)
+        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 3*4)
         x, y, z = struct.unpack('3f', buf)
         x, y = -x, -y    # rotate 180 degrees around z
         return x, y, z
@@ -142,7 +142,7 @@ class GyroscopeAccum(cio.GyroscopeAccumIface):
 
     @i2c_retry(N_I2C_TRIES)
     async def _read_raw(self):
-        buf = await write_read_i2c_with_integrity(fd, [reg_num], 3*4)
+        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 3*4)
         x, y, z = struct.unpack('3f', buf)
         x, y = -x, -y    # rotate 180 degrees around z
         return x, y, z
@@ -155,7 +155,7 @@ class Accelerometer(cio.AccelerometerIface):
 
     @i2c_retry(N_I2C_TRIES)
     async def read(self):
-        buf = await write_read_i2c_with_integrity(fd, [reg_num], 3*4)
+        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 3*4)
         x, y, z = struct.unpack('3f', buf)
         x, y = -x, -y    # rotate 180 degrees around z
         return x, y, z
@@ -168,12 +168,12 @@ class PushButtons(cio.PushButtonsIface):
 
     @i2c_retry(N_I2C_TRIES)
     async def num_buttons(self):
-        n, = await write_read_i2c_with_integrity(fd, [reg_num, 0x00], 1)
+        n, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x00], 1)
         return n
 
     @i2c_retry(N_I2C_TRIES)
     async def button_state(self, button_index):
-        buf = await write_read_i2c_with_integrity(fd, [reg_num, 0x01+button_index], 3)
+        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01+button_index], 3)
         presses = int(buf[0])
         releases = int(buf[1])
         is_pressed = bool(buf[2])
@@ -246,7 +246,7 @@ class LEDs(cio.LEDsIface):
         green = self.vals['green']
         blue  = self.vals['blue']
         led_state = ((1 if red else 0) | ((1 if green else 0) << 1) | ((1 if blue else 0) << 2))
-        status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x00, led_state], 1)
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x00, led_state], 1)
         if status != 72:
             raise Exception("failed to set LED state")
 
@@ -260,7 +260,7 @@ class LEDs(cio.LEDsIface):
         mode = 0   # default mode where the values are merely those set by `set_led()`
         if mode_identifier == 'spin':
             mode = 1
-        status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x01, mode], 1)
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01, mode], 1)
         if status != 72:
             raise Exception("failed to set LED mode")
 
@@ -272,7 +272,7 @@ class Photoresistor(cio.PhotoresistorIface):
 
     @i2c_retry(N_I2C_TRIES)
     async def read(self):
-        buf = await write_read_i2c_with_integrity(fd, [reg_num], 8)
+        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 8)
         millivolts, resistance = struct.unpack('2I', buf)
         return millivolts, resistance
 
@@ -319,46 +319,46 @@ class Encoders(cio.EncodersIface):
 
     @i2c_retry(N_I2C_TRIES)
     async def _enable_e1(self):
-        status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x00], 1)
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x00], 1)
         if status != 31:
             raise Exception("Failed to enable encoder")
 
     @i2c_retry(N_I2C_TRIES)
     async def _enable_e2(self):
-        status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x01], 1)
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01], 1)
         if status != 31:
             raise Exception("Failed to enable encoder")
 
     @i2c_retry(N_I2C_TRIES)
     async def _disable_e1(self):
-        status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x02], 1)
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x02], 1)
         if status != 31:
             raise Exception("Failed to disable encoder")
 
     @i2c_retry(N_I2C_TRIES)
     async def _disable_e2(self):
-        status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x03], 1)
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x03], 1)
         if status != 31:
             raise Exception("Failed to disable encoder")
 
     @i2c_retry(N_I2C_TRIES)
     async def _read_e1_counts(self):
-        buf = await write_read_i2c_with_integrity(fd, [reg_num, 0x04], 6)
+        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x04], 6)
         return struct.unpack('3h', buf)
 
     @i2c_retry(N_I2C_TRIES)
     async def _read_e1_timing(self):
-        buf = await write_read_i2c_with_integrity(fd, [reg_num, 0x05], 8)
+        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x05], 8)
         return struct.unpack('2I', buf)
 
     @i2c_retry(N_I2C_TRIES)
     async def _read_e2_counts(self):
-        buf = await write_read_i2c_with_integrity(fd, [reg_num, 0x06], 6)
+        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x06], 6)
         return struct.unpack('3h', buf)
 
     @i2c_retry(N_I2C_TRIES)
     async def _read_e2_timing(self):
-        buf = await write_read_i2c_with_integrity(fd, [reg_num, 0x07], 8)
+        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x07], 8)
         return struct.unpack('2I', buf)
 
 
@@ -369,27 +369,27 @@ class CarMotors(cio.CarMotorsIface):
 
     @i2c_retry(N_I2C_TRIES)
     async def on(self):
-        status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x00], 1)
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x00], 1)
         if status != 104:
             raise Exception("failed to turn on car motors")
 
     @i2c_retry(N_I2C_TRIES)
     async def set_steering(self, steering):
         steering = int(round(min(max(steering, -45), 45)))
-        status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x01, (steering & 0xFF), ((steering >> 8) & 0xFF)], 1)
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01, (steering & 0xFF), ((steering >> 8) & 0xFF)], 1)
         if status != 104:
             raise Exception("failed to set steering")
 
     @i2c_retry(N_I2C_TRIES)
     async def set_throttle(self, throttle):
         throttle = int(round(min(max(throttle, -100), 100)))
-        status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x02, (throttle & 0xFF), ((throttle >> 8) & 0xFF)], 1)
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x02, (throttle & 0xFF), ((throttle >> 8) & 0xFF)], 1)
         if status != 104:
             raise Exception("failed to set throttle")
 
     @i2c_retry(N_I2C_TRIES)
     async def off(self):
-        status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x03], 1)
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x03], 1)
         if status != 104:
             raise Exception("failed to turn off car motors")
 
@@ -402,21 +402,21 @@ class CarMotors(cio.CarMotorsIface):
         @i2c_retry(N_I2C_TRIES)
         async def set_top():
             payload = list(struct.pack("1H", top))
-            status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x04] + payload, 1)
+            status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x04] + payload, 1)
             if status != 104:
                 raise Exception("failed to set params: top")
 
         @i2c_retry(N_I2C_TRIES)
         async def set_steering_params():
             payload = list(struct.pack("4H", steering_left, steering_mid, steering_right, steering_millis))
-            status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x05] + payload, 1)
+            status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x05] + payload, 1)
             if status != 104:
                 raise Exception("failed to set params: steering_left, steering_mid, steering_right, steering_millis")
 
         @i2c_retry(N_I2C_TRIES)
         async def set_throttle_params():
             payload = list(struct.pack("4H", throttle_forward, throttle_mid, throttle_reverse, throttle_millis))
-            status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x06] + payload, 1)
+            status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x06] + payload, 1)
             if status != 104:
                 raise Exception("failed to set params: throttle_forward, throttle_mid, throttle_reverse, throttle_millis")
 
@@ -431,13 +431,13 @@ class CarMotors(cio.CarMotorsIface):
         """
         @i2c_retry(N_I2C_TRIES)
         async def save():
-            status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x07], 1)
+            status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x07], 1)
             if status != 104:
                 raise Exception("failed to tell car to save motor params")
 
         @i2c_retry(N_I2C_TRIES)
         async def is_saved():
-            status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x08], 1)
+            status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x08], 1)
             return status == 0
 
         save()
@@ -469,13 +469,13 @@ class Calibrator(cio.CalibratorIface):
 
     @i2c_retry(N_I2C_TRIES)
     async def start(self):
-        status, = await write_read_i2c_with_integrity(fd, [reg_num, 0], 1)
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0], 1)
         if status != 7:
             raise Exception("Failed to start calibration process.")
 
     @i2c_retry(N_I2C_TRIES)
     async def check(self):
-        status, = await write_read_i2c_with_integrity(fd, [reg_num, 1], 1)
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 1], 1)
         return status
 
 
@@ -488,7 +488,7 @@ class PidSteering(cio.PidSteeringIface):
         @i2c_retry(N_I2C_TRIES)
         async def set_val(instruction, val):
             payload = list(struct.pack("1f", val))
-            status, = await write_read_i2c_with_integrity(fd, [reg_num, instruction] + payload, 1)
+            status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, instruction] + payload, 1)
             if status != 52:
                 raise Exception("failed to set PID value for instruction {}".format(instruction))
 
@@ -501,13 +501,13 @@ class PidSteering(cio.PidSteeringIface):
 
     @i2c_retry(N_I2C_TRIES)
     async def enable(self, invert_output=False):
-        status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x08, (0x01 if invert_output else 0x00)], 1)
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x08, (0x01 if invert_output else 0x00)], 1)
         if status != 52:
             raise Exception("failed to enable PID loop")
 
     @i2c_retry(N_I2C_TRIES)
     async def set_point(self, point):
-        status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x07] + list(struct.pack("1f", point)), 1)
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x07] + list(struct.pack("1f", point)), 1)
         if status != 52:
             raise Exception("failed to set the PID \"set point\"")
 
@@ -521,13 +521,13 @@ class PidSteering(cio.PidSteeringIface):
         """
         @i2c_retry(N_I2C_TRIES)
         async def save():
-            status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x05], 1)
+            status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x05], 1)
             if status != 52:
                 raise Exception("failed to save PID params")
 
         @i2c_retry(N_I2C_TRIES)
         async def is_saved():
-            status, = await write_read_i2c_with_integrity(fd, [reg_num, 0x06], 1)
+            status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x06], 1)
             return status == 0
 
         save()
