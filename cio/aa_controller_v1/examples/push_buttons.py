@@ -8,20 +8,29 @@
 #
 ###############################################################################
 
-import time
+import asyncio
 from pprint import pprint
-from cio.aa_controller_v1 import default_handle as h
 
-pprint(h.CAPS)
+import cio.aa_controller_v1 as c
 
-b = h.acquire_component_interface('PushButtons')
 
-while True:
+async def run():
+    caps = await c.init()
+    pprint(caps)
 
-    events = b.get_events()
+    b = await c.acquire('PushButtons')
 
-    for e in events:
-        pprint(e)
+    bi, action = await b.wait_for_action('released')
 
-    time.sleep(0.5)
+    print("Button", bi, "was", action)
+
+    while True:
+        event = await b.wait_for_event()
+        pprint(event)
+
+    await c.release(b)
+
+
+if __name__ == '__main__':
+    asyncio.run(run())
 

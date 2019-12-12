@@ -201,7 +201,33 @@ class PushButtonsIface(abc.ABC):
     async def get_events(self):
         """
         Return a list of buttons events that have happened since
-        the last call this method.
+        the last call this method. The returned list will be empty
+        if no events have transpired.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def wait_for_event(self):
+        """
+        Wait for the next event, and return it once it occurs.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def wait_for_action(self, action='pressed'):
+        """
+        Wait for a certain button action to happen.
+
+        The `action` may be one of:
+            - "pressed" : Wait for a button to be pressed.
+                          This is the default.
+            - "released": Wait for a button to be released.
+            - "any"     : Wait for either a button to be pressed or released,
+                          whichever happens first.
+
+        A two-tuple is returned `(button_index, action)`, where
+        `button_index` is the zero-based index of the button on which
+        the action occurred, and `action` is either "pressed" or "released".
         """
         pass
 

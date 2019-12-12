@@ -18,6 +18,8 @@ from .gpiopassthrough import Timer1PWM, Timer3PWM
 import cio
 
 import struct
+import asyncio
+from collections import deque
 
 
 class VersionInfo(cio.VersionInfoIface):
@@ -166,6 +168,9 @@ class PushButtons(cio.PushButtonsIface):
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
+        self.n = None
+        self.states = None
+        self.event_queue = deque()
 
     @i2c_retry(N_I2C_TRIES)
     async def num_buttons(self):
@@ -182,14 +187,14 @@ class PushButtons(cio.PushButtonsIface):
 
     async def get_events(self):
         if self.n is None:
-            self.n = self.num_buttons()
-            self.states = [self.button_state(i) for i in range(self.n)]
+            self.n = await self.num_buttons()
+            self.states = [await self.button_state(i) for i in range(self.n)]
             return []
 
         events = []
 
         for prev_state, i in zip(self.states, range(self.n)):
-            state = self.button_state(i)
+            state = await self.button_state(i)
             if state == prev_state:
                 continue
 
@@ -203,24 +208,41 @@ class PushButtons(cio.PushButtonsIface):
                 # We'll add `released` events first.
                 while diff_presses > 0 or diff_releases > 0:
                     if diff_releases > 0:
-                        events.append({'button': i+1, 'action': 'released'})
+                        events.append({'button': i, 'action': 'released'})
                         diff_releases -= 1
                     if diff_presses > 0:
-                        events.append({'button': i+1, 'action': 'pressed'})
+                        events.append({'button': i, 'action': 'pressed'})
                         diff_presses -= 1
             else:
                 # We'll add `pressed` events first.
                 while diff_presses > 0 or diff_releases > 0:
                     if diff_presses > 0:
-                        events.append({'button': i+1, 'action': 'pressed'})
+                        events.append({'button': i, 'action': 'pressed'})
                         diff_presses -= 1
                     if diff_releases > 0:
-                        events.append({'button': i+1, 'action': 'released'})
+                        events.append({'button': i, 'action': 'released'})
                         diff_releases -= 1
 
             self.states[i] = state
 
         return events
+
+    async def wait_for_event(self):
+        if not self.event_queue:   # if empty
+            while True:
+                events = await self.get_events()
+                if events:  # if not empty
+                    self.event_queue.extend(events)
+                    return self.event_queue.popleft()
+                await asyncio.sleep(0.05)
+        else:
+            return self.event_queue.popleft()
+
+    async def wait_for_action(self, action='pressed'):
+        while True:
+            event = await self.wait_for_event()
+            if action == 'any' or action == event['action']:
+                return event['button'], event['action']
 
 
 class LEDs(cio.LEDsIface):
