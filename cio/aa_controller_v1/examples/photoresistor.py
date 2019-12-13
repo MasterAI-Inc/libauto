@@ -8,15 +8,25 @@
 #
 ###############################################################################
 
-import time
+import asyncio
 from pprint import pprint
-from cio.aa_controller_v1 import default_handle as h
 
-pprint(h.CAPS)
+import cio.aa_controller_v1 as c
 
-p = h.acquire_component_interface('Photoresistor')
 
-for i in range(1000):
-    print(p.read(), p.read_millivolts(), p.read_ohms())
-    time.sleep(0.1)
+async def run():
+    caps = await c.init()
+    pprint(caps)
+
+    p = await c.acquire('Photoresistor')
+
+    for i in range(1000):
+        print(await p.read(), await p.read_millivolts(), await p.read_ohms())
+        await asyncio.sleep(0.1)
+
+    await c.release(p)
+
+
+if __name__ == '__main__':
+    asyncio.run(run())
 

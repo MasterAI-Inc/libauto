@@ -8,33 +8,61 @@
 #
 ###############################################################################
 
-import time
+import asyncio
 from pprint import pprint
-from cio.aa_controller_v1 import default_handle as h
 
-pprint(h.CAPS)
+import cio.aa_controller_v1 as c
 
-enc = h.acquire_component_interface('Encoders')
 
-enc.enable_e2()
+async def run():
+    caps = await c.init()
+    pprint(caps)
 
-def fmt(val):
-    return "{:6d}".format(val)
+    enc = await c.acquire('Encoders')
 
-while True:
-    print(''.join([fmt(val) for val in enc.read_e2_counts()]))
-    print()
-    time.sleep(0.1)
+    enc_index = 1   # the _second encoder
+
+    n = await enc.num_encoders()
+    print('# encoders:', n)
+
+    await enc.enable(enc_index)
+
+    def fmt(val):
+        return "{:6d}".format(val)
+
+    for i in range(100000):
+        counts = await enc.read_counts(enc_index)
+        counts_str = ''.join([fmt(c) for c in counts])
+
+        timing = await enc.read_timing(enc_index)
+        timing_str = ''.join([fmt(t) for t in timing])
+
+        print(counts_str + timing_str)
+
+        await asyncio.sleep(0.1)
+
+    await enc.disable(enc_index)
+
+    await c.release(enc)
+
+
+if __name__ == '__main__':
+    asyncio.run(run())
+
 
 
 ### DRIVE THE CAR
 
 # from car import motors
-
+#
+# ...
+#
 # while True:
-#     throttle, steering = enc.read_e2_timing()
+#     throttle, steering = await enc.read_timing(1)
 #     throttle = (throttle - 1500) / 500 * 100
 #     steering = (steering - 1500) / 500 * 45
 #     motors.set_throttle(throttle)
 #     motors.set_steering(steering)
+#
+# ...
 

@@ -451,9 +451,9 @@ class CarMotors(cio.CarMotorsIface):
             if status != 104:
                 raise Exception("failed to set params: throttle_forward, throttle_mid, throttle_reverse, throttle_millis")
 
-        set_top()
-        set_steering_params()
-        set_throttle_params()
+        await set_top()
+        await set_steering_params()
+        await set_throttle_params()
 
     async def save_params(self):
         """
