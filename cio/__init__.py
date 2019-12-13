@@ -259,6 +259,14 @@ class LEDsIface(abc.ABC):
         pass
 
     @abc.abstractmethod
+    async def set_many_leds(self, id_val_list):
+        """
+        Pass a list of tuples, where each tuple is an LED identifier
+        and the value you want it set to.
+        """
+        pass
+
+    @abc.abstractmethod
     async def mode_map(self):
         """
         Return identifiers and descriptions of the LED modes

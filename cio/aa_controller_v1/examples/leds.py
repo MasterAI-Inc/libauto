@@ -8,26 +8,51 @@
 #
 ###############################################################################
 
-import time
+import asyncio
 from pprint import pprint
-from cio.aa_controller_v1 import default_handle as h
 
-pprint(h.CAPS)
+import cio.aa_controller_v1 as c
 
-leds = h.acquire_component_interface('LEDs')
 
-leds.set_mode(1)
+async def run():
+    caps = await c.init()
+    pprint(caps)
 
-time.sleep(3)
+    leds = await c.acquire('LEDs')
 
-leds.set_mode(0)
-leds.set_values()
+    mode_map = await leds.mode_map()
+    print(mode_map)
 
-time.sleep(1)
+    for mode, _ in mode_map.items():
+        print('Setting to mode', mode)
+        await leds.set_mode(mode)
+        await asyncio.sleep(3)
 
-for i in range(8):
-    binary = "{0:{fill}3b}".format(i, fill='0')
-    red, green, blue = [int(b) for b in binary]
-    leds.set_values(red, green, blue)
-    time.sleep(1)
+    print('Clearing the mode...')
+    await leds.set_mode(None)
+
+    led_map = await leds.led_map()
+    print(led_map)
+
+    print('Turning on red...')
+    await leds.set_led('red', True)
+    await asyncio.sleep(2)
+
+    print('Turning off red...')
+    await leds.set_led('red', False)
+
+    await asyncio.sleep(1)
+
+    for i in range(8):
+        binary = "{0:{fill}3b}".format(i, fill='0')
+        print('Showing binary:', binary)
+        red, green, blue = [int(b) for b in binary]
+        await leds.set_many_leds(zip(['red', 'green', 'blue'], [red, green, blue]))
+        await asyncio.sleep(1)
+
+    await c.release(leds)
+
+
+if __name__ == '__main__':
+    asyncio.run(run())
 

@@ -263,8 +263,7 @@ class LEDs(cio.LEDsIface):
         }
 
     @i2c_retry(N_I2C_TRIES)
-    async def set_led(self, led_identifier, val):
-        self.vals[led_identifier] = val
+    async def _set(self):
         red   = self.vals['red']
         green = self.vals['green']
         blue  = self.vals['blue']
@@ -272,6 +271,15 @@ class LEDs(cio.LEDsIface):
         status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x00, led_state], 1)
         if status != 72:
             raise Exception("failed to set LED state")
+
+    async def set_led(self, led_identifier, val):
+        self.vals[led_identifier] = val
+        await self._set()
+
+    async def set_many_leds(self, id_val_list):
+        for led_identifier, val in id_val_list:
+            self.vals[led_identifier] = val
+        await self._set()
 
     async def mode_map(self):
         return {
