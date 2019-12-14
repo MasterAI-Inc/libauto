@@ -36,10 +36,19 @@ CONTROLLER_I2C_SLAVE_ADDRESS = 0x14
 
 
 """
-Every concrete controller implements the following standardized asynchronous interface:
-    - async function: init(): no parameters, returns list of capability strings
-    - async function: acquire(str): capability string as parameter, returns object implementing that capability's interface
-    - async function: release(obj): release a previously acquired capability object
+Every concrete controller implements the following standardized
+asynchronous interface:
+
+    - async function: init():
+                 no parameters, returns list of capability strings, or throws
+                 if the proper controller is not attached
+
+    - async function: acquire(str):
+                 capability string as parameter, returns object implementing
+                 that capability's interface
+
+    - async function: release(obj):
+                release a previously acquired capability object
 """
 
 from . import capabilities
@@ -47,18 +56,51 @@ from . import easyi2c
 
 
 async def init():
+    """
+    Attempt to initialize the version 1.x AutoAuto controller. Return a list
+    of capabilities if initialization worked, else raise an exception.
+    """
     global FD, CAPS
-    FD = await easyi2c.open_i2c(1, CONTROLLER_I2C_SLAVE_ADDRESS)
-    CAPS = await capabilities.get_capabilities(FD, soft_reset_first=True, detect_enabledness=True)
+
+    FD = None
+
+    try:
+        FD = await easyi2c.open_i2c(1, CONTROLLER_I2C_SLAVE_ADDRESS)
+        CAPS = await capabilities.get_capabilities(FD, soft_reset_first=True)
+
+        if 'VersionInfo' not in CAPS:
+            raise Exception('Controller does not implement the required VersionInfo component.')
+
+        version_info = await acquire('VersionInfo')
+        major, minor = await version_info.version()
+        await release(version_info)
+
+        if major != 1:
+            raise Exception('Controller is not version 1, thus this interface will not work.')
+
+    except:
+        if FD is not None:
+            await easyi2c.close_i2c(FD)
+            FD = None
+        raise
+
     _setup_cleanup()
     return list(CAPS.keys())
 
 
 async def acquire(capability_id):
+    """
+    Acquire the interface to the component with the given `capability_id`, and return
+    a concrete object implementing its interface.
+    """
     return await capabilities.acquire_component_interface(FD, CAPS, capability_id)
 
 
 async def release(capability_obj):
+    """
+    Release a previously acquired capability interface. You must pass
+    the exact object returned by `acquire()`.
+    """
     return await capabilities.release_component_interface(capability_obj)
 
 

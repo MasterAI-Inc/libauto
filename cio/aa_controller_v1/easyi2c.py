@@ -36,7 +36,7 @@ from . import integrity
 
 async def open_i2c(device_index, slave_address):
     """
-    Open and configure a file description to the given
+    Open and configure a file descriptor to the given
     slave (`slave_address`) over the given Linux device
     interface index (`device_index`).
     """
@@ -55,6 +55,18 @@ async def open_i2c(device_index, slave_address):
             fd, I2C_SLAVE, slave_address
     )
     return fd
+
+
+async def close_i2c(fd):
+    """
+    Close a file descriptor returned by `open_i2c()`.
+    """
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(
+            None,
+            os.close,            # <-- throws if fails
+            fd
+    )
 
 
 async def read_i2c(fd, n):

@@ -134,7 +134,7 @@ async def get_component_status(fd, register_number):
     raise Exception("unknown return value: {}".format(indicator))
 
 
-async def get_capabilities(fd, soft_reset_first=False, only_enabled=False, detect_enabledness=False):
+async def get_capabilities(fd, soft_reset_first=False, only_enabled=False):
     """
     Return a dictionary representing the capabilities of the connected controller.
     """
@@ -155,8 +155,7 @@ async def get_capabilities(fd, soft_reset_first=False, only_enabled=False, detec
             caps[name] = {
                     'register_number': reg,
             }
-            if detect_enabledness:
-                caps[name]['is_enabled'] = (await get_component_status(fd, reg) == 'ENABLED')
+            caps[name]['is_enabled'] = (await get_component_status(fd, reg) == 'ENABLED')
 
     if 'Timer1PWM' in caps and 'Timer3PWM' in caps:
         # Bodge.
@@ -184,8 +183,8 @@ async def acquire_component_interface(fd, caps, component_name):
     interface = KNOWN_COMPONENTS[component_name](fd, register_number)
     interface.__fd__ = fd
     interface.__reg__ = register_number
-    if not isinstance(register_number, tuple):
-        register_number = (register_number,)
+    if not isinstance(register_number, (tuple, list)):
+        register_number = [register_number]
     for n in register_number:
         await enable_component(fd, n)
         async def _get_component_status():
@@ -201,8 +200,8 @@ async def release_component_interface(interface):
     """
     fd = interface.__fd__
     register_number = interface.__reg__
-    if not isinstance(register_number, tuple):
-        register_number = (register_number,)
+    if not isinstance(register_number, (tuple, list)):
+        register_number = [register_number]
     for n in register_number:
         await disable_component(fd, n)
         async def _get_component_status():
