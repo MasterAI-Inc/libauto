@@ -580,7 +580,7 @@ class Calibrator(cio.CalibratorIface):
     @i2c_retry(N_I2C_TRIES)
     async def check(self):
         status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 1], 1)
-        return status
+        return status == 1   # 1 means currently calibrating, 2 means done calibrating
 
 
 class PidSteering(cio.PidSteeringIface):
@@ -596,24 +596,24 @@ class PidSteering(cio.PidSteeringIface):
             if status != 52:
                 raise Exception("failed to set PID value for instruction {}".format(instruction))
 
-        set_val(0x01, p)
-        set_val(0x02, i)
-        set_val(0x03, d)
-        set_val(0x04, error_accum_max)
+        await set_val(0x01, p)
+        await set_val(0x02, i)
+        await set_val(0x03, d)
+        await set_val(0x04, error_accum_max)
 
         await self._save_pid()
-
-    @i2c_retry(N_I2C_TRIES)
-    async def enable(self, invert_output=False):
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x08, (0x01 if invert_output else 0x00)], 1)
-        if status != 52:
-            raise Exception("failed to enable PID loop")
 
     @i2c_retry(N_I2C_TRIES)
     async def set_point(self, point):
         status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x07] + list(struct.pack("1f", point)), 1)
         if status != 52:
             raise Exception("failed to set the PID \"set point\"")
+
+    @i2c_retry(N_I2C_TRIES)
+    async def enable(self, invert_output=False):
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x08, (0x01 if invert_output else 0x00)], 1)
+        if status != 52:
+            raise Exception("failed to enable PID loop")
 
     @i2c_retry(N_I2C_TRIES)
     async def disable(self):

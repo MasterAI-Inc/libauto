@@ -519,17 +519,22 @@ class PidIface(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def enable(self, invert_output=False):
-        """
-        Enable the PID loop within the controller (i.e. begin to drive the actuator).
-        """
-        pass
-
-    @abc.abstractmethod
     async def set_point(self, point):
         """
         Set the sensor's "set point". The actuator will be controlled so that
         the sensor stays at the "set point".
+        """
+        pass
+
+    @abc.abstractmethod
+    async def enable(self, invert_output=False):
+        """
+        Enable the PID loop within the controller (i.e. begin to drive the actuator to
+        the set point).
+
+        You should call `set_pid()` and `set_point()` before `enable()` so that
+        the actuator is properly driven immediately upon being enabled. Once
+        enabled, you can repeatedly call `set_point()` as needed.
         """
         pass
 

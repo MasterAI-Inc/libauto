@@ -8,13 +8,34 @@
 #
 ###############################################################################
 
-import time
+import asyncio
 from pprint import pprint
-from cio.aa_controller_v1 import default_handle as h
 
-pprint(h.CAPS)
+import cio.aa_controller_v1 as c
 
-calibrator = h.acquire_component_interface('Calibrator')
 
-calibrator.calibrate()
+async def run():
+    caps = await c.init()
+    pprint(caps)
+
+    await asyncio.sleep(1)  # wait for reset sound to finish playing, else we block it by starting the calibration below
+
+    calibrator = await c.acquire('Calibrator')
+
+    await calibrator.start()
+    print('Started calibration...')
+
+    while await calibrator.check():
+        print('.', end='', flush=True)
+        await asyncio.sleep(1)
+
+    print('DONE!')
+
+    await asyncio.sleep(5)
+
+    await c.release(calibrator)
+
+
+if __name__ == '__main__':
+    asyncio.run(run())
 
