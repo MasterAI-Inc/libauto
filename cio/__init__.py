@@ -439,12 +439,17 @@ class PWMsIface(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def enable(self, pin_index, frequency):
+    async def enable(self, pin_index, frequency, duty=0):
         """
         Enable PWM on a given pin at a given frequency (in Hz). The first pin is index-0.
         An error will be thrown if the desired frequency is not possible. The duty cycle
-        will be 0% by default when you enable the pin; call `set_duty()` to change the duty
-        cycle of this pin once it is enabled.
+        will be 0% by default (pass the `duty` parameter to enable it at a non-zero duty
+        cycle). Call `set_duty()` to change the duty cycle of this pin once it is enabled.
+
+        **NOTE**: On most microcontrollers, there will be two or more pins that are driven
+                  by the same internal timer, thus the frequency of those pins must be the
+                  same. If this is the case and you try to set different frequencies, you
+                  will get an exception.
         """
         pass
 

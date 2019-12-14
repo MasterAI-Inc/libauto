@@ -158,6 +158,15 @@ async def get_capabilities(fd, soft_reset_first=False, only_enabled=False, detec
             if detect_enabledness:
                 caps[name]['is_enabled'] = (await get_component_status(fd, reg) == 'ENABLED')
 
+    if 'Timer1PWM' in caps and 'Timer3PWM' in caps:
+        # Bodge.
+        t1_reg_num = caps['Timer1PWM']['register_number']
+        t3_reg_num = caps['Timer3PWM']['register_number']
+        is_enabled = caps['Timer3PWM']['is_enabled']
+        caps['PWMs'] = {'register_number': (t1_reg_num, t3_reg_num), 'is_enabled': is_enabled}
+        del caps['Timer1PWM']
+        del caps['Timer3PWM']
+
     return caps
 
 
@@ -173,12 +182,15 @@ async def acquire_component_interface(fd, caps, component_name):
     """
     register_number = caps[component_name]['register_number']
     interface = KNOWN_COMPONENTS[component_name](fd, register_number)
-    await enable_component(fd, register_number)
-    async def _get_component_status():
-        return await get_component_status(fd, register_number)
-    await i2c_poll_until(_get_component_status, 'ENABLED', timeout_ms=1000)
     interface.__fd__ = fd
     interface.__reg__ = register_number
+    if not isinstance(register_number, tuple):
+        register_number = (register_number,)
+    for n in register_number:
+        await enable_component(fd, n)
+        async def _get_component_status():
+            return await get_component_status(fd, n)
+        await i2c_poll_until(_get_component_status, 'ENABLED', timeout_ms=1000)
     return interface
 
 
@@ -189,8 +201,11 @@ async def release_component_interface(interface):
     """
     fd = interface.__fd__
     register_number = interface.__reg__
-    await disable_component(fd, register_number)
-    async def _get_component_status():
-        return await get_component_status(fd, register_number)
-    await i2c_poll_until(_get_component_status, 'DISABLED', timeout_ms=1000)
+    if not isinstance(register_number, tuple):
+        register_number = (register_number,)
+    for n in register_number:
+        await disable_component(fd, n)
+        async def _get_component_status():
+            return await get_component_status(fd, n)
+        await i2c_poll_until(_get_component_status, 'DISABLED', timeout_ms=1000)
 

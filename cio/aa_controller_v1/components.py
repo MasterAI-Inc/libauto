@@ -478,19 +478,92 @@ class CarMotors(cio.CarMotorsIface):
 class PWMs(cio.PWMsIface):
     def __init__(self, fd, reg_num):
         self.fd = fd
-        self.reg_num = reg_num
+        self.t1_reg_num = reg_num[0]
+        self.t3_reg_num = reg_num[1]
+        self.timer_1 = Timer1PWM(self.fd, self.t1_reg_num)
+        self.timer_3 = Timer3PWM(self.fd, self.t3_reg_num)
+        self.enabled = {}   # dict mapping pin_index to frequency
 
     async def num_pins(self):
-        pass
+        return 4
 
-    async def enable(self, pin_index, frequency):
-        pass
+    async def enable(self, pin_index, frequency, duty=0):
+        if 2000000 % frequency:
+            raise Exception('cannot set frequency exactly')
+        top = 2000000 // frequency
+
+        duty = min(100.0, duty)
+        duty = max(0.0, duty)
+        duty = int(round(duty / 100.0 * top))
+
+        if pin_index in (0, 1, 2):
+            # These pins are on Timer 1.
+            needs_init = True
+
+            for idx in (0, 1, 2):
+                if idx in self.enabled:
+                    if frequency != self.enabled[idx]:
+                        raise Exception("All enabled pins 0, 1, and 2 must have the same frequency.")
+                    needs_init = False
+
+            if needs_init:
+                await self.timer_1.set_top(top)
+
+            if pin_index == 0:
+                await self.timer_1.set_ocr_a(duty)
+                await self.timer_1.enable_a()
+            elif pin_index == 1:
+                await self.timer_1.set_ocr_b(duty)
+                await self.timer_1.enable_b()
+            elif pin_index == 2:
+                await self.timer_1.set_ocr_c(duty)
+                await self.timer_1.enable_c()
+
+        elif pin_index == 3:
+            # This pin is on Timer 3.
+            await self.timer_3.set_top(top)
+            await self.timer_3.set_ocr(duty)
+            await self.timer_3.enable()
+
+        else:
+            raise Exception('invalid pin_index')
+
+        self.enabled[pin_index] = frequency
 
     async def set_duty(self, pin_index, duty):
-        pass
+        if pin_index not in self.enabled:
+            raise Exception('that pin is not enabled')
+
+        frequency = self.enabled[pin_index]
+        top = 2000000 // frequency
+
+        duty = min(100.0, duty)
+        duty = max(0.0, duty)
+        duty = int(round(duty / 100.0 * top))
+
+        if pin_index == 0:
+            await self.timer_1.set_ocr_a(duty)
+        elif pin_index == 1:
+            await self.timer_1.set_ocr_b(duty)
+        elif pin_index == 2:
+            await self.timer_1.set_ocr_c(duty)
+        elif pin_index == 3:
+            await self.timer_3.set_ocr(duty)
 
     async def disable(self, pin_index):
-        pass
+        if pin_index not in self.enabled:
+            raise Exception('that pin is not enabled')
+
+        if pin_index == 0:
+            await self.timer_1.disable_a()
+        elif pin_index == 1:
+            await self.timer_1.disable_b()
+        elif pin_index == 2:
+            await self.timer_1.disable_c()
+        elif pin_index == 3:
+            await self.timer_3.disable()
+
+        del self.enabled[pin_index]
 
 
 class Calibrator(cio.CalibratorIface):
