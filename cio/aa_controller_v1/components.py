@@ -13,7 +13,7 @@ from .easyi2c import (write_read_i2c_with_integrity,
 
 from . import N_I2C_TRIES
 
-from .gpiopassthrough import Timer1PWM, Timer3PWM
+from .timers import Timer1PWM, Timer3PWM
 
 import cio
 
