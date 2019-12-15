@@ -34,6 +34,13 @@ from functools import wraps
 from . import integrity
 
 
+# It would be best to have this lock work on a per-fd basis, but we won't
+# worry about that because the primary use-case will be that we have only
+# one fd open to this I2C bus. Having this global lock below makes it easier
+# because we don't have to pass it around everywhere the fd goes.
+LOCK = asyncio.Lock()
+
+
 async def open_i2c(device_index, slave_address):
     """
     Open and configure a file descriptor to the given
@@ -69,7 +76,7 @@ async def close_i2c(fd):
     )
 
 
-async def read_i2c(fd, n):
+async def _read_i2c(fd, n):
     """
     Read `n` bytes from the I2C slave connected to `fd`.
     """
@@ -84,7 +91,7 @@ async def read_i2c(fd, n):
     return buf
 
 
-async def write_i2c(fd, buf):
+async def _write_i2c(fd, buf):
     """
     Write the `buf` (a `bytes`-buffer) to the I2C slave at `fd`.
     """
@@ -108,8 +115,9 @@ async def write_read_i2c(fd, write_buf, read_len):
           when you read/write to the I2C bus. See the next function
           in this module for how to do this.
     """
-    await write_i2c(fd, write_buf)
-    return await read_i2c(fd, read_len)
+    async with lock:
+        await _write_i2c(fd, write_buf)
+        return await _read_i2c(fd, read_len)
 
 
 async def write_read_i2c_with_integrity(fd, write_buf, read_len):
@@ -120,8 +128,9 @@ async def write_read_i2c_with_integrity(fd, write_buf, read_len):
     """
     read_len = integrity.read_len_with_integrity(read_len)
     write_buf = integrity.put_integrity(write_buf)
-    await write_i2c(fd, write_buf)
-    read_buf = await read_i2c(fd, read_len)
+    async with lock:
+        await _write_i2c(fd, write_buf)
+        read_buf = await _read_i2c(fd, read_len)
     read_buf = integrity.check_integrity(read_buf)
     if read_buf is None:
         raise OSError(errno.ECOMM, os.strerror(errno.ECOMM))
