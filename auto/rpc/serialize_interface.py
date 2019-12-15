@@ -4,13 +4,13 @@ import inspect
 EXPORT_PREFIX = 'export_'
 
 
-def serialize_interface(thing, name='root'):
-    iface = _serialize_interface(thing, name)
+def serialize_interface(thing, name='root', whitelist_method_names=()):
+    iface = _serialize_interface(thing, name, whitelist_method_names)
     impl = _separate_implementation(iface)
     return iface, impl
 
 
-def _serialize_interface(thing, name):
+def _serialize_interface(thing, name, whitelist_method_names):
     if inspect.isfunction(thing):
         return _serialize_function(thing, name)
 
@@ -28,10 +28,13 @@ def _serialize_interface(thing, name):
         # name (for security reasons!).
         exported = []
         for attr_name in dir(thing):
-            if attr_name.startswith(EXPORT_PREFIX):
-                cropped_name = attr_name[len(EXPORT_PREFIX):]
+            if attr_name.startswith(EXPORT_PREFIX) or attr_name in whitelist_method_names:
+                if attr_name.startswith(EXPORT_PREFIX):
+                    cropped_name = attr_name[len(EXPORT_PREFIX):]
+                else:
+                    cropped_name = attr_name
                 attr = getattr(thing, attr_name)
-                iface = _serialize_interface(attr, cropped_name)
+                iface = _serialize_interface(attr, cropped_name, whitelist_method_names)
                 exported.append(iface)
         return {
             'name': name,

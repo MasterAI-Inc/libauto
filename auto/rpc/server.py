@@ -1,8 +1,15 @@
 import asyncio
 import websockets
+import uuid
 
 from auto.rpc.packer import pack, unpack
 from auto.rpc.serialize_interface import serialize_interface
+
+
+class SerializeIface(Exception):
+    def __init__(self, obj, whitelist_method_names=()):
+        self.obj = obj
+        self.whitelist_method_names = whitelist_method_names
 
 
 async def serve(root, pubsub=None, inet_addr='localhost', inet_port=7000):
@@ -49,6 +56,8 @@ def _build_client_handler(iface, impl, pubsub, subscribers):
 
 
 async def _handle_client(ws, impl, pubsub, subscribers):
+    impl = impl.copy()   # this client may extend the impl, and we want those modifications to exist only for _this_ client
+
     try:
         while True:
             cmd = await ws.recv()
@@ -74,12 +83,27 @@ async def _handle_client_invoke(ws, cmd, impl):
     path = cmd['path']
     args = cmd['args']
     func = impl[path]
-    val = await func(*args)   # TODO: catch, serialize, and transmit any exception which is thrown by `func`.
+
     result = {
         'type': 'invoke_result',
         'id': id_,
-        'val': val,
     }
+
+    try:
+        val = await func(*args)
+        result['val'] = val
+
+    except SerializeIface as s:
+        sub_obj = s.obj
+        sub_whitelist = s.whitelist_method_names
+        sub_name = path + '.' + str(uuid.uuid4())
+        sub_iface, sub_impl = serialize_interface(sub_obj, name=sub_name, whitelist_method_names=sub_whitelist)
+        impl.update(sub_impl)
+        result['iface'] = sub_iface
+
+    except Exception as e:
+        result['exception'] = str(e)   # TODO: Serialize the exception more fully so it can be stacktraced on the other side.
+
     result_buf = pack(result)
     await ws.send(result_buf)
 

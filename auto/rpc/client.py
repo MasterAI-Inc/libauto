@@ -38,8 +38,24 @@ async def client(inet_addr='localhost', inet_port=7000):
         cmd = pack(cmd)
         await ws.send(cmd)
         await event.wait()
-        val = invoke_events[id_here]['val']
+        message = invoke_events[id_here]['result_message']
         del invoke_events[id_here]
+
+        if 'val' in message:
+            return message['val']   # Standard return value
+
+        elif 'exception' in message:
+            error_text = message['exception']
+            raise Exception(error_text)   # TODO: Rebuild the exception more precisely.
+
+        elif 'iface' in message:
+            sub_iface = message['iface']
+            _, sub_proxy_iface = build_interface(sub_iface, impl_transport)
+            return sub_proxy_iface
+
+        else:
+            raise Exception('Unknown response message...')
+
         return val
 
     _, proxy_interface = build_interface(iface, impl_transport)
@@ -52,9 +68,8 @@ async def client(inet_addr='localhost', inet_port=7000):
                 type_ = message['type']
                 if type_ == 'invoke_result':
                     id_ = message['id']
-                    val = message['val']
                     if id_ in invoke_events:
-                        invoke_events[id_]['val'] = val
+                        invoke_events[id_]['result_message'] = message
                         event = invoke_events[id_]['event']
                         event.set()
                 elif type_ == 'publish':
