@@ -20,6 +20,8 @@ async def run():
 
     b = await c.acquire('PushButtons')
 
+    print('There are', await b.num_buttons(), 'buttons.')
+
     bi, action = await b.wait_for_action('released')
 
     print("Button", bi, "was", action)

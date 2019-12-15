@@ -108,7 +108,7 @@ async def write_read_i2c(fd, write_buf, read_len):
           when you read/write to the I2C bus. See the next function
           in this module for how to do this.
     """
-    await write_i2c(fd, bytes(write_buf))
+    await write_i2c(fd, write_buf)
     return await read_i2c(fd, read_len)
 
 

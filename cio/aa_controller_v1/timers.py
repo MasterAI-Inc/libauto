@@ -132,5 +132,5 @@ class Timer3PWM:
     async def set_pct(self, pct=0.5):
         pct = max(min(pct, 1.0), 0.0)
         value = int(round((self.max_ocr - self.min_ocr) * pct + self.min_ocr))
-        self.set_ocr(value)
+        await self.set_ocr(value)
 

@@ -55,7 +55,7 @@ class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
     @i2c_retry(N_I2C_TRIES)
     async def millivolts(self):
         lsb, msb = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 2)
-        return (msb << 8) | lsb   # <-- You can also use int.from_bytes(...) but I think doing the bitwise operations explicitely is cooler.
+        return (msb << 8) | lsb   # <-- You can also use int.from_bytes(...) but I think doing the bitwise operations explicitly is cooler.
 
     async def minutes(self):
         mv = await self.millivolts()
@@ -601,8 +601,6 @@ class PidSteering(cio.PidSteeringIface):
         await set_val(0x03, d)
         await set_val(0x04, error_accum_max)
 
-        await self._save_pid()
-
     @i2c_retry(N_I2C_TRIES)
     async def set_point(self, point):
         status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x07] + list(struct.pack("1f", point)), 1)
@@ -621,9 +619,10 @@ class PidSteering(cio.PidSteeringIface):
         if status != 52:
             raise Exception("failed to disable PID loop")
 
-    async def _save_pid(self):
+    async def save_pid(self):
         """
         Save P, I, D (and `error_accum_max`) to the EEPROM.
+        This is a non-standard method which is not part of the PID interface.
         """
         @i2c_retry(N_I2C_TRIES)
         async def save():
