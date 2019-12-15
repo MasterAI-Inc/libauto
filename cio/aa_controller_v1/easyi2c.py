@@ -115,7 +115,7 @@ async def write_read_i2c(fd, write_buf, read_len):
           when you read/write to the I2C bus. See the next function
           in this module for how to do this.
     """
-    async with lock:
+    async with LOCK:
         await _write_i2c(fd, write_buf)
         return await _read_i2c(fd, read_len)
 
@@ -128,7 +128,7 @@ async def write_read_i2c_with_integrity(fd, write_buf, read_len):
     """
     read_len = integrity.read_len_with_integrity(read_len)
     write_buf = integrity.put_integrity(write_buf)
-    async with lock:
+    async with LOCK:
         await _write_i2c(fd, write_buf)
         read_buf = await _read_i2c(fd, read_len)
     read_buf = integrity.check_integrity(read_buf)
