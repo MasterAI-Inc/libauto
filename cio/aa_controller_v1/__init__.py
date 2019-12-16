@@ -89,6 +89,13 @@ async def init():
         if major != 1:
             raise Exception('Controller is not version 1, thus this interface will not work.')
 
+        for component_name, config in CAPS.items():
+            if config['is_enabled']:
+                # This component is enabled by default, so make sure it stays enabled!
+                # We'll do this by starting its ref count at 1, so it will never go
+                # to zero -- it's as if the controller itself holds one reference.
+                CAPABILITY_REF_COUNT[component_name] = 1
+
     except:
         if FD is not None:
             await easyi2c.close_i2c(FD)
