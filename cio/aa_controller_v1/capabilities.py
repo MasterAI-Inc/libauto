@@ -169,7 +169,7 @@ async def get_capabilities(fd, soft_reset_first=False, only_enabled=False):
     return caps
 
 
-async def acquire_component_interface(fd, caps, component_name):
+async def acquire_component_interface(fd, caps, ref_count, component_name):
     """
     Acquire the interface to the component having the name `component_name`.
     This is a helper function which will:
@@ -183,28 +183,50 @@ async def acquire_component_interface(fd, caps, component_name):
     interface = KNOWN_COMPONENTS[component_name](fd, register_number)
     interface.__fd__ = fd
     interface.__reg__ = register_number
-    if not isinstance(register_number, (tuple, list)):
-        register_number = [register_number]
-    for n in register_number:
-        await enable_component(fd, n)
-        async def _get_component_status():
-            return await get_component_status(fd, n)
-        await i2c_poll_until(_get_component_status, 'ENABLED', timeout_ms=1000)
+    interface.__component_name__ = component_name
+
+    if component_name not in ref_count:
+        # It must not be enabled and the ref count must currently be zero.
+        if not isinstance(register_number, (tuple, list)):
+            register_number = [register_number]
+        for n in register_number:
+            await enable_component(fd, n)
+            async def _get_component_status():
+                return await get_component_status(fd, n)
+            await i2c_poll_until(_get_component_status, 'ENABLED', timeout_ms=1000)
+        ref_count[component_name] = 1
+
+    else:
+        # The component is already enabled, we just need to inc the ref count.
+        ref_count[component_name] += 1
+
     return interface
 
 
-async def release_component_interface(interface):
+async def release_component_interface(ref_count, interface):
     """
     Release the component `interface` by disabling the underlying component.
     This function only works for interfaces returned by `acquire_component_interface`.
     """
     fd = interface.__fd__
     register_number = interface.__reg__
-    if not isinstance(register_number, (tuple, list)):
-        register_number = [register_number]
-    for n in register_number:
-        await disable_component(fd, n)
-        async def _get_component_status():
-            return await get_component_status(fd, n)
-        await i2c_poll_until(_get_component_status, 'DISABLED', timeout_ms=1000)
+    component_name = interface.__component_name__
+
+    if component_name not in ref_count:
+        # Weird... just bail.
+        return
+
+    # Dec the ref count.
+    ref_count[component_name] -= 1
+
+    if ref_count[component_name] == 0:
+        # This is the last remaining reference, so we'll disable the component.
+        if not isinstance(register_number, (tuple, list)):
+            register_number = [register_number]
+        for n in register_number:
+            await disable_component(fd, n)
+            async def _get_component_status():
+                return await get_component_status(fd, n)
+            await i2c_poll_until(_get_component_status, 'DISABLED', timeout_ms=1000)
+        del ref_count[component_name]
 

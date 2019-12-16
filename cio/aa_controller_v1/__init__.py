@@ -41,18 +41,31 @@ asynchronous interface:
 
     - async function: init():
                  no parameters, returns list of capability strings, or throws
-                 if the proper controller is not attached
+                 if the proper controller is not attached; this function should
+                 only be called once per process
 
     - async function: acquire(str):
                  capability string as parameter, returns object implementing
-                 that capability's interface
+                 that capability's interface; supports acquiring the same
+                 capability multiple times (does reference counting under the
+                 hood to only disable the underlying component when the reference
+                 count hits zero)
 
     - async function: release(obj):
                 release a previously acquired capability object; return None
 """
 
+import asyncio
+
 from . import capabilities
 from . import easyi2c
+
+
+FD = None
+CAPS = None
+
+LOCK = asyncio.Lock()
+CAPABILITY_REF_COUNT = {}
 
 
 async def init():
@@ -61,8 +74,6 @@ async def init():
     of capabilities if initialization worked, else raise an exception.
     """
     global FD, CAPS
-
-    FD = None
 
     try:
         FD = await easyi2c.open_i2c(1, CONTROLLER_I2C_SLAVE_ADDRESS)
@@ -93,7 +104,8 @@ async def acquire(capability_id):
     Acquire the interface to the component with the given `capability_id`, and return
     a concrete object implementing its interface.
     """
-    return await capabilities.acquire_component_interface(FD, CAPS, capability_id)
+    async with LOCK:
+        return await capabilities.acquire_component_interface(FD, CAPS, CAPABILITY_REF_COUNT, capability_id)
 
 
 async def release(capability_obj):
@@ -101,7 +113,8 @@ async def release(capability_obj):
     Release a previously acquired capability interface. You must pass
     the exact object returned by `acquire()`.
     """
-    await capabilities.release_component_interface(capability_obj)
+    async with LOCK:
+        await capabilities.release_component_interface(CAPABILITY_REF_COUNT, capability_obj)
 
 
 def _setup_cleanup():
@@ -110,7 +123,7 @@ def _setup_cleanup():
     We clean up by telling the microcontroller to reset itself.
     """
     from . import reset
-    import atexit, time, signal, asyncio
+    import atexit, time, signal
 
     def cleanup():
         time.sleep(0.1)

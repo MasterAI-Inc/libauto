@@ -12,6 +12,7 @@ from auto.rpc.server import serve, SerializeIface
 from cio.known_impls import known_impls
 
 import os
+import uuid
 import asyncio
 import importlib
 
@@ -23,6 +24,7 @@ from cio_inspector import build_cio_map, get_abc_superclass_name
 
 async def _get_cio_implementation():
     fixed_impl = os.environ.get('CIO_IMPLEMENTATION', None)
+
     if fixed_impl is not None:
         list_of_impls = [fixed_impl]
         log.info('Envrionment specifies cio implementation: {}'.format(fixed_impl))
@@ -37,10 +39,11 @@ async def _get_cio_implementation():
             caps = await impl_module.init()
             log.info('Successfully initialized cio implementation: {}, having capabilities: {}'.format(impl, repr(caps)))
             return impl_module, caps
+
         except Exception as e:
             log.info('Failed to initialize cio implementation: {}, error: {}'.format(impl, e))
 
-    return None
+    return None, None
 
 
 async def init(loop):
@@ -55,21 +58,30 @@ async def init(loop):
     class CioIface:
         async def setup(self, ws):
             self.ws = ws
+            self.acquired = {}
             log.info('CLIENT CONNECTED: {}'.format(self.ws.remote_address))
 
         async def export_init(self):
             return caps
 
         async def export_acquire(self, capability_id):
-            obj = await impl_module.acquire(capability_id)
-            superclass_name = get_abc_superclass_name(obj)
+            capability_obj = await impl_module.acquire(capability_id)
+            rpc_guid = str(uuid.uuid4())
+            self.acquired[rpc_guid] = capability_obj
+            capability_obj.export_rpc_guid = rpc_guid
+            superclass_name = get_abc_superclass_name(capability_obj)
             cap_methods = cio_map[superclass_name]
-            raise SerializeIface(obj, whitelist_method_names=cap_methods)
+            raise SerializeIface(capability_obj, whitelist_method_names=cap_methods)
 
-        async def export_release(self, capability_obj):
-            await impl_module.release(capability_obj)
+        async def export_release(self, rpc_guid):
+            if rpc_guid in self.acquired:
+                capability_obj = self.acquired[rpc_guid]
+                del self.acquired[rpc_guid]
+                await impl_module.release(capability_obj)
 
         async def cleanup(self):
+            for rpc_guid in list(self.acquired):  # copy keys
+                await self.export_release(rpc_guid)
             log.info('CLIENT DISCONNECTED: {}'.format(self.ws.remote_address))
 
     pubsub_iface = None

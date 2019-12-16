@@ -16,6 +16,8 @@ def build_cio_map():
 
 def get_abc_superclass_name(obj):
     mro = inspect.getmro(type(obj))
-    superclass_name = mro[1].__name__
+    superclass = mro[1]
+    assert inspect.isabstract(superclass)
+    superclass_name = superclass.__name__
     return superclass_name
 
