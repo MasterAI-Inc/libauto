@@ -53,6 +53,10 @@ async def init(loop):
     cio_map = build_cio_map()
 
     class CioIface:
+        async def setup(self, ws):
+            self.ws = ws
+            log.info('CLIENT CONNECTED: {}'.format(self.ws.remote_address))
+
         async def export_init(self):
             return caps
 
@@ -64,6 +68,9 @@ async def init(loop):
 
         async def export_release(self, capability_obj):
             await impl_module.release(capability_obj)
+
+        async def cleanup(self):
+            log.info('CLIENT DISCONNECTED: {}'.format(self.ws.remote_address))
 
     pubsub_iface = None
 

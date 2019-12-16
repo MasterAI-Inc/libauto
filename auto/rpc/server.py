@@ -49,12 +49,16 @@ def _build_client_handler(root_factory, pubsub, subscribers):
         iface_buf = pack(iface)
         await ws.send(iface_buf)
         await ws.send(channels_buf)
-        return await _handle_client(ws, impl, pubsub, subscribers)
+        return await _handle_client(root, ws, impl, pubsub, subscribers)
 
     return handle_client
 
 
-async def _handle_client(ws, impl, pubsub, subscribers):
+async def _handle_client(root, ws, impl, pubsub, subscribers):
+    setup = getattr(root, 'setup', None)
+    if setup is not None:
+        await setup(ws)
+
     try:
         while True:
             cmd = await ws.recv()
@@ -72,7 +76,13 @@ async def _handle_client(ws, impl, pubsub, subscribers):
                 await _handle_client_unsubscribe(ws, cmd, pubsub, subscribers)
 
     except websockets.exceptions.ConnectionClosed:
-        await _handle_client_unsubscribe_all(ws, pubsub, subscribers)
+        pass   # We consider this normal; fall through.
+
+    await _handle_client_unsubscribe_all(ws, pubsub, subscribers)
+
+    cleanup = getattr(root, 'cleanup', None)
+    if cleanup is not None:
+        await cleanup()
 
 
 async def _handle_client_invoke(ws, cmd, impl):
