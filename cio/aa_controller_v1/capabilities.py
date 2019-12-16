@@ -187,18 +187,31 @@ async def acquire_component_interface(fd, caps, ref_count, component_name):
 
     if component_name not in ref_count:
         # It must not be enabled and the ref count must currently be zero.
-        if not isinstance(register_number, (tuple, list)):
-            register_number = [register_number]
-        for n in register_number:
-            await enable_component(fd, n)
-            async def _get_component_status():
-                return await get_component_status(fd, n)
-            await i2c_poll_until(_get_component_status, 'ENABLED', timeout_ms=1000)
         ref_count[component_name] = 1
 
     else:
         # The component is already enabled, we just need to inc the ref count.
         ref_count[component_name] += 1
+
+    # ALWAYS ENABLE THE COMPONENT AND WAIT FOR IT.
+    # We must have a bug in the controller code... because for some reason
+    # we have to enable the components which are already enabled by default.
+    # My best guess is that we need to add a few `volatile` keywords... that
+    # is, my best guess is that the `status` of the component in the controller
+    # is being held in a register (or some cache line). The behavior I'm seeing
+    # is that the `if` condition in the link below is not evaluating to `true`
+    # (even though it should!) ... thus my theory about the caching of the
+    # `status`. It's still a wild guess, really, so who knows.
+    #   https://github.com/acu192/autoauto-controller/blob/0c234f3e8abfdc34a5011481e140998560097cbc/libraries/aa_controller/Capabilities.cpp#L526
+    # Anyway, if that bug were fixed, then the whole next bock would be moved
+    # such that it would only run `if component_name not in ref_count` above.
+    if not isinstance(register_number, (tuple, list)):
+        register_number = [register_number]
+    for n in register_number:
+        await enable_component(fd, n)
+        async def _get_component_status():
+            return await get_component_status(fd, n)
+        await i2c_poll_until(_get_component_status, 'ENABLED', timeout_ms=1000)
 
     return interface
 
