@@ -67,7 +67,7 @@ async def init(loop):
 
     pubsub_iface = None
 
-    server = await serve(CioIface(), pubsub_iface, 'localhost', 7002)
+    server = await serve(CioIface, pubsub_iface, 'localhost', 7002)
 
     log.info("RUNNING!")
 

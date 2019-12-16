@@ -12,12 +12,10 @@ class SerializeIface(Exception):
         self.whitelist_method_names = whitelist_method_names
 
 
-async def serve(root, pubsub=None, inet_addr='localhost', inet_port=7000):
-    iface, impl = serialize_interface(root, name='root')
-
+async def serve(root_factory, pubsub=None, inet_addr='localhost', inet_port=7000):
     subscribers = {}
 
-    handle_client = _build_client_handler(iface, impl, pubsub, subscribers)
+    handle_client = _build_client_handler(root_factory, pubsub, subscribers)
 
     start_server = websockets.serve(handle_client, inet_addr, inet_port)
 
@@ -41,13 +39,14 @@ async def serve(root, pubsub=None, inet_addr='localhost', inet_port=7000):
     return server, publish_func
 
 
-def _build_client_handler(iface, impl, pubsub, subscribers):
-    iface_buf = pack(iface)
-
+def _build_client_handler(root_factory, pubsub, subscribers):
     channels = pubsub['channels'] if pubsub is not None else []
     channels_buf = pack(channels)
 
     async def handle_client(ws, path):
+        root = root_factory()
+        iface, impl = serialize_interface(root, name='root')
+        iface_buf = pack(iface)
         await ws.send(iface_buf)
         await ws.send(channels_buf)
         return await _handle_client(ws, impl, pubsub, subscribers)
@@ -56,8 +55,6 @@ def _build_client_handler(iface, impl, pubsub, subscribers):
 
 
 async def _handle_client(ws, impl, pubsub, subscribers):
-    impl = impl.copy()   # this client may extend the impl, and we want those modifications to exist only for _this_ client
-
     try:
         while True:
             cmd = await ws.recv()
@@ -166,8 +163,6 @@ async def _demo():
             print('I am foo.')
             return x ** 3
 
-    thing = Thing()
-
     pubsub = {
         'channels': [
             'ping',
@@ -176,7 +171,7 @@ async def _demo():
         'unsubscribe': None,
     }
 
-    server, publish_func = await serve(thing, pubsub)
+    server, publish_func = await serve(Thing, pubsub)
 
     for i in range(1, 1000000):
         await publish_func('ping', f'Ping #{i}')

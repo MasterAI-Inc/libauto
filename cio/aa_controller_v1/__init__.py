@@ -48,7 +48,7 @@ asynchronous interface:
                  that capability's interface
 
     - async function: release(obj):
-                release a previously acquired capability object
+                release a previously acquired capability object; return None
 """
 
 from . import capabilities
@@ -101,7 +101,7 @@ async def release(capability_obj):
     Release a previously acquired capability interface. You must pass
     the exact object returned by `acquire()`.
     """
-    return await capabilities.release_component_interface(capability_obj)
+    await capabilities.release_component_interface(capability_obj)
 
 
 def _setup_cleanup():

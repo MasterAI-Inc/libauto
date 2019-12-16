@@ -121,8 +121,6 @@ def _init_interface(loop, outer_frame_callback):
         n_subscribers -= 1
         log.info("Departed subscriber.")
 
-    camera_rpc = CameraRGB_RPC()
-
     pubsub = {
         'channels': [
             'stream',
@@ -141,7 +139,7 @@ def _init_interface(loop, outer_frame_callback):
 
     asyncio.create_task(check_last_seen())
 
-    return camera_rpc, pubsub
+    return CameraRGB_RPC, pubsub
 
 
 async def init(loop=None):
@@ -151,9 +149,9 @@ async def init(loop=None):
     async def frame_callback(frame):
         await publish_func('stream', frame)
 
-    camera_rpc, pubsub = _init_interface(loop, frame_callback)
+    root_factory, pubsub = _init_interface(loop, frame_callback)
 
-    server, publish_func = await serve(camera_rpc, pubsub, 'localhost', 7001)
+    server, publish_func = await serve(root_factory, pubsub, 'localhost', 7001)
 
     log.info("RUNNING!")
 
