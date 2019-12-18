@@ -10,7 +10,7 @@
 
 """
 This modules provides a **synchronous** camera class abstraction which pulls
-frames from an RPC server.
+frames from the camera RPC server.
 
 For the server, see `services/camera/camera.py`.
 
@@ -21,7 +21,7 @@ multiple processes to pull frames at the same time.
 
 import asyncio
 
-from auto.camera_rpc_async import CameraRGB as CameraRGB_async
+from auto.services.camera.client import CameraRGB as CameraRGB_async
 
 
 class CameraRGB:

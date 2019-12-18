@@ -10,7 +10,7 @@
 
 """
 This modules provides an **asynchronous** camera class abstraction which pulls
-frames from an RPC server.
+frames from the camera RPC server.
 
 For the server, see `services/camera/camera.py`.
 

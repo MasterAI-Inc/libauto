@@ -8,6 +8,12 @@
 #
 ###############################################################################
 
+"""
+This is an RPC server to serve the camera as a shared resource. Because of this,
+multiple processes may access the camera simultaneously.
+"""
+
+
 try:
     from auto.camera_pi import CameraRGB
 except ImportError:
@@ -37,8 +43,8 @@ CAMERA_TIMEOUT_SECONDS = 30
 
 # Camera parameters. For options, see: http://picamera.readthedocs.io/en/release-1.10/fov.html
 # If 640x480 bogs down the CPU too much, use 320x240 instead.
-CAM_WIDTH = 640
-CAM_HEIGHT = 480
+CAM_WIDTH = 320  # 640
+CAM_HEIGHT = 240  # 480
 CAM_FPS = 8
 
 
