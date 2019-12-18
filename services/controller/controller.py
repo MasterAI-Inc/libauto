@@ -19,7 +19,7 @@ import importlib
 from auto import logger
 log = logger.init('controller_rpc_server', terminal=True)
 
-from cio_inspector import build_cio_map, get_abc_superclass_name
+from cio_inspector import build_cio_method_map, get_abc_superclass_name
 
 
 async def _get_cio_implementation():
@@ -46,6 +46,12 @@ async def _get_cio_implementation():
     return None, None
 
 
+def _wrap_value_in_async_func(val):
+    async def get():
+        return val
+    return get
+
+
 async def init(loop):
     impl_module, caps = await _get_cio_implementation()
 
@@ -53,7 +59,7 @@ async def init(loop):
         log.error('Failed to find cio implementation, quitting...')
         return
 
-    cio_map = build_cio_map()
+    cio_map = build_cio_method_map()
 
     class CioIface:
         async def setup(self, ws):
@@ -68,7 +74,7 @@ async def init(loop):
             capability_obj = await impl_module.acquire(capability_id)
             rpc_guid = str(uuid.uuid4())
             self.acquired[rpc_guid] = capability_obj
-            capability_obj.export_rpc_guid = rpc_guid
+            capability_obj.export_get_rpc_guid = _wrap_value_in_async_func(rpc_guid)
             superclass_name = get_abc_superclass_name(capability_obj)
             cap_methods = cio_map[superclass_name]
             raise SerializeIface(capability_obj, whitelist_method_names=cap_methods)

@@ -6,7 +6,7 @@ def build_interface(iface, impl_transport, is_method=False):
     if 'typename' in iface:
         # This is an object with inner stuff.
         typename = iface['typename']
-        TheDynamicType = type(typename, (), {})
+        TheDynamicType = type(typename, (object,), {})
         instance = TheDynamicType()
 
         for i in iface['ifaces']:

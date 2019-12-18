@@ -40,7 +40,7 @@ def _serialize_interface(thing, name, whitelist_method_names):
             'name': name,
             'typename': type(thing).__name__,
             'module': type(thing).__module__,
-            'doc': type(thing).__doc__,
+            'doc': inspect.getdoc(type(thing)),    # <-- uses the super-class's __doc__ as needed
             'ifaces': exported,
         }
 
@@ -70,7 +70,7 @@ def _serialize_method(f, name=None):
         'args': args,
         'defaults': f.__defaults__,
         'module': f.__module__,
-        'doc': f.__doc__,
+        'doc': inspect.getdoc(f),   # <-- uses the super-method's __doc__ as needed
         'filename': f.__code__.co_filename,
         'firstlineno': f.__code__.co_firstlineno,
         'ismethod': is_method,

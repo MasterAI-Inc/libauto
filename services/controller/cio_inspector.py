@@ -2,12 +2,17 @@ import inspect
 import cio
 
 
-def build_cio_map():
+def build_cio_class_map():
+    abs_classes = inspect.getmembers(cio, predicate=inspect.isabstract)
+    return {class_name: class_type for class_name, class_type in abs_classes}
+
+
+def build_cio_method_map():
     m = {}
 
-    abs_classes = inspect.getmembers(cio, predicate=inspect.isabstract)
+    abs_classes = build_cio_class_map()
 
-    for class_name, class_type in abs_classes:
+    for class_name, class_type in abs_classes.items():
         methods = inspect.getmembers(class_type, predicate=inspect.isfunction)
         m[class_name] = [method_name for method_name, method_ref in methods]
 
