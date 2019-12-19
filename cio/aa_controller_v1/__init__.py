@@ -35,96 +35,78 @@ For this particular controller, we talk to it via I2C.
 CONTROLLER_I2C_SLAVE_ADDRESS = 0x14
 
 
-"""
-Every concrete controller implements the following standardized
-asynchronous interface:
-
-    - async function: init():
-                 no parameters, returns list of capability strings, or throws
-                 if the proper controller is not attached; this function should
-                 only be called once per process
-
-    - async function: acquire(str):
-                 capability string as parameter, returns object implementing
-                 that capability's interface; supports acquiring the same
-                 capability multiple times (does reference counting under the
-                 hood to only disable the underlying component when the reference
-                 count hits zero)
-
-    - async function: release(obj):
-                release a previously acquired capability object; return None
-"""
-
 import asyncio
 
 from . import capabilities
 from . import easyi2c
 
-
-FD = None
-CAPS = None
-
-LOCK = asyncio.Lock()
-CAPABILITY_REF_COUNT = {}
+import cio
 
 
-async def init():
+class CioRoot(cio.CioRoot):
     """
-    Attempt to initialize the version 1.x AutoAuto controller. Return a list
-    of capabilities if initialization worked, else raise an exception.
+    This is the CIO root interface for the AutoAuto v1.x microcontrollers.
     """
-    global FD, CAPS
 
-    try:
-        FD = await easyi2c.open_i2c(1, CONTROLLER_I2C_SLAVE_ADDRESS)
-        CAPS = await capabilities.get_capabilities(FD, soft_reset_first=True)
+    def __init__(self):
+        self.fd = None
+        self.caps = None
+        self.lock = asyncio.Lock()
+        self.capability_ref_count = {}
 
-        if 'VersionInfo' not in CAPS:
-            raise Exception('Controller does not implement the required VersionInfo component.')
+    async def init(self):
+        """
+        Attempt to initialize the version 1.x AutoAuto controller. Return a list
+        of capabilities if initialization worked, else raise an exception.
+        """
+        try:
+            self.fd = await easyi2c.open_i2c(1, CONTROLLER_I2C_SLAVE_ADDRESS)
+            self.caps = await capabilities.get_capabilities(self.fd, soft_reset_first=True)
 
-        version_info = await acquire('VersionInfo')
-        major, minor = await version_info.version()
-        await release(version_info)
+            if 'VersionInfo' not in self.caps:
+                raise Exception('Controller does not implement the required VersionInfo component.')
 
-        if major != 1:
-            raise Exception('Controller is not version 1, thus this interface will not work.')
+            version_info = await self.acquire('VersionInfo')
+            major, minor = await version_info.version()
+            await self.release(version_info)
 
-        for component_name, config in CAPS.items():
-            if config['is_enabled']:
-                # This component is enabled by default, so make sure it stays enabled!
-                # We'll do this by starting its ref count at 1, so it will never go
-                # to zero -- it's as if the controller itself holds one reference.
-                CAPABILITY_REF_COUNT[component_name] = 1
+            if major != 1:
+                raise Exception('Controller is not version 1, thus this interface will not work.')
 
-    except:
-        if FD is not None:
-            await easyi2c.close_i2c(FD)
-            FD = None
-        raise
+            for component_name, config in self.caps.items():
+                if config['is_enabled']:
+                    # This component is enabled by default, so make sure it stays enabled!
+                    # We'll do this by starting its ref count at 1, so it will never go
+                    # to zero -- it's as if the controller itself holds one reference.
+                    self.capability_ref_count[component_name] = 1
 
-    _setup_cleanup()
-    return list(CAPS.keys())
+        except:
+            if self.fd is not None:
+                await easyi2c.close_i2c(self.fd)
+                self.fd = None
+            raise
+
+        _setup_cleanup(self.fd)
+        return list(self.caps.keys())
+
+    async def acquire(self, capability_id):
+        """
+        Acquire the interface to the component with the given `capability_id`, and return
+        a concrete object implementing its interface.
+        """
+        async with self.lock:
+            return await capabilities.acquire_component_interface(self.fd, self.caps, self.capability_ref_count, capability_id)
+
+    async def release(self, capability_obj):
+        """
+        Release a previously acquired capability interface. You must pass
+        the exact object returned by `acquire()`.
+        """
+        async with self.lock:
+            await capabilities.release_component_interface(self.capability_ref_count, capability_obj)
 
 
-async def acquire(capability_id):
-    """
-    Acquire the interface to the component with the given `capability_id`, and return
-    a concrete object implementing its interface.
-    """
-    async with LOCK:
-        return await capabilities.acquire_component_interface(FD, CAPS, CAPABILITY_REF_COUNT, capability_id)
-
-
-async def release(capability_obj):
-    """
-    Release a previously acquired capability interface. You must pass
-    the exact object returned by `acquire()`.
-    """
-    async with LOCK:
-        await capabilities.release_component_interface(CAPABILITY_REF_COUNT, capability_obj)
-
-
-def _setup_cleanup():
+def _setup_cleanup(fd):
     """
     Try our best to cleanup when this python process exits.
     We clean up by telling the microcontroller to reset itself.
@@ -138,7 +120,7 @@ def _setup_cleanup():
             loop = asyncio.get_running_loop()
         except RuntimeError:
             loop = None
-        coro = reset.soft_reset(FD)
+        coro = reset.soft_reset(fd)
         if loop is not None:
             loop.run_until_complete(coro)
         else:

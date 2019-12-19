@@ -1,53 +1,70 @@
+###############################################################################
+#
+# Copyright (c) 2017-2018 AutoAuto, LLC
+# ALL RIGHTS RESERVED
+#
+# Use of this library, in source or binary form, is prohibited without written
+# approval from AutoAuto, LLC.
+#
+###############################################################################
+
+"""
+This client connects to the CIO RPC server.
+"""
+
 import asyncio
 from auto.rpc.client import client
 
-
-_PROXY_INTERFACE = None
-
-
-async def init():
-    global _PROXY_INTERFACE, _CAPS
-
-    if _PROXY_INTERFACE is None:
-        _PROXY_INTERFACE, pubsub_channels, subscribe_func, close = \
-                await client('localhost', 7002)
-        _CAPS = await _PROXY_INTERFACE.init()
-
-    return _CAPS
+import cio
 
 
-async def acquire(capability_id):
-    if _PROXY_INTERFACE is None:
-        raise Exception("You must first call `init()` from this module.")
+class CioRoot(cio.CioRoot):
 
-    capability_obj = await _PROXY_INTERFACE.acquire(capability_id)
-    return capability_obj
+    def __init__(self):
+        self.proxy_interface = None
+        self.caps = None
 
+    async def init(self):
+        if self.proxy_interface is None:
+            self.proxy_interface, pubsub_channels, subscribe_func, close = \
+                    await client('localhost', 7002)
+            self.caps = await self.proxy_interface.init()
 
-async def release(capability_obj):
-    if _PROXY_INTERFACE is None:
-        raise Exception("You must first call `init()` from this module.")
+        return self.caps
 
-    rpc_guid = await capability_obj.get_rpc_guid()
-    await _PROXY_INTERFACE.release(rpc_guid)
+    async def acquire(self, capability_id):
+        if self.proxy_interface is None:
+            raise Exception("You must first call `init()` from this module.")
+
+        capability_obj = await self.proxy_interface.acquire(capability_id)
+        return capability_obj
+
+    async def release(self, capability_obj):
+        if self.proxy_interface is None:
+            raise Exception("You must first call `init()` from this module.")
+
+        rpc_guid = await capability_obj.get_rpc_guid()
+        await self.proxy_interface.release(rpc_guid)
 
 
 async def _run():
-    caps = await init()
+    cio_root = CioRoot()
+
+    caps = await cio_root.init()
     print(caps)
 
-    version_iface = await acquire('VersionInfo')
+    version_iface = await cio_root.acquire('VersionInfo')
     print(version_iface)
     print(await version_iface.version())
     print(await version_iface.name())
 
-    buzzer_iface = await acquire('Buzzer')
+    buzzer_iface = await cio_root.acquire('Buzzer')
     print(buzzer_iface)
-    await buzzer_iface.play('!T240 L8 V7 agafaea dac+adaea fa<aa<bac#a dac#adaea f4')   # "Bach's fugue in D-minor"
+    await buzzer_iface.play('!T240 L8 V8 agafaea dac+adaea fa<aa<bac#a dac#adaea f4')   # "Bach's fugue in D-minor"
     await buzzer_iface.wait()
 
-    await release(buzzer_iface)
-    await release(version_iface)
+    await cio_root.release(buzzer_iface)
+    await cio_root.release(version_iface)
 
 
 if __name__ == '__main__':

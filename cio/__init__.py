@@ -17,6 +17,46 @@ It's name is CIO (Controller Input/Output).
 import abc
 
 
+class CioRoot(abc.ABC):
+    """
+    This is the front-door interface of the Controller IO ("cio"). You begin
+    by `init()`ing the controller, and if successful, you may then `acquire()`
+    and `release()` components which are exposed by the controller.
+    """
+
+    @abc.abstractmethod
+    async def init(self):
+        """
+        Initialize the controller. If successful, this method returns a list
+        of capability ids (each capability id is a string). Else, this method
+        throws an exception (e.g. if the proper controller is not attached).
+        Each of the returned capability ids may be used to "acquire" an interface
+        to the corresponding component on the controller via the `acquire()`
+        method.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def acquire(self, capability_id):
+        """
+        Acquire the component whose capability id is `capability_id`.
+        This method returns a new object which implements the capability's
+        interface. Once you are finished using the acquired component,
+        you should "release" it by passing the interface to the `release()`
+        method.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def release(self, capability_obj):
+        """
+        Release a previously acquired capability object. You should
+        pass the _actual_ object which was returned by the `acquire()`
+        method. This method returns `None`.
+        """
+        pass
+
+
 class VersionInfoIface(abc.ABC):
     """
     Check the Controller Version
