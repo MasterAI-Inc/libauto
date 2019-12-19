@@ -1,3 +1,18 @@
+###############################################################################
+#
+# Copyright (c) 2017-2018 AutoAuto, LLC
+# ALL RIGHTS RESERVED
+#
+# Use of this library, in source or binary form, is prohibited without written
+# approval from AutoAuto, LLC.
+#
+###############################################################################
+
+"""
+This module provides an RPC service which listens and communicates through a
+websockets server.
+"""
+
 import asyncio
 import websockets
 import uuid
@@ -7,12 +22,24 @@ from auto.rpc.serialize_interface import serialize_interface
 
 
 class SerializeIface(Exception):
+    """
+    Raise this exception from your exposed service to cause a sub-interface
+    to be serialized and sent to the client. This is useful when you cannot
+    serialize the full interface from the beginning, and you must instead
+    serialize part of the interface at runtime.
+    """
     def __init__(self, obj, whitelist_method_names=()):
         self.obj = obj
         self.whitelist_method_names = whitelist_method_names
 
 
 async def serve(root_factory, pubsub=None, inet_addr='localhost', inet_port=7000):
+    """
+    Serve an RPC server for objects created by `root_factory`. Each new client will
+    receive its own copy of the root object as created by the `root_factory`. Clients
+    may also subscribe to events which appear in the `pubsub` list of available
+    catalogs. The websockets server will listen on the given `inet_addr` and `inet_port`.
+    """
     subscribers = {}
 
     handle_client = _build_client_handler(root_factory, pubsub, subscribers)
@@ -169,9 +196,20 @@ async def _handle_client_unsubscribe_all(ws, pubsub, subscribers):
 
 async def _demo():
     class Thing:
+        async def setup(self, ws):
+            # This method is optional, but if implemented it will
+            # be invoked for each new client.
+            self.ws = ws
+            print('NEW CONNECTION:', self.ws.remote_address)
+
         async def export_foo(self, x):
             print('I am foo.')
             return x ** 3
+
+        async def cleanup(self):
+            # This method is optional, but if implemented it will
+            # be invoked once the client disconnects.
+            print('DEAD CONNECTION:', self.ws.remote_address)
 
     pubsub = {
         'channels': [

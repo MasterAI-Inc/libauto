@@ -1,3 +1,20 @@
+###############################################################################
+#
+# Copyright (c) 2017-2018 AutoAuto, LLC
+# ALL RIGHTS RESERVED
+#
+# Use of this library, in source or binary form, is prohibited without written
+# approval from AutoAuto, LLC.
+#
+###############################################################################
+
+"""
+This module serializes Python objects into a human-readable interface
+description. This interface description will be sent over the wire so that
+the client may construct Python objects which look and feel like the original
+objects.
+"""
+
 import inspect
 
 
@@ -5,6 +22,14 @@ EXPORT_PREFIX = 'export_'
 
 
 def serialize_interface(thing, name='root', whitelist_method_names=()):
+    """
+    This is the main entry-point for serializing a Python object (`thing`).
+    Not all methods/attributes of the object will be serialized; only those
+    whose name starts with "export_" or which are listed in `whitelist_method_names`
+    will be serialized. This is so that we are explicit about which operations
+    become part of the RPC system, and we avoid accidental exposure of hidden/
+    private/vulnerable methods.
+    """
     iface = _serialize_interface(thing, name, whitelist_method_names)
     impl = _separate_implementation(iface)
     return iface, impl

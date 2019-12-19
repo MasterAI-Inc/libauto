@@ -1,8 +1,30 @@
+###############################################################################
+#
+# Copyright (c) 2017-2018 AutoAuto, LLC
+# ALL RIGHTS RESERVED
+#
+# Use of this library, in source or binary form, is prohibited without written
+# approval from AutoAuto, LLC.
+#
+###############################################################################
+
+"""
+This module is used to dynamically build Python types, methods, and functions
+which conform to an interface description. These types, methods, and functions
+delegate the implementation to a remote server. The goal is that, using this
+module, you can construct a Python interface that feels like the "real deal"
+but is actually delegate over a wire in the background (doing RPC).
+"""
+
 import types
-import inspect
 
 
 def build_interface(iface, impl_transport, is_method=False):
+    """
+    This is the entry-point function for building the Python interface from
+    the given description (`iface`). All operations are delegated to the
+    back-end server by invoking the `impl_transport` function.
+    """
     if 'typename' in iface:
         # This is an object with inner stuff.
         typename = iface['typename']

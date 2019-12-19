@@ -1,3 +1,18 @@
+###############################################################################
+#
+# Copyright (c) 2017-2018 AutoAuto, LLC
+# ALL RIGHTS RESERVED
+#
+# Use of this library, in source or binary form, is prohibited without written
+# approval from AutoAuto, LLC.
+#
+###############################################################################
+
+"""
+This module proves an RPC client designed to connect via websocket to the
+RPC server.
+"""
+
 import asyncio
 import websockets
 
@@ -6,6 +21,11 @@ from auto.rpc.build_interface import build_interface
 
 
 async def client(inet_addr='localhost', inet_port=7000):
+    """
+    This function connects to the RPC server via websocket at the IP address
+    given by `inet_addr` and on the port `inet_port`. It returns the reconstructed
+    interface which was exposed/exported by the server.
+    """
 
     uri = f"ws://{inet_addr}:{inet_port}"
 
