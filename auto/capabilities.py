@@ -28,6 +28,7 @@ def list_caps():
 def acquire(capability_name):
     """
     Return an interface to the capability labeled by `capability_name`.
+    Call `list_caps()` to obtain a list of supported capabilities.
     The interface object returned here should be disposed of
     (when you are done using it) by passing it to the function
     `release()`.

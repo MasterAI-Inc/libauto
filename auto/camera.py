@@ -20,15 +20,15 @@ import base64
 import numpy as np
 
 import auto
-from auto.camera_rpc_sync import CameraRGB
 from auto.asyncio_tools import get_loop
+from auto.services.camera.client_sync import CameraRGB
 
 
 def global_camera(verbose=False):
     """
     Creates (for the first call) or retrieves (for later calls) the
     global camera object. This is a convenience function to facilitate
-    quickly and easily building a camera singleton.
+    quickly and easily creating and retrieving a camera singleton.
     """
     global GLOBAL_CAMERA
     try:
@@ -41,6 +41,9 @@ def global_camera(verbose=False):
 
 
 def close_global_camera(verbose=False):
+    """
+    Close and delete the global camera object.
+    """
     global GLOBAL_CAMERA
     try:
         GLOBAL_CAMERA   # <-- just to see if it exists

@@ -11,10 +11,11 @@
 import asyncio
 from pprint import pprint
 
-import cio.aa_controller_v1 as c
+import cio.aa_controller_v1 as controller
 
 
 async def run():
+    c = controller.CioRoot()
     caps = await c.init()
     pprint(caps)
 
@@ -42,8 +43,11 @@ async def run():
 
     await c.release(pwm)
 
+    await c.close()
+
 
 async def run01():
+    c = controller.CioRoot()
     caps = await c.init()
     pprint(caps)
 
@@ -71,8 +75,11 @@ async def run01():
 
     await c.release(pwm)
 
+    await c.close()
+
 
 async def run13():
+    c = controller.CioRoot()
     caps = await c.init()
     pprint(caps)
 
@@ -99,6 +106,8 @@ async def run13():
     await pwm.disable(3)
 
     await c.release(pwm)
+
+    await c.close()
 
 
 if __name__ == '__main__':

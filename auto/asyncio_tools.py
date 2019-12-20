@@ -21,11 +21,19 @@ the background loop. When students advance enough, we can teach them how to
 ditch this background loop and how to use a main-thread async loop to write
 a fully asynchronous (cooperative) program! Indeed, the libauto library is
 async under-the-hood.
+
+This module also provides a function to wrap an async interface into a
+synchronous one, delegating to the underlying loop to invoke the wrapped
+async methods. See `wrap_async_to_sync()`.
 """
 
 import asyncio
 import auto
+import inspect
 from threading import Thread
+
+from auto.rpc.serialize_interface import serialize_interface
+from auto.rpc.build_interface import build_interface
 
 
 def get_loop(verbose=False):
@@ -50,4 +58,75 @@ def get_loop(verbose=False):
 def _loop_main(loop):
     asyncio.set_event_loop(loop)
     loop.run_forever()
+
+
+def wrap_async_to_sync(obj, loop=None):
+    """
+    Build and return an object which wraps `obj`, turning each of `obj`'s async
+    methods into "normal" synchronous methods.
+
+    **Note:** Only _methods_ are wrapped, so if `obj` has _attributes_ which it
+              exposes, those will _not_ be accessible through the wrapped object.
+              This is a known limitation which will not be addressed (it is
+              too complex to expose wrapped attributes in such a way that
+              preserves their mutability or lack thereof; thus only methods
+              will be exposed by the wrapper). Also, magic methods are _not_
+              wrapped; this is a limitation we may fix in the future.
+    """
+    if loop is None:
+        loop = get_loop()
+
+    typename = type(obj).__name__
+    typemodule = type(obj).__module__
+    typedoc = inspect.getdoc(type(obj))
+
+    TheDynamicType = type(typename, (object,), {})
+    TheDynamicType.__module__ = typemodule
+    TheDynamicType.__doc__ = typedoc
+
+    instance = TheDynamicType()
+
+    for attr_name in dir(obj):
+        if attr_name.startswith('__'):
+            # We won't try to fix magic methods (too much craziness to try that).
+            continue
+
+        attr = getattr(obj, attr_name)
+
+        if not inspect.isfunction(attr) and not inspect.ismethod(attr):
+            # We only care about functions and methods.
+            continue
+
+        iface, _ = serialize_interface(attr, attr_name)
+
+        if not iface['is_async']:
+            # This is a normal synchronous function or method, so we just copy it over.
+            setattr(instance, attr_name, attr)
+
+        else:
+            # This is an asynchronous function or method, so we need to do some shenanigans
+            # to turn it into a normal synchronous function or method.
+            iface['is_async'] = False
+
+            impl_transport = _closure_build_impl_transport(attr, loop)  # <-- Need to close over `attr` to freeze it, since it is reassigned in the loop above.
+
+            if iface['ismethod']:
+                sub_name, sub_attr = build_interface(iface, impl_transport, is_method=True)
+                assert attr_name == sub_name
+                setattr(TheDynamicType, sub_name, sub_attr)
+            else:
+                sub_name, sub_attr = build_interface(iface, impl_transport, is_method=False)
+                assert attr_name == sub_name
+                setattr(instance, sub_name, sub_attr)
+
+    return instance
+
+
+def _closure_build_impl_transport(attr, loop):
+    def impl_transport(path, args):
+        coro = attr(*args)
+        future = asyncio.run_coroutine_threadsafe(coro, loop)
+        return future.result()
+
+    return impl_transport
 

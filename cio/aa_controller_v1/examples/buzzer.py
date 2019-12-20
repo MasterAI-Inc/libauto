@@ -11,10 +11,11 @@
 import asyncio
 from pprint import pprint
 
-import cio.aa_controller_v1 as c
+import cio.aa_controller_v1 as controller
 
 
 async def run():
+    c = controller.CioRoot()
     caps = await c.init()
     pprint(caps)
 
@@ -33,6 +34,8 @@ async def run():
     await asyncio.sleep(2)
 
     await c.release(b)
+
+    await c.close()
 
 
 if __name__ == '__main__':

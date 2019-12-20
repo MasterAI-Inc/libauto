@@ -9,7 +9,7 @@
 ###############################################################################
 
 """
-This client connects to the CIO RPC server.
+This client connects to the CIO RPC server. This is an **asynchronous** client.
 """
 
 import asyncio
@@ -20,14 +20,16 @@ import cio
 
 class CioRoot(cio.CioRoot):
 
-    def __init__(self):
+    def __init__(self, inet_addr='localhost', inet_port=7002):
         self.proxy_interface = None
         self.caps = None
+        self.inet_addr = inet_addr
+        self.inet_port = inet_port
 
     async def init(self):
         if self.proxy_interface is None:
-            self.proxy_interface, pubsub_channels, subscribe_func, close = \
-                    await client('localhost', 7002)
+            self.proxy_interface, pubsub_channels, subscribe_func, self._close = \
+                    await client(self.inet_addr, self.inet_port)
             self.caps = await self.proxy_interface.init()
 
         return self.caps
@@ -45,6 +47,12 @@ class CioRoot(cio.CioRoot):
 
         rpc_guid = await capability_obj.get_rpc_guid()
         await self.proxy_interface.release(rpc_guid)
+
+    async def close(self):
+        if self.proxy_interface is not None:
+            await self.proxy_interface.close()
+            await self._close()
+            self.proxy_interface = None
 
 
 async def _run():
@@ -65,6 +73,8 @@ async def _run():
 
     await cio_root.release(buzzer_iface)
     await cio_root.release(version_iface)
+
+    await cio_root.close()
 
 
 if __name__ == '__main__':

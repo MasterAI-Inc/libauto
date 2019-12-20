@@ -95,8 +95,13 @@ class Buzzer(cio.BuzzerIface):
         @i2c_retry(N_I2C_TRIES)
         async def start_playback():
             can_play, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x02], 1)
-            if can_play != 1:
-                raise Exception("failed to start playback")
+            # Ignore return value. Why? Because this call commonly requires multiple retries
+            # (as done by `i2c_retry`) thus if we retry, then the playback will have already
+            # started and we'll be (wrongly) informed that it cannot start (because it already
+            # started!). Thus, the check below has been disabled:
+            #
+            #if can_play != 1:
+            #    raise Exception("failed to start playback")
 
         def chunkify(seq, n):
             """Split `seq` into sublists of size `n`"""

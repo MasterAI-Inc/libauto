@@ -39,6 +39,7 @@ import asyncio
 
 from . import capabilities
 from . import easyi2c
+from . import reset
 
 import cio
 
@@ -59,35 +60,40 @@ class CioRoot(cio.CioRoot):
         Attempt to initialize the version 1.x AutoAuto controller. Return a list
         of capabilities if initialization worked, else raise an exception.
         """
-        try:
-            self.fd = await easyi2c.open_i2c(1, CONTROLLER_I2C_SLAVE_ADDRESS)
-            self.caps = await capabilities.get_capabilities(self.fd, soft_reset_first=True)
-
-            if 'VersionInfo' not in self.caps:
-                raise Exception('Controller does not implement the required VersionInfo component.')
-
-            version_info = await self.acquire('VersionInfo')
-            major, minor = await version_info.version()
-            await self.release(version_info)
-
-            if major != 1:
-                raise Exception('Controller is not version 1, thus this interface will not work.')
-
-            for component_name, config in self.caps.items():
-                if config['is_enabled']:
-                    # This component is enabled by default, so make sure it stays enabled!
-                    # We'll do this by starting its ref count at 1, so it will never go
-                    # to zero -- it's as if the controller itself holds one reference.
-                    self.capability_ref_count[component_name] = 1
-
-        except:
+        async with self.lock:
             if self.fd is not None:
-                await easyi2c.close_i2c(self.fd)
-                self.fd = None
-            raise
+                return
 
-        _setup_cleanup(self.fd)
-        return list(self.caps.keys())
+            try:
+                self.fd = await easyi2c.open_i2c(1, CONTROLLER_I2C_SLAVE_ADDRESS)
+                self.caps = await capabilities.get_capabilities(self.fd, soft_reset_first=True)
+
+                for component_name, config in self.caps.items():
+                    if config['is_enabled']:
+                        # This component is enabled by default, so make sure it stays enabled!
+                        # We'll do this by starting its ref count at 1, so it will never go
+                        # to zero -- it's as if the controller itself holds one reference.
+                        self.capability_ref_count[component_name] = 1
+
+                if 'VersionInfo' not in self.caps:
+                    raise Exception('Controller does not implement the required VersionInfo component.')
+
+                version_info = await capabilities.acquire_component_interface(self.fd, self.caps, self.capability_ref_count, 'VersionInfo')
+                major, minor = await version_info.version()
+                await capabilities.release_component_interface(self.capability_ref_count, version_info)
+
+                if major != 1:
+                    raise Exception('Controller is not version 1, thus this interface will not work.')
+
+            except:
+                if self.fd is not None:
+                    await easyi2c.close_i2c(self.fd)
+                    self.fd = None
+                    self.caps = None
+                    self.capability_ref_count = {}
+                raise
+
+            return list(self.caps.keys())
 
     async def acquire(self, capability_id):
         """
@@ -105,39 +111,18 @@ class CioRoot(cio.CioRoot):
         async with self.lock:
             await capabilities.release_component_interface(self.capability_ref_count, capability_obj)
 
+    async def close(self):
+        """
+        Close the connection and reset the controller, thereby invalidating and releasing all acquired components.
+        """
+        async with self.lock:
+            if self.fd is None:
+                return
 
-def _setup_cleanup(fd):
-    """
-    Try our best to cleanup when this python process exits.
-    We clean up by telling the microcontroller to reset itself.
-    """
-    from . import reset
-    import atexit, time, signal
+            await reset.soft_reset(self.fd)
 
-    def cleanup():
-        time.sleep(0.1)
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-        coro = reset.soft_reset(fd)
-        if loop is not None:
-            loop.run_until_complete(coro)
-        else:
-            asyncio.run(coro)
-
-    atexit.register(cleanup)
-
-    def handle_sig_hup(signum, frame):
-        # By default, the Python process will not handle this signal.
-        # Furthermore, Python cannot call the "atexit" routines whenever
-        # the process exits due to an unhandled signal. Therefore, by
-        # default, our "cleanup" function above would not be called
-        # if this process were to receive this signal. This is bad for us
-        # because our PTY manager sends this signal whenever the user
-        # clicks the "STOP" button on the CDP. All is well and good if
-        # we just handle this signal. So we are.
-        raise KeyboardInterrupt("STOP button pressed")
-
-    signal.signal(signal.SIGHUP, handle_sig_hup)
+            await easyi2c.close_i2c(self.fd)
+            self.fd = None
+            self.caps = None
+            self.capability_ref_count = {}
 

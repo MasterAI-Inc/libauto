@@ -11,10 +11,11 @@
 import asyncio
 from pprint import pprint
 
-import cio.aa_controller_v1 as c
+import cio.aa_controller_v1 as controller
 
 
 async def run():
+    c = controller.CioRoot()
     caps = await c.init()
     pprint(caps)
 
@@ -22,6 +23,8 @@ async def run():
     name = await iface.name()
     version = await iface.version()
     await c.release(iface)
+
+    await c.close()
 
     print(name, version)
 

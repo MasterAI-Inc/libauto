@@ -113,6 +113,15 @@ async def init(loop):
                 del self.acquired[rpc_guid]
                 await cio_root.release(capability_obj)
 
+        async def export_close(self):
+            # Don't call `close()` on the actual `cio_root`, because it is a shared
+            # resource and needs to stay open. Instead, we just release all the
+            # components which have been acquired by this client (this ensures
+            # the ref count on the underlying `cio_root` stays accurate). Note
+            # this is also what happens when the client disconnects.
+            for rpc_guid in list(self.acquired):  # copy keys
+                await self.export_release(rpc_guid)
+
         async def cleanup(self):
             for rpc_guid in list(self.acquired):  # copy keys
                 await self.export_release(rpc_guid)

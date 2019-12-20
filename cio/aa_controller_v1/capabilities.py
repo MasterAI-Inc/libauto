@@ -14,6 +14,9 @@ from .easyi2c import (write_read_i2c_with_integrity,
 from . import N_I2C_TRIES
 from .components import KNOWN_COMPONENTS
 
+from auto import logger
+log = logger.init('cio.aa_controller_v1', terminal=True)
+
 
 CAPABILITIES_REG_NUM = 0x01
 MAX_COMPONENT_NAME_LEN = 25
@@ -93,10 +96,12 @@ async def enable_component(fd, register_number):
           See how it is done in `acquire_component_interface()`.
     """
     indicator, = await write_read_i2c_with_integrity(fd, [CAPABILITIES_REG_NUM, 0x05, register_number], 1)
-    if indicator == 0: return "already enabled"
-    if indicator == 1: return "now enabled"
-    if indicator == 0xFF: raise Exception("invalid register address!")
-    raise Exception("unknown return value: {}".format(indicator))
+    if indicator == 0: indicator = "already enabled"
+    elif indicator == 1: indicator = "now enabled"
+    elif indicator == 0xFF: raise Exception("invalid register address!")
+    else: raise Exception("unknown return value: {}".format(indicator))
+    log.info('Enabled component register number {}; status is: {}'.format(register_number, indicator))
+    return indicator
 
 
 @i2c_retry(N_I2C_TRIES)
@@ -110,10 +115,12 @@ async def disable_component(fd, register_number):
           `release_component_interface()`.
     """
     indicator, = await write_read_i2c_with_integrity(fd, [CAPABILITIES_REG_NUM, 0x06, register_number], 1)
-    if indicator == 0: return "already disabled"
-    if indicator == 1: return "now disabled"
-    if indicator == 0xFF: raise Exception("invalid register address!")
-    raise Exception("unknown return value: {}".format(indicator))
+    if indicator == 0: indicator = "already disabled"
+    elif indicator == 1: indicator = "now disabled"
+    elif indicator == 0xFF: raise Exception("invalid register address!")
+    else: raise Exception("unknown return value: {}".format(indicator))
+    log.info('Disabled component register number {}; status is: {}'.format(register_number, indicator))
+    return indicator
 
 
 @i2c_retry(N_I2C_TRIES)
@@ -205,6 +212,7 @@ async def acquire_component_interface(fd, caps, ref_count, component_name):
     #   https://github.com/acu192/autoauto-controller/blob/0c234f3e8abfdc34a5011481e140998560097cbc/libraries/aa_controller/Capabilities.cpp#L526
     # Anyway, if that bug were fixed, then the whole next bock would be moved
     # such that it would only run `if component_name not in ref_count` above.
+    orig_register_number = register_number
     if not isinstance(register_number, (tuple, list)):
         register_number = [register_number]
     for n in register_number:
@@ -212,6 +220,8 @@ async def acquire_component_interface(fd, caps, ref_count, component_name):
         async def _get_component_status():
             return await get_component_status(fd, n)
         await i2c_poll_until(_get_component_status, 'ENABLED', timeout_ms=1000)
+
+    log.info('Acquired {}, register number {}, now having ref count {}.'.format(component_name, orig_register_number, ref_count[component_name]))
 
     return interface
 
@@ -225,12 +235,15 @@ async def release_component_interface(ref_count, interface):
     register_number = interface.__reg__
     component_name = interface.__component_name__
 
+    orig_register_number = register_number
+
     if component_name not in ref_count:
         # Weird... just bail.
         return
 
     # Dec the ref count.
     ref_count[component_name] -= 1
+    ref_count_here = ref_count[component_name]
 
     if ref_count[component_name] == 0:
         # This is the last remaining reference, so we'll disable the component.
@@ -242,4 +255,6 @@ async def release_component_interface(ref_count, interface):
                 return await get_component_status(fd, n)
             await i2c_poll_until(_get_component_status, 'DISABLED', timeout_ms=1000)
         del ref_count[component_name]
+
+    log.info('Released {}, register number {}, now having ref count {}.'.format(component_name, orig_register_number, ref_count_here))
 

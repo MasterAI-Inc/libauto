@@ -56,6 +56,16 @@ class CioRoot(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
+    async def close(self):
+        """
+        Cleanly close the connection to the controller. All acquired
+        component interfaces will be released (thus their corresponding
+        objects will become stale and should not be used further).
+        You may safely re-`init()` if needed to continue using it.
+        """
+        pass
+
 
 class VersionInfoIface(abc.ABC):
     """

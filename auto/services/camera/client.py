@@ -86,18 +86,6 @@ class CameraRGB:
             self.is_connected = False
             await self._close()
 
-    def __del__(self):
-        """
-        Python "destructor" which calls `close`. You cannot rely on this
-        method to be called for you; instead you should call `close`
-        yourself whenever you are finished using this camera. This
-        method is only a final attempt to save you, but it cannot be
-        relied upon.
-        """
-        if self.is_connected:
-            loop = asyncio.get_event_loop()
-            asyncio.run_coroutine_threadsafe(self._close(), loop)
-
 
 async def _demo():
     cam = CameraRGB()
@@ -112,6 +100,8 @@ async def _demo():
         i += 1
         if i == 50:
             break
+
+    await cam.close()
 
 
 if __name__ == '__main__':

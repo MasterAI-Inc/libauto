@@ -100,6 +100,7 @@ def _serialize_method(f, name=None):
         'firstlineno': f.__code__.co_firstlineno,
         'ismethod': is_method,
         'impl': f,
+        'is_async': inspect.iscoroutinefunction(f),
     }
 
 
