@@ -28,12 +28,15 @@ async methods. See `wrap_async_to_sync()`.
 """
 
 import asyncio
-import auto
 import inspect
 from threading import Thread
 
+import auto
 from auto.rpc.serialize_interface import serialize_interface
 from auto.rpc.build_interface import build_interface
+
+
+DEBUG_ASYNCIO = False
 
 
 def get_loop(verbose=False):
@@ -47,9 +50,11 @@ def get_loop(verbose=False):
         return _BG_LOOP
     except NameError:
         _BG_LOOP = asyncio.new_event_loop()
+        _set_async_debug_and_log_level(_BG_LOOP)
         thread = Thread(target=_loop_main, args=(_BG_LOOP,))
         thread.daemon = True  # <-- thread will exit when main thread exists
         thread.start()
+        _setup_cleanup(_BG_LOOP, thread)
         if verbose:
             auto.print_all("Instantiated an event loop in a background thread!")
         return _BG_LOOP
@@ -58,6 +63,44 @@ def get_loop(verbose=False):
 def _loop_main(loop):
     asyncio.set_event_loop(loop)
     loop.run_forever()
+
+
+def _set_async_debug_and_log_level(loop):
+    # Do you want debugging turned on?
+    if DEBUG_ASYNCIO:
+        loop.set_debug(True)   # It's off by default, so we turn it on when we want it.
+
+    # Btw, we could also change the log level. For more info, see:
+    #   https://docs.python.org/3.7/library/asyncio-dev.html#asyncio-logger
+    #
+    # E.g. We could do:
+    #   import logging
+    #   logging.getLogger("asyncio").setLevel(logging.WARNING)
+    #
+    # But I don't think we need it...
+
+
+def _setup_cleanup(loop, thread):
+    """
+    Attempt to cleanup the event loop and the background thread _properly_.
+    This cleanup is only done when DEBUG_ASYNCIO is True; else, we just
+    let the asyncio thread die quickly and painlessly, without giving it a
+    chance to close or print warnings.
+    """
+    if not DEBUG_ASYNCIO:
+        return
+
+    def cleanup():
+        async def _stop_loop():
+            loop.stop()
+
+        asyncio.run_coroutine_threadsafe(_stop_loop(), loop)
+        thread.join()
+        loop.run_until_complete(loop.shutdown_asyncgens())
+        loop.close()
+
+    import atexit
+    atexit.register(cleanup)
 
 
 def wrap_async_to_sync(obj, loop=None):
