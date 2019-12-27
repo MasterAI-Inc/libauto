@@ -11,18 +11,49 @@
 """
 This module provides a list of hardware capabilities of the device,
 and provides a way to acquire and release those capabilities.
+
+This module provides a fully **synchronous** interface.
 """
+
+from auto.asyncio_tools import get_loop
+from auto.services.controller.client_sync import CioRoot
+from auto.camera import global_camera, close_global_camera
 
 
 def list_caps():
     """
-    Return a sorted list of the hardware capabilities of this device.
+    Return a sorted tuple of the hardware capabilities of this device.
     Each capability is referenced by a string, as returned by
     this function. You can acquire an interface to a capability
     by passing the capability's string label to the function
     `acquire()`.
     """
-    return sorted(_CAPABILITIES_MAP.keys())
+    global _CAPABILITIES_MAP
+
+    try:
+        return tuple(sorted(_CAPABILITIES_MAP.keys()))
+
+    except NameError:
+        pass  # We can remedy this.
+
+    loop = get_loop()
+
+    controller_connection = CioRoot(loop)
+
+    _CAPABILITIES_MAP = {}
+
+    for capability_id in controller_connection.init():
+        _CAPABILITIES_MAP[capability_id] = {
+                'acquire': controller_connection.acquire,
+                'release': controller_connection.release,
+        }
+
+    _CAPABILITIES_MAP['Camera'] = {
+            'acquire': lambda _: global_camera(),
+            'release': lambda _: close_global_camera(),
+    }
+
+    return tuple(sorted(_CAPABILITIES_MAP.keys()))
 
 
 def acquire(capability_name):
@@ -33,6 +64,8 @@ def acquire(capability_name):
     (when you are done using it) by passing it to the function
     `release()`.
     """
+    if capability_name not in list_caps():
+        raise Exception("The given capability name (\"{}\") is not available.".format(capability_name))
     iface = _CAPABILITIES_MAP[capability_name]['acquire'](capability_name)
     iface._capability_name = capability_name
     return iface
@@ -44,44 +77,10 @@ def release(capability_iface):
     The `capability_iface` object must be one that was returned
     from `acquire()`.
     """
-    capability_name = capability_iface._capability_name
+    capability_name = getattr(capability_iface, "_capability_name", None)
+    if capability_name is None:
+        raise Exception("The object passed as `capability_iface` was not acquired by `acquire()`; you must pass the exact object obtained from `acquire()`.")
+    if capability_name not in list_caps():
+        raise Exception("The given capability name (\"{}\") is not available.".format(capability_name))
     return _CAPABILITIES_MAP[capability_name]['release'](capability_iface)
-
-
-# The capabilities map below holds all capabilities of the device.
-# Names of capabilities are keys. The value of each is a dictionary
-# with two callables -- one callable to acquire the capability's iface,
-# and the other callable to release it.
-
-_CAPABILITIES_MAP = {}
-
-
-# The next section fills the _CAPABILITIES_MAP with the controller's
-# capabilities.
-
-from cio import rpc_client
-
-for cio_capability in rpc_client.CAPS:
-    _CAPABILITIES_MAP[cio_capability] = {
-            'acquire': rpc_client.acquire_component_interface,
-            'release': rpc_client.dispose_component_interface,
-    }
-
-
-# The next section puts the camera into the _CAPABILITIES_MAP
-# This is convenient so that we can access the camera just like
-# any other capability.
-
-def _acquire_camera(_):
-    from auto.camera import global_camera
-    return global_camera()
-
-def _release_camera(_):
-    from auto.camera import close_global_camera
-    close_global_camera()
-
-_CAPABILITIES_MAP['Camera'] = {
-        'acquire': _acquire_camera,
-        'release': _release_camera,
-}
 

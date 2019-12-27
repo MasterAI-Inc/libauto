@@ -74,10 +74,16 @@ def _run():
     buzzer_iface = cio_root.acquire('Buzzer')
     print(buzzer_iface)
     buzzer_iface.play('!T240 L8 V8 agafaea dac+adaea fa<aa<bac#a dac#adaea f4')   # "Bach's fugue in D-minor"
+
+    led_iface = cio_root.acquire('LEDs')
+    led_iface.set_mode('spin')
+    print(led_iface)
+
     buzzer_iface.wait()
 
     cio_root.release(buzzer_iface)
     cio_root.release(version_iface)
+    cio_root.release(led_iface)
 
     cio_root.close()
 

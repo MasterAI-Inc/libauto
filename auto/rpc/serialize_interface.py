@@ -75,14 +75,26 @@ def _serialize_function(f, name=None):
     return _serialize_method(f, name)
 
 
-def _serialize_method(f, name=None):
-    if name is None:
-        name = f.__name__
+def _serialize_method(f, name=None, send_wrapped_docs=True):
+    # If `f` is a decorator, we want to dig in and find the inter-most "wrapped" function.
+    #
+    # **Note**: You may not always want to dig in and find the inter-most wrapped function,
+    #           thus we've included the `send_wrapped_docs` parameter to this function.
+    #           The only time you do *not* want to dig for the wrapped function is if the
+    #           decorator changes the parameter list. For our use cases, this will not
+    #           be the case thus we set `send_wrapped_docs` to True by default.
+    f_outer = f
+    f_inner = f
+    while hasattr(f_inner, '__wrapped__') and send_wrapped_docs:
+        f_inner = f_inner.__wrapped__
 
-    args = f.__code__.co_varnames[:f.__code__.co_argcount]
+    if name is None:
+        name = f_inner.__name__
+
+    args = f_inner.__code__.co_varnames[:f_inner.__code__.co_argcount]   # consider instead: inspect.getfullargspec()
     is_method = False
 
-    if hasattr(f, '__self__'):
+    if hasattr(f_outer, '__self__'):
         # A bound method. Remove the first parameter from the signature
         # since it is included through python's crazy method binding
         # behavior. The other side of the RPC doesn't need to see this
@@ -93,14 +105,14 @@ def _serialize_method(f, name=None):
     return {
         'name': name,
         'args': args,
-        'defaults': f.__defaults__,
-        'module': f.__module__,
-        'doc': inspect.getdoc(f),   # <-- uses the super-method's __doc__ as needed
-        'filename': f.__code__.co_filename,
-        'firstlineno': f.__code__.co_firstlineno,
+        'defaults': f_inner.__defaults__,
+        'module': f_inner.__module__,
+        'doc': inspect.getdoc(f_inner) or inspect.getdoc(f_outer),   # <-- uses the super-method's __doc__ as needed
+        'filename': f_inner.__code__.co_filename,
+        'firstlineno': f_inner.__code__.co_firstlineno,
         'ismethod': is_method,
-        'impl': f,
-        'is_async': inspect.iscoroutinefunction(f),
+        'impl': f_outer,
+        'is_async': inspect.iscoroutinefunction(f_outer),
     }
 
 
