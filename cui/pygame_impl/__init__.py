@@ -17,49 +17,45 @@ import cui
 from threading import Lock
 
 
-LOCK = None
-
-
 class CuiPyGame(cui.CuiRoot):
     def init(self):
         from cui.pygame_impl import console_ui
         # If the import worked, we're good to go.
         # The import has tremendous side affects, thus
         # we delay it until this `init()` is called.
-        global LOCK
-        LOCK = Lock()
+        self.lock = Lock()
         return True
 
     def write_text(self, text):
-        with LOCK:
+        with self.lock:
             return console_ui.write_text(text)
 
     def clear_text(self):
-        with LOCK:
+        with self.lock:
             return console_ui.clear_text()
 
     def big_image(self, image_id):
-        with LOCK:
+        with self.lock:
             image_path = 'images/{}.png'.format(image_id)
             return console_ui.big_image(image_path)
 
     def big_status(self, status):
-        with LOCK:
+        with self.lock:
             return console_ui.big_status(status)
 
     def big_clear(self):
-        with LOCK:
+        with self.lock:
             return console_ui.big_clear()
 
     def stream_image(self, rect_vals, shape, image_buf):
-        with LOCK:
+        with self.lock:
             return console_ui.stream_image(rect_vals, shape, image_buf)
 
     def clear_image(self):
-        with LOCK:
+        with self.lock:
             return console_ui.clear_image()
 
     def set_battery_percent(self, pct):
-        with LOCK:
+        with self.lock:
             return console_ui.set_battery_percent(pct)
 

@@ -39,6 +39,11 @@ async def serve(root_factory, pubsub=None, inet_addr='localhost', inet_port=7000
     receive its own copy of the root object as created by the `root_factory`. Clients
     may also subscribe to events which appear in the `pubsub` list of available
     catalogs. The websockets server will listen on the given `inet_addr` and `inet_port`.
+
+    The `root_factory` may return a tuple of `(root, whitelist_method_names)` if it
+    so chooses; otherwise it is assumed it only returns the `root` instance and does
+    not specify `whitelist_method_names`. Also, the `root_factory` might return the same
+    object on each invocation; that is the choice of the `root_factory`.
     """
     subscribers = {}
 
@@ -72,7 +77,10 @@ def _build_client_handler(root_factory, pubsub, subscribers):
 
     async def handle_client(ws, path):
         root = root_factory()
-        iface, impl = serialize_interface(root, name='root')
+        whitelist_method_names = ()
+        if isinstance(root, tuple):
+            root, whitelist_method_names = root
+        iface, impl = serialize_interface(root, name='root', whitelist_method_names=whitelist_method_names)
         iface_buf = pack(iface)
         await ws.send(iface_buf)
         await ws.send(channels_buf)
