@@ -8,19 +8,24 @@
 #
 ###############################################################################
 
+import sys
 import time
 
-from cui.pygame_impl import CuiPyGame
+from cui.mock_impl import CuiMock
 
 
 if __name__ == '__main__':
-    c = CuiPyGame()
+    c = CuiMock()
     c.init()
 
-    for i in range(0, 101):
-        c.set_battery_percent(i)
-        time.sleep(0.01)
-    for i in range(100, -1, -1):
-        c.set_battery_percent(i)
-        time.sleep(0.01)
+    while True:
+        try:
+            text = sys.stdin.readline()
+        except KeyboardInterrupt:
+            c.clear_text()
+            break
+
+        c.write_text(text)
+
+    time.sleep(3)
 

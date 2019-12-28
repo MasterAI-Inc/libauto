@@ -8,19 +8,14 @@
 #
 ###############################################################################
 
-import time
 
-from cui.pygame_impl import CuiPyGame
+"""
+This module provides a list of known implementations of the cui interface.
+"""
 
 
-if __name__ == '__main__':
-    c = CuiPyGame()
-    c.init()
-
-    for i in range(0, 101):
-        c.set_battery_percent(i)
-        time.sleep(0.01)
-    for i in range(100, -1, -1):
-        c.set_battery_percent(i)
-        time.sleep(0.01)
+known_impls = [
+    'cui.pygame_impl',
+    'cui.mock_impl',
+]
 

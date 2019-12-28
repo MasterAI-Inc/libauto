@@ -9,57 +9,58 @@
 ###############################################################################
 
 """
-This package contains a PyGame implementation of the cui interface.
+This package contains a mock implementation of the cui interface.
+
+It is used as a fallback if no other implementations are available.
 """
 
 import cui
+
+from auto import logger
 
 from threading import Lock
 
 
 LOCK = None
+LOG = None
 
 
-class CuiPyGame(cui.CuiRoot):
+class CuiMock(cui.CuiRoot):
     def init(self):
-        from cui.pygame_impl import console_ui
-        # If the import worked, we're good to go.
-        # The import has tremendous side affects, thus
-        # we delay it until this `init()` is called.
-        global LOCK
+        global LOCK, LOG
         LOCK = Lock()
+        LOG = logger.init('mock_cui', terminal=True)
         return True
 
     def write_text(self, text):
         with LOCK:
-            return console_ui.write_text(text)
+            return LOG.info("write_text({})".format(repr(text)))
 
     def clear_text(self):
         with LOCK:
-            return console_ui.clear_text()
+            return LOG.info("clear_text()")
 
     def big_image(self, image_id):
         with LOCK:
-            image_path = 'images/{}.png'.format(image_id)
-            return console_ui.big_image(image_path)
+            return LOG.info("big_image({})".format(repr(image_id)))
 
     def big_status(self, status):
         with LOCK:
-            return console_ui.big_status(status)
+            return LOG.info("big_status({})".format(repr(status)))
 
     def big_clear(self):
         with LOCK:
-            return console_ui.big_clear()
+            return LOG.info("big_clear()")
 
     def stream_image(self, rect_vals, shape, image_buf):
         with LOCK:
-            return console_ui.stream_image(rect_vals, shape, image_buf)
+            return LOG.info("stream_image({}, {}, buffer of length {})".format(repr(rect_vals), repr(shape), len(image_buf)))
 
     def clear_image(self):
         with LOCK:
-            return console_ui.clear_image()
+            return LOG.info("clear_image()")
 
     def set_battery_percent(self, pct):
         with LOCK:
-            return console_ui.set_battery_percent(pct)
+            return LOG.info("set_battery_percent({})".format(repr(pct)))
 

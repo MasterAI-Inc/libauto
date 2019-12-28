@@ -9,17 +9,23 @@
 ###############################################################################
 
 import sys
+import time
 
-from auto import console as c
+from cui.pygame_impl import CuiPyGame
 
 
-while True:
+if __name__ == '__main__':
+    c = CuiPyGame()
+    c.init()
 
-    try:
-        text = sys.stdin.readline()
-    except KeyboardInterrupt:
-        c.clear_text()
-        break
+    while True:
+        try:
+            text = sys.stdin.readline()
+        except KeyboardInterrupt:
+            c.clear_text()
+            break
 
-    c.write_text(text)
+        c.write_text(text)
+
+    time.sleep(3)
 

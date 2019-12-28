@@ -10,11 +10,11 @@
 
 import time
 
-from cui.pygame_impl import CuiPyGame
+from cui.mock_impl import CuiMock
 
 
 if __name__ == '__main__':
-    c = CuiPyGame()
+    c = CuiMock()
     c.init()
 
     # Put up a big full-screen image by passing an image-path.
