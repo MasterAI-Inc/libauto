@@ -11,7 +11,7 @@
 """
 This package contains the interface to your robot's microcontroller(s).
 
-It's name is CIO (Controller Input/Output).
+Its name is CIO (Controller Input/Output).
 """
 
 import abc

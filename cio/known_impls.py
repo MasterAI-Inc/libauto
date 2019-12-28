@@ -10,7 +10,7 @@
 
 
 """
-This module provides a list of known implmentaitons of the cio interface.
+This module provides a list of known implementations of the cio interface.
 """
 
 

@@ -17,7 +17,7 @@ from auto import logger
 log = logger.init('pygame_cui', terminal=True)
 
 
-RESOURCE_DIR_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))), 'resources')
+RESOURCE_DIR_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'resources')
 
 
 # Settings:
