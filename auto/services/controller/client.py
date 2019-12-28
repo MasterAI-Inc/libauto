@@ -36,14 +36,14 @@ class CioRoot(cio.CioRoot):
 
     async def acquire(self, capability_id):
         if self.proxy_interface is None:
-            raise Exception("You must first call `init()` from this module.")
+            raise Exception("You must first call `init()`.")
 
         capability_obj = await self.proxy_interface.acquire(capability_id)
         return capability_obj
 
     async def release(self, capability_obj):
         if self.proxy_interface is None:
-            raise Exception("You must first call `init()` from this module.")
+            raise Exception("You must first call `init()`.")
 
         rpc_guid = await capability_obj.get_rpc_guid()
         await self.proxy_interface.release(rpc_guid)
