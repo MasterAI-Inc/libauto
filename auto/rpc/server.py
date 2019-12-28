@@ -81,10 +81,18 @@ def _build_client_handler(root_factory, pubsub, subscribers):
     return handle_client
 
 
+async def _safe_invoke(func, *args):
+    if asyncio.iscoroutinefunction(func):
+        return await func(*args)
+    else:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, func, *args)
+
+
 async def _handle_client(root, ws, impl, pubsub, subscribers):
     setup = getattr(root, 'setup', None)
     if setup is not None:
-        await setup(ws)
+        await _safe_invoke(setup, ws)
 
     try:
         while True:
@@ -109,7 +117,7 @@ async def _handle_client(root, ws, impl, pubsub, subscribers):
 
     cleanup = getattr(root, 'cleanup', None)
     if cleanup is not None:
-        await cleanup()
+        await _safe_invoke(cleanup)
 
 
 async def _handle_client_invoke(ws, cmd, impl):
@@ -124,7 +132,7 @@ async def _handle_client_invoke(ws, cmd, impl):
     }
 
     try:
-        val = await func(*args)
+        val = await _safe_invoke(func, *args)
         result['val'] = val
 
     except SerializeIface as s:
@@ -156,7 +164,7 @@ async def _handle_client_subscribe(ws, cmd, pubsub, subscribers):
 
         sub_callback = pubsub['subscribe']
         if sub_callback is not None:
-            await sub_callback(channel)
+            await _safe_invoke(sub_callback, channel)
 
 
 async def _handle_client_unsubscribe(ws, cmd, pubsub, subscribers):
@@ -173,7 +181,7 @@ async def _handle_client_unsubscribe(ws, cmd, pubsub, subscribers):
 
         unsub_callback = pubsub['unsubscribe']
         if unsub_callback is not None:
-            await unsub_callback(channel)
+            await _safe_invoke(unsub_callback, channel)
 
 
 async def _handle_client_unsubscribe_all(ws, pubsub, subscribers):
@@ -189,9 +197,9 @@ async def _handle_client_unsubscribe_all(ws, pubsub, subscribers):
         if len(subscribers[c]) == 0:
             del subscribers[c]
 
-    if unsub_callback:
+    if unsub_callback is not None:
         for c in channels:
-            await unsub_callback(c)
+            await _safe_invoke(unsub_callback, c)
 
 
 async def _demo():
