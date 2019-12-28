@@ -8,26 +8,14 @@
 #
 ###############################################################################
 
-from gevent import monkey; monkey.patch_all()
-from gevent.lock import Semaphore
-import gevent
-import rpyc
+import os
+import pygame
+import asyncio
+import numpy as np
+from collections import deque
 
 from auto import logger
 log = logger.init('console_ui', terminal=True)
-
-
-import pygame
-from collections import deque
-import os
-import re
-import time
-import numpy as np
-
-os.putenv("SDL_VIDEODRIVER", "fbcon")
-os.putenv("SDL_FBDEV",       "/dev/fb1")
-os.putenv("SDL_MOUSEDRV",    "TSLIB")
-os.putenv("SDL_MOUSEDEV",    "/dev/input/event0")
 
 
 RESOURCE_DIR_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))), 'resources')
@@ -184,29 +172,32 @@ draw_all()
 needs_draw = False
 
 
-class ConsoleService(rpyc.Service):
+LOCK = asyncio.Lock()
 
-    def __init__(self, global_lock):
-        self.lock = global_lock
+
+class ConsoleService:
+
+    def __init__(self):
+        pass
 
     def on_connect(self, conn):
-        with self.lock:
+        with LOCK:
             self.conn = conn
             self.conn_name = self.conn._config["connid"]
             log.info("New client: {}".format(self.conn_name))
 
     def on_disconnect(self, conn):
-        with self.lock:
+        with LOCK:
             log.info("Dead client: {}".format(self.conn_name))
 
     def exposed_write_text(self, text):
-        with self.lock:
+        with LOCK:
             log.info('Will print text: {}'.format(text))
             parse_text(text, lines, console_rect)
             draw_all()
 
     def exposed_clear_text(self):
-        with self.lock:
+        with LOCK:
             log.info('Will clear text!')
             global lines
             lines = deque()
@@ -214,7 +205,7 @@ class ConsoleService(rpyc.Service):
             draw_all()
 
     def exposed_big_image(self, image_path):
-        with self.lock:
+        with LOCK:
             log.info('Will show big image at path: {}'.format(image_path))
             image_path = os.path.join(RESOURCE_DIR_PATH, image_path)
             global big_image_rect, big_image
@@ -224,7 +215,7 @@ class ConsoleService(rpyc.Service):
             draw_all()
 
     def exposed_big_status(self, status):
-        with self.lock:
+        with LOCK:
             log.info('Will show big status: {}'.format(status))
             global big_status
             big_status = status
@@ -233,7 +224,7 @@ class ConsoleService(rpyc.Service):
             draw_all()
 
     def exposed_big_clear(self):
-        with self.lock:
+        with LOCK:
             log.info('Will clear big image and status!')
             global big_image_rect, big_image, big_status
             big_image_rect = None
@@ -242,7 +233,7 @@ class ConsoleService(rpyc.Service):
             draw_all()
 
     def exposed_stream_image(self, rect_vals, shape, image_buf):
-        with self.lock:
+        with LOCK:
             log.info('Will shows streamed image with shape: {}'.format(shape))
             width, height, channels = shape
             if channels not in (1, 3):
@@ -266,7 +257,7 @@ class ConsoleService(rpyc.Service):
             return True
 
     def exposed_clear_image(self):
-        with self.lock:
+        with LOCK:
             log.info('Will clear streamed image!')
             global stream_img_rect, stream_img
             stream_img_rect = None
@@ -277,7 +268,7 @@ class ConsoleService(rpyc.Service):
         """
         `pct` should be an integer in [0, 100].
         """
-        with self.lock:
+        with LOCK:
             if not isinstance(pct, int) or not (0 <= pct <= 100):
                 raise Exception("Invalid battery percent")
             pct = "{}%".format(pct)
@@ -286,18 +277,5 @@ class ConsoleService(rpyc.Service):
             draw_all()
 
 
-from rpyc.utils.server import GeventServer
-from rpyc.utils.helpers import classpartial
-
-global_lock = Semaphore(value=1)
-
-ConsoleService = classpartial(ConsoleService, global_lock)
-
-rpc_server = GeventServer(ConsoleService, port=18863)
-
 log.info("RUNNING!")
-
-gevent.joinall([
-    gevent.spawn(rpc_server.start),
-])
 
