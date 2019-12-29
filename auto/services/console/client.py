@@ -72,10 +72,11 @@ class CuiRoot(cui.CuiRoot):
         return await self.proxy_interface.set_battery_percent(pct)
 
     async def close(self):
-        """
-        This is a non-standard method of the cui interface.
-        It closes the underlying RPC connection.
-        """
+        # Don't call `close()` on the actual `proxy_interface`, because that in turn
+        # will call close on the underlying `cui_root` object, which will shut down
+        # the console. We don't want that because we're treating the console as a shared
+        # resource and we need it to stay open. Instead, we just close our RPC connection
+        # to the RPC server to clean up the resources we're responsible for.
         if self.proxy_interface is not None:
             await self._close()
             self.proxy_interface = None

@@ -105,7 +105,6 @@ async def _handle_client(root, ws, impl, pubsub, subscribers):
     try:
         while True:
             cmd = await ws.recv()
-            cmd = cmd.strip()
             cmd = unpack(cmd)
             type_ = cmd['type']
 

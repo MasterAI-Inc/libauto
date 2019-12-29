@@ -27,6 +27,7 @@ def _get_console():
 
     loop = get_loop()
     _CONSOLE = CuiRoot(loop)
+    _CONSOLE.init()
     return _CONSOLE
 
 
@@ -43,7 +44,8 @@ def print(*objects, sep=' ', end='\n'):
         def flush(self):
             pass
     ret = _built_in_print(*objects, sep=sep, end=end, file=Writable())
-    _get_console().write_text(''.join(all_text))
+    full_text = ''.join(all_text)
+    _get_console().write_text(full_text)
     return ret
 
 
