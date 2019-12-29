@@ -95,6 +95,31 @@ class VersionInfoIface(abc.ABC):
         pass
 
 
+class CredentialsIface(abc.ABC):
+    """
+    Store and retrieve the authentication token used to authenticate with the
+    AutoAuto servers.
+
+    Required: True
+
+    Capability Identifier: 'Credentials'
+    """
+
+    @abc.abstractmethod
+    async def get_token(self):
+        """
+        Return the authentication token stored on this device.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def set_token(self, token):
+        """
+        Set (and save) the authentication token to be used on this device.
+        """
+        pass
+
+
 class LoopFrequencyIface(abc.ABC):
     """
     Read the Controller's Loop Frequency (in Hz)
@@ -130,10 +155,19 @@ class BatteryVoltageReaderIface(abc.ABC):
         pass
 
     @abc.abstractmethod
+    async def millivolt_range(self):
+        """
+        Return the voltage range of this battery as a tuple as `(min, max)`
+        in millivolts.
+        """
+        pass
+
+    @abc.abstractmethod
     async def minutes(self):
         """
-        Estimate of time remaining (in minutes).
-        Return a two-tuple of the 95% confidence interval.
+        Estimate of time remaining (in minutes) and the percent remaining
+        of the battery (an integer from 0 to 100).
+        Return a two-tuple of `(minutes, percent)`.
         """
         pass
 
@@ -471,6 +505,28 @@ class CarMotorsIface(abc.ABC):
         Set the car's throttle (i.e. power send to the main motor).
 
         Pass a value in the range [-100, 100] to represent [full-reverse, full-forward].
+        """
+        pass
+
+    @abc.abstractmethod
+    async def get_safe_throttle(self):
+        """
+        Return the range of the "safe" throttle values, where "safe" means
+        the resulting speed will be slow enough for the typical indoor classroom
+        environment. A two-tuple is returned `(min_throttle, max_throttle)`.
+
+        **Disclaimer:** Any and all movement of the vehicle can result in injury
+                        if proper safety precautions are not taken. It is the
+                        responsibility of the user to use the device in a safe
+                        manner at all times.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def set_safe_throttle(self, min_throttle, max_throttle):
+        """
+        Store a new "safe" throttle range; will be returned by `get_safe_throttle()`
+        on subsequent calls.
         """
         pass
 

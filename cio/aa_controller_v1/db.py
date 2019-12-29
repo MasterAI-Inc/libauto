@@ -33,19 +33,6 @@ def default_db(same_thread=False):
     return store
 
 
-def secure_db(same_thread=False):
-    """
-    Get a new instance of the SECURE KeyValueStore used by this library.
-
-    This file should store all sensitive information (such as passwords
-    or tokens or secrets). The permissions for this file will be such that
-    only the owner may write and only the owner may read.
-    """
-    db_path = os.path.join(DEFAULT_DB_PATH, 'secure.db')
-    store = KeyValueStore(db_path, same_thread=same_thread)
-    return store
-
-
 class KeyValueStore:
     """
     This class uses sqlite to persist a simple and flexible key-value store.

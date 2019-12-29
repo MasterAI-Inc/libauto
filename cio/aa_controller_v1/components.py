@@ -15,6 +15,8 @@ from . import N_I2C_TRIES
 
 from .timers import Timer1PWM, Timer3PWM
 
+from .db import default_db
+
 import cio
 
 import struct
@@ -34,6 +36,31 @@ class VersionInfo(cio.VersionInfoIface):
     async def version(self):
         major, minor = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 2)
         return major, minor
+
+
+class Credentials(cio.CredentialsIface):
+    def __init__(self, fd, reg_num):
+        self.fd = fd
+        self.reg_num = reg_num
+        self.db = None
+        self.loop = asyncio.get_running_loop()
+
+    async def get_token(self):
+        return await self.loop.run_in_executor(None, self._get_token)
+
+    async def set_token(self, token):
+        return await self.loop.run_in_executor(None, self._set_token, token)
+
+    def _get_db(self):
+        if self.db is None:
+            self.db = default_db()
+        return self.db
+
+    def _get_token(self):
+        return self._get_db().get('DEVICE_TOKEN', None)
+
+    def _set_token(self, token):
+        return self._get_db().put('DEVICE_TOKEN', token)
 
 
 class LoopFrequency(cio.LoopFrequencyIface):
@@ -57,15 +84,19 @@ class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
         lsb, msb = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 2)
         return (msb << 8) | lsb   # <-- You can also use int.from_bytes(...) but I think doing the bitwise operations explicitly is cooler.
 
-    async def minutes(self):
-        mv = await self.millivolts()
-        # TODO: The following calculation is a very bad approximation. It should be _entirely_ redone.
+    async def millivolt_range(self):
         batt_low = 6500
         batt_high = 8400
-        pct = (mv - batt_low) / (batt_high - batt_low)
-        low_est  = pct * 3.0 * 60.0   # assume a full battery lasts 3 hours
-        high_est = pct * 4.0 * 60.0   # assume a full battery lasts 4 hours
-        return low_est, high_est
+        return batt_low, batt_high
+
+    async def minutes(self):
+        mv = await self.millivolts()
+        batt_low, batt_high = await self.millivolt_range()
+        # TODO: The following calculation is a very bad approximation. It should be _entirely_ redone.
+        pct_estimate = (mv - batt_low) / (batt_high - batt_low)
+        pct_estimate = max(min(pct_estimate, 1.0), 0.0)
+        mins_estimate  = pct_estimate * 3.5 * 60.0   # assume a full battery lasts 3.5 hours
+        return int(round(mins_estimate)), int(round(pct_estimate * 100))
 
 
 class Buzzer(cio.BuzzerIface):
@@ -402,6 +433,8 @@ class CarMotors(cio.CarMotorsIface):
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
+        self.db = None
+        self.loop = asyncio.get_running_loop()
 
     @i2c_retry(N_I2C_TRIES)
     async def on(self):
@@ -422,6 +455,28 @@ class CarMotors(cio.CarMotorsIface):
         status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x02, (throttle & 0xFF), ((throttle >> 8) & 0xFF)], 1)
         if status != 104:
             raise Exception("failed to set throttle")
+
+    def _get_db(self):
+        if self.db is None:
+            self.db = default_db()
+        return self.db
+
+    def _get_safe_throttle(self):
+        db = self._get_db()
+        min_throttle = db.get('CAR_THROTTLE_FORWARD_SAFE_SPEED', -22)
+        max_throttle = db.get('CAR_THROTTLE_REVERSE_SAFE_SPEED', 23)
+        return min_throttle, max_throttle
+
+    def _set_safe_throttle(self, min_throttle, max_throttle):
+        db = self._get_db()
+        db.put('CAR_THROTTLE_FORWARD_SAFE_SPEED', min_throttle)
+        db.put('CAR_THROTTLE_REVERSE_SAFE_SPEED', max_throttle)
+
+    async def get_safe_throttle(self):
+        return await self.loop.run_in_executor(None, self._get_safe_throttle)
+
+    async def set_safe_throttle(self, min_throttle, max_throttle):
+        return await self.loop.run_in_executor(None, self._set_safe_throttle, min_throttle, max_throttle)
 
     @i2c_retry(N_I2C_TRIES)
     async def off(self):
@@ -646,6 +701,7 @@ class PidSteering(cio.PidSteeringIface):
 
 KNOWN_COMPONENTS = {
     'VersionInfo':           VersionInfo,
+    'Credentials':           Credentials,
     'LoopFrequency':         LoopFrequency,
     'BatteryVoltageReader':  BatteryVoltageReader,
     'Buzzer':                Buzzer,
