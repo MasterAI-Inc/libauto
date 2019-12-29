@@ -8,9 +8,6 @@
 #
 ###############################################################################
 
-BASE_URL = "wss://ws.autoauto.ai/autopair/device"
-#BASE_URL = "ws://192.168.1.117:8001/autopair/device"
-
 from wsc import WebSocketConnection, StandardDelegate, run_forever
 
 from rpyc.utils.server import ThreadedServer
