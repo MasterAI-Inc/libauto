@@ -624,9 +624,14 @@ class PidIface(abc.ABC):
     """
 
     @abc.abstractmethod
-    async def set_pid(self, p, i, d, error_accum_max=0.0):
+    async def set_pid(self, p, i, d, error_accum_max=0.0, save=False):
         """
-        Sets P, I, and D. It is best to do this before enabling the loop.
+        Sets P, I, and D. If the device has no default values for this PID
+        loop, you should be sure to call this method `set_pid()` before calling
+        `enable()`.
+
+        If `save` is set, then these values will be saved to persistent storage
+        and used as the defaults in the future.
 
         `error_accum_max` is the max accumulated error that will be accumulated.
         This is a common thing that is done to tame the PID loop and not crazy overshoot

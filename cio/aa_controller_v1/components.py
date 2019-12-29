@@ -636,6 +636,7 @@ class Calibrator(cio.CalibratorIface):
         status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0], 1)
         if status != 7:
             raise Exception("Failed to start calibration process.")
+        # TODO: Also prompt for safe throttle speeds, servo range, and PID values.
 
     @i2c_retry(N_I2C_TRIES)
     async def check(self):
@@ -648,7 +649,7 @@ class PidSteering(cio.PidSteeringIface):
         self.fd = fd
         self.reg_num = reg_num
 
-    async def set_pid(self, p, i, d, error_accum_max=0.0):
+    async def set_pid(self, p, i, d, error_accum_max=0.0, save=False):
         @i2c_retry(N_I2C_TRIES)
         async def set_val(instruction, val):
             payload = list(struct.pack("1f", val))
@@ -660,6 +661,9 @@ class PidSteering(cio.PidSteeringIface):
         await set_val(0x02, i)
         await set_val(0x03, d)
         await set_val(0x04, error_accum_max)
+
+        if save:
+            await save_pid()
 
     @i2c_retry(N_I2C_TRIES)
     async def set_point(self, point):
