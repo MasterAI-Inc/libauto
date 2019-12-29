@@ -10,16 +10,24 @@
 
 """
 Module to interface with your AutoAuto device's front-panel console via RPC.
-
-For the server, see `startup/console_ui/console_ui.py`.
 """
 
-
-import rpyc
-CONN = rpyc.connect("localhost", 18863, config={'sync_request_timeout': 30})
-
+from auto.asyncio_tools import get_loop
+from auto.services.console.client_sync import CuiRoot
 
 _built_in_print = print
+
+
+def _get_console():
+    global _CONSOLE
+    try:
+        return _CONSOLE
+    except:
+        pass   # we can fix this
+
+    loop = get_loop()
+    _CONSOLE = CuiRoot(loop)
+    return _CONSOLE
 
 
 def print(*objects, sep=' ', end='\n'):
@@ -35,7 +43,7 @@ def print(*objects, sep=' ', end='\n'):
         def flush(self):
             pass
     ret = _built_in_print(*objects, sep=sep, end=end, file=Writable())
-    CONN.root.write_text(''.join(all_text))
+    _get_console().write_text(''.join(all_text))
     return ret
 
 
@@ -44,24 +52,22 @@ def write_text(text):
     Write text to the AutoAuto console. This is a more "manual" version
     of the `print()` function above.
     """
-    return CONN.root.write_text(text)
+    return _get_console().write_text(text)
 
 
 def clear_text():
     """
     Clear the text off the AutoAuto console.
     """
-    return CONN.root.clear_text()
+    return _get_console().clear_text()
 
 
-def big_image(image_path):
+def big_image(image_id):
     """
     Display a full-screen ("big") image on the AutoAuto console.
-    The image must be one on disk (probably in the `resources/`
-    directory) and you give a path to that image (relative to the
-    libauto repo root) to this function.
+    See `cui.CuiRoot.big_image()` for details on `image_id`.
     """
-    return CONN.root.big_image(image_path)
+    return _get_console().big_image(image_id)
 
 
 def big_status(status):
@@ -69,14 +75,14 @@ def big_status(status):
     Display a large status atop the "big image". This should
     only be used after  using the `big_image()`function above.
     """
-    return CONN.root.big_status(status)
+    return _get_console().big_status(status)
 
 
 def big_clear():
     """
     Clear the big image and big status off the AutoAuto console.
     """
-    return CONN.root.big_clear()
+    return _get_console().big_clear()
 
 
 def stream_image(rect_vals, shape, image_buf):
@@ -86,7 +92,7 @@ def stream_image(rect_vals, shape, image_buf):
     `rect_vals` of `(0, 0, 0, 0)` indicates that the image should be
     full-screen. The `image_buf` should be either a grayscale or RGB image.
     """
-    return CONN.root.stream_image(tuple(rect_vals), tuple(shape), image_buf)
+    return _get_console().stream_image(tuple(rect_vals), tuple(shape), image_buf)
 
 
 def clear_image():
@@ -94,7 +100,7 @@ def clear_image():
     Clear the streamed image (streamed via the `stream_image()` function above)
     off the AutoAuto console.
     """
-    return CONN.root.clear_image()
+    return _get_console().clear_image()
 
 
 def clear():
@@ -111,5 +117,18 @@ def set_battery_percent(pct):
     Set the battery percentage that is displayed on the console UI.
     `pct` should be an integer in [0, 100].
     """
-    CONN.root.set_battery_percent(pct)
+    _get_console().set_battery_percent(pct)
+
+
+# We won't support closing at this level (no need?),
+# but if we did it would look like this:
+#
+#def close():
+#    """
+#    Close our connection to the console.
+#    """
+#    c = _get_console()
+#    c.close()
+#    global _CONSOLE
+#    del _CONSOLE
 

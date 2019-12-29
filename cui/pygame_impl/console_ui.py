@@ -9,6 +9,7 @@
 ###############################################################################
 
 import os
+import sys
 import pygame
 import numpy as np
 from collections import deque
@@ -255,6 +256,11 @@ def set_battery_percent(pct):
     global battery_sprite
     battery_sprite = header_font.render(pct, True, HEADER_TXT_COLOR)
     draw_all()
+
+
+def close():
+    log.info('Will close...')
+    sys.exit(1)
 
 
 log.info("RUNNING!")

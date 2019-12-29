@@ -15,47 +15,49 @@ It is used as a fallback if no other implementations are available.
 """
 
 import cui
-
+import asyncio
 from auto import logger
-
-from threading import Lock
 
 
 class CuiMock(cui.CuiRoot):
-    def init(self):
-        self.lock = Lock()
+    async def init(self):
+        self.lock = asyncio.Lock()
         self.log = logger.init('mock_cui', terminal=True)
         return True
 
-    def write_text(self, text):
-        with self.lock:
+    async def write_text(self, text):
+        async with self.lock:
             return self.log.info("write_text({})".format(repr(text)))
 
-    def clear_text(self):
-        with self.lock:
+    async def clear_text(self):
+        async with self.lock:
             return self.log.info("clear_text()")
 
-    def big_image(self, image_id):
-        with self.lock:
+    async def big_image(self, image_id):
+        async with self.lock:
             return self.log.info("big_image({})".format(repr(image_id)))
 
-    def big_status(self, status):
-        with self.lock:
+    async def big_status(self, status):
+        async with self.lock:
             return self.log.info("big_status({})".format(repr(status)))
 
-    def big_clear(self):
-        with self.lock:
+    async def big_clear(self):
+        async with self.lock:
             return self.log.info("big_clear()")
 
-    def stream_image(self, rect_vals, shape, image_buf):
-        with self.lock:
+    async def stream_image(self, rect_vals, shape, image_buf):
+        async with self.lock:
             return self.log.info("stream_image({}, {}, buffer of length {})".format(repr(rect_vals), repr(shape), len(image_buf)))
 
-    def clear_image(self):
-        with self.lock:
+    async def clear_image(self):
+        async with self.lock:
             return self.log.info("clear_image()")
 
-    def set_battery_percent(self, pct):
-        with self.lock:
+    async def set_battery_percent(self, pct):
+        async with self.lock:
             return self.log.info("set_battery_percent({})".format(repr(pct)))
+
+    async def close(self):
+        async with self.lock:
+            return self.log.info("close()")
 

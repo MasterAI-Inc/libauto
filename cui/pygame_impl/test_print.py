@@ -9,23 +9,25 @@
 ###############################################################################
 
 import sys
-import time
-
+import asyncio
 from cui.pygame_impl import CuiPyGame
 
 
-if __name__ == '__main__':
+async def run():
     c = CuiPyGame()
-    c.init()
+    await c.init()
 
     while True:
         try:
             text = sys.stdin.readline()
         except KeyboardInterrupt:
-            c.clear_text()
+            await c.clear_text()
             break
 
-        c.write_text(text)
+        await c.write_text(text)
 
-    time.sleep(3)
+    await asyncio.sleep(2)
 
+
+if __name__ == '__main__':
+    asyncio.run(run())

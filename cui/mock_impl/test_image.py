@@ -8,30 +8,32 @@
 #
 ###############################################################################
 
-import time
-
+import asyncio
 from cui.mock_impl import CuiMock
 
 
-if __name__ == '__main__':
+async def run():
     c = CuiMock()
-    c.init()
+    await c.init()
 
     # Put up a big full-screen image by passing an image-path.
-    c.big_image('wifi_success')
-    time.sleep(2)
+    await c.big_image('wifi_success')
+    await asyncio.sleep(2)
 
     # Put up some big text!
     for i in range(1, 5):
         text = "All is good... {}".format(i)
-        c.big_status(text)
-        time.sleep(1)
+        await c.big_status(text)
+        await asyncio.sleep(1)
 
     # Clear the big text.
-    c.big_status('')
-    time.sleep(2)
+    await c.big_status('')
+    await asyncio.sleep(2)
 
     # Clear the screen of the big image and text.
-    c.big_clear()
-    time.sleep(2)
+    await c.big_clear()
+    await asyncio.sleep(2)
 
+
+if __name__ == '__main__':
+    asyncio.run(run())

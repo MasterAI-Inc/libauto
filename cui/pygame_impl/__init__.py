@@ -13,49 +13,85 @@ This package contains a PyGame implementation of the cui interface.
 """
 
 import cui
-
-from threading import Lock
+import asyncio
 
 
 class CuiPyGame(cui.CuiRoot):
-    def init(self):
+    async def init(self):
         from cui.pygame_impl import console_ui
         # If the import worked, we're good to go.
         # The import has tremendous side affects, thus
         # we delay it until this `init()` is called.
-        self.lock = Lock()
+        self.lock = asyncio.Lock()
+        self.loop = asyncio.get_running_loop()
         return True
 
-    def write_text(self, text):
-        with self.lock:
-            return console_ui.write_text(text)
+    async def write_text(self, text):
+        async with self.lock:
+            return await self.loop.run_in_executor(
+                    None,
+                    console_ui.write_text,
+                    text
+            )
 
-    def clear_text(self):
-        with self.lock:
-            return console_ui.clear_text()
+    async def clear_text(self):
+        async with self.lock:
+            return await self.loop.run_in_executor(
+                    None,
+                    console_ui.clear_text,
+            )
 
-    def big_image(self, image_id):
-        with self.lock:
+    async def big_image(self, image_id):
+        async with self.lock:
             image_path = 'images/{}.png'.format(image_id)
-            return console_ui.big_image(image_path)
+            return await self.loop.run_in_executor(
+                    None,
+                    console_ui.big_image,
+                    image_path
+            )
 
-    def big_status(self, status):
-        with self.lock:
-            return console_ui.big_status(status)
+    async def big_status(self, status):
+        async with self.lock:
+            return await self.loop.run_in_executor(
+                    None,
+                    console_ui.big_status,
+                    status
+            )
 
-    def big_clear(self):
-        with self.lock:
-            return console_ui.big_clear()
+    async def big_clear(self):
+        async with self.lock:
+            return await self.loop.run_in_executor(
+                    None,
+                    console_ui.big_clear,
+            )
 
-    def stream_image(self, rect_vals, shape, image_buf):
-        with self.lock:
-            return console_ui.stream_image(rect_vals, shape, image_buf)
+    async def stream_image(self, rect_vals, shape, image_buf):
+        async with self.lock:
+            return await self.loop.run_in_executor(
+                    None,
+                    console_ui.stream_image,
+                    rect_vals, shape, image_buf
+            )
 
-    def clear_image(self):
-        with self.lock:
-            return console_ui.clear_image()
+    async def clear_image(self):
+        async with self.lock:
+            return await self.loop.run_in_executor(
+                    None,
+                    console_ui.clear_image,
+            )
 
-    def set_battery_percent(self, pct):
-        with self.lock:
-            return console_ui.set_battery_percent(pct)
+    async def set_battery_percent(self, pct):
+        async with self.lock:
+            return await self.loop.run_in_executor(
+                    None,
+                    console_ui.set_battery_percent,
+                    pct
+            )
+
+    async def close(self):
+        async with self.lock:
+            return await self.loop.run_in_executor(
+                    None,
+                    console_ui.close,
+            )
 

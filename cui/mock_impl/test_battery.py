@@ -8,19 +8,21 @@
 #
 ###############################################################################
 
-import time
-
+import asyncio
 from cui.mock_impl import CuiMock
 
 
-if __name__ == '__main__':
+async def run():
     c = CuiMock()
-    c.init()
+    await c.init()
 
     for i in range(0, 101):
-        c.set_battery_percent(i)
-        time.sleep(0.01)
+        await c.set_battery_percent(i)
+        await asyncio.sleep(0.01)
     for i in range(100, -1, -1):
-        c.set_battery_percent(i)
-        time.sleep(0.01)
+        await c.set_battery_percent(i)
+        await asyncio.sleep(0.01)
 
+
+if __name__ == '__main__':
+    asyncio.run(run())

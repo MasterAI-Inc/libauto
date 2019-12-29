@@ -26,7 +26,7 @@ class CuiRoot(abc.ABC):
     """
 
     @abc.abstractmethod
-    def init(self):
+    async def init(self):
         """
         Initialize the Console UI. If successful, this method returns True,
         otherwise it raises an exception indicating that this particular
@@ -35,21 +35,21 @@ class CuiRoot(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def write_text(self, text):
+    async def write_text(self, text):
         """
         Write text to the console.
         """
         pass
 
     @abc.abstractmethod
-    def clear_text(self):
+    async def clear_text(self):
         """
         Clear all text from the console.
         """
         pass
 
     @abc.abstractmethod
-    def big_image(self, image_id):
+    async def big_image(self, image_id):
         """
         Display a big image having the id `image_path`.
         Standard image IDs are:
@@ -65,7 +65,7 @@ class CuiRoot(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def big_status(self, status):
+    async def big_status(self, status):
         """
         Display a big status as text covering the console and
         any image which may be shown.
@@ -73,14 +73,14 @@ class CuiRoot(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def big_clear(self):
+    async def big_clear(self):
         """
         Clear the big image and big status.
         """
         pass
 
     @abc.abstractmethod
-    def stream_image(self, rect_vals, shape, image_buf):
+    async def stream_image(self, rect_vals, shape, image_buf):
         """
         Display the streamed image in `image_buf` in the area
         on the screen described by `rect_vals`. The image has
@@ -89,16 +89,23 @@ class CuiRoot(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def clear_image(self):
+    async def clear_image(self):
         """
         Clear the streamed image from the screen.
         """
         pass
 
     @abc.abstractmethod
-    def set_battery_percent(self, pct):
+    async def set_battery_percent(self, pct):
         """
         `pct` should be an integer in [0, 100].
+        """
+        pass
+
+    @abc.abstractmethod
+    async def close(self):
+        """
+        Close the console (remove the window, clear resources, etc.)
         """
         pass
 
