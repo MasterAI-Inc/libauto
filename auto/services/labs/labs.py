@@ -15,6 +15,7 @@ import json
 import random
 import asyncio
 import traceback
+from collections import defaultdict
 from websockets import connect as ws_connect
 from websockets import WebSocketException
 
@@ -31,6 +32,8 @@ from pty_manager import PtyManager
 from verification_method import Verification
 from dashboard import Dashboard
 from proxy import Proxy
+
+from util import set_hostname
 
 
 BASE_PROTO = os.environ.get('LABS_PROTO', 'wss')
@@ -73,48 +76,63 @@ def _is_hello(msg):
     return None
 
 
-def _add_user_session(username, user_session):
-    with self.known_lock:
+class ConnectedUserSessions:
+    def __init__(self, consumers):
+        self.consumers = consumers
+        self.known_usernames = defaultdict(set)
+        self.known_user_sessions = set()
+
+    async def add_user_session(self, username, user_session):
+        did_add = False
+
         if user_session not in self.known_user_sessions:
             self.known_user_sessions.add(user_session)
             self.known_usernames[username].add(user_session)
-            return True
-        return False
+            did_add = True
 
+        if did_add:
+            for c in self.consumers:
+                try:
+                    await c.new_user_session(username, user_session)
+                except:
+                    _log_consumer_error(c)
 
-def _remove_user_session(username, user_session):
-    with self.known_lock:
+    async def remove_user_session(self, username, user_session):
+        did_remove = False
+
         if user_session in self.known_user_sessions:
             self.known_user_sessions.remove(user_session)
             self.known_usernames[username].remove(user_session)
-            return True
-        return False
+            did_remove = True
+
+        if did_remove:
+            for c in self.consumers:
+                try:
+                    await c.end_user_session(username, user_session)
+                except:
+                    _log_consumer_error(c)
+
+    async def close_all_user_sessions(self):
+        needs_remove = []
+
+        for username, user_session_set in self.known_usernames.items():
+            for user_session in user_session_set:
+                needs_remove.append((username, user_session))
+
+        for username, user_session in needs_remove:
+            await self.remove_user_session(username, user_session)
 
 
-async def _set_hostname(name):
-    pass  # TODO
-
-
-async def _handle_message(ws, msg, consumers, console):
+async def _handle_message(ws, msg, consumers, console, connected_user_sessions):
     new_user_info = _is_new_user_session(msg)
     departed_user_info = _is_departed_user_session(msg)
     hello_info = _is_hello(msg)
 
     if new_user_info is not None:
-        if _add_user_session(*new_user_info):
-            for c in consumers:
-                try:
-                    await c.new_user_session(*new_user_info)
-                except:
-                    _log_consumer_error(c)
+        await connected_user_sessions.add_user_session(*new_user_info)
 
     elif departed_user_info is not None:
-        if _remove_user_session(*departed_user_info):
-            for c in consumers:
-                try:
-                    await c.end_user_session(*departed_user_info)
-                except:
-                    _log_consumer_error(c)
+        await connected_user_sessions.remove_user_session(*departed_user_info)
 
     elif hello_info is not None:
         vin = hello_info['vin']
@@ -122,8 +140,8 @@ async def _handle_message(ws, msg, consumers, console):
         description = hello_info['description']  # <-- Where should we display this?
         await console.write_text('Device Name: {}\n'.format(name))
         await console.write_text('Device VIN:  {}\n'.format(vin))
-        output = await _set_hostname(name)
-        log.info("Set hostname, output is: {}".format(output))
+        output = await set_hostname(name)
+        log.info("Set hostname, output is: {}".format(output.strip()))
 
     else:
         for c in consumers:
@@ -146,6 +164,8 @@ async def _ping_with_interval(ws):
 
 async def _run(ws, consumers, console):
     ping_task = asyncio.create_task(_ping_with_interval(ws))
+
+    connected_user_sessions = ConnectedUserSessions(consumers)
 
     for c in consumers:
         try:
@@ -172,9 +192,11 @@ async def _run(ws, consumers, console):
                 log.info('Got pong from server!')
                 continue
 
-            await _handle_message(ws, msg, consumers, console)
+            await _handle_message(ws, msg, consumers, console, connected_user_sessions)
 
     finally:
+        await connected_user_sessions.close_all_user_sessions()
+
         for c in consumers:
             try:
                 await c.disconnected_cdp()
