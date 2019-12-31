@@ -146,7 +146,7 @@ async def _handle_message(ws, msg, consumers, console, connected_user_sessions):
     else:
         for c in consumers:
             try:
-                await c.got_message(msg, self.smart_send)   # TODO
+                await c.got_message(msg, None)   # TODO
             except:
                 _log_consumer_error(c)
 
@@ -245,6 +245,8 @@ async def run_forever(system_up_user):
     log.info("Controller version: {}".format(cio_version))
 
     await console.clear_text()
+    await console.big_clear()
+    await console.clear_image()
     await console.write_text("Libauto version:    {}\n".format(libauto_version))
     await console.write_text("Controller version: {}\n".format(cio_version))
 

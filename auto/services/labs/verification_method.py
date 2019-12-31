@@ -8,10 +8,8 @@
 #
 ###############################################################################
 
-import time
 import re
-from auto import print_all
-from auto import console
+import asyncio
 
 
 class Verification:
@@ -28,12 +26,12 @@ class Verification:
     async def got_message(self, msg, send_func):
         if 'origin' in msg and msg['origin'] == 'server':
             if 'verification_text' in msg:
-                self._show_verification_text(msg['username'], msg['verification_text'], msg['expire_minutes'])
+                await self._show_verification_text(msg['username'], msg['verification_text'], msg['expire_minutes'])
             elif 'verification_success' in msg:
                 if msg['verification_success']:
-                    self._show_verification_success(msg['username'])
+                    await self._show_verification_success(msg['username'])
                 else:
-                    self._show_verification_failed(msg['reason'])
+                    await self._show_verification_failed(msg['reason'])
 
     async def end_user_session(self, username, user_session):
         pass
@@ -43,26 +41,28 @@ class Verification:
 
     async def _show_verification_text(self, username, verification_text, expire_minutes):
         text = "Hi {}!\nAuthentication Code:\n{}\n".format(username, verification_text)
-        console.big_image('images/pair_pending.png')
-        console.big_status(text)
-        print_all(text + "\n")
+        await self.console.big_image('pair_pending')
+        await self.console.big_status(text)
+        await self.console.write_text(text + "\n\n")
         # TODO Use the `expire_minutes`. E.g. Put a countdown on the screen
         # and auto-close the pairing image when the countdown expires.
 
     async def _show_verification_success(self, username):
         text = "Congrats {}!\nYou are now paired\nwith this device.\n".format(username)
-        console.big_image('images/pair_success.png')
-        console.big_status(text)
-        print_all(text + "\n")
-        time.sleep(5)   # <-- TODO Remove this hack. Do something that's async.
-        console.big_clear()
+        await self.console.big_image('pair_success')
+        await self.console.big_status(text)
+        await self.console.write_text(text + "\n\n")
+        asyncio.create_task(self._delay_call(5, self.console.big_clear))
 
     async def _show_verification_failed(self, reason):
         reason = re.sub(r'\<.*?\>', '', reason)
         text = "Error:\n{}\n\n".format(reason)
-        console.big_image('images/pair_error.png')
-        console.big_status("Error:\nTry again.")
-        print_all(text + "\n")
-        time.sleep(5)   # <-- TODO Remove this hack. Do something that's async.
-        console.big_clear()
+        await self.console.big_image('pair_error')
+        await self.console.big_status("Error:\nTry again.")
+        await self.console.write_text(text + "\n\n")
+        asyncio.create_task(self._delay_call(5, self.console.big_clear))
+
+    async def _delay_call(self, seconds, func, *args):
+        await asyncio.sleep(seconds)
+        await func(*args)
 
