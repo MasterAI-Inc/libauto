@@ -173,6 +173,11 @@ async def get_capabilities(fd, soft_reset_first=False, only_enabled=False):
         del caps['Timer1PWM']
         del caps['Timer3PWM']
 
+    caps['Credentials'] = {
+            'register_number': None,  # <-- this is a virtual component; it is implemented on the Python side, not the controller side
+            'is_enabled': False
+    }
+
     return caps
 
 
@@ -216,6 +221,8 @@ async def acquire_component_interface(fd, caps, ref_count, component_name):
     if not isinstance(register_number, (tuple, list)):
         register_number = [register_number]
     for n in register_number:
+        if n is None:
+            continue
         await enable_component(fd, n)
         async def _get_component_status():
             return await get_component_status(fd, n)
@@ -250,6 +257,8 @@ async def release_component_interface(ref_count, interface):
         if not isinstance(register_number, (tuple, list)):
             register_number = [register_number]
         for n in register_number:
+            if n is None:
+                continue
             await disable_component(fd, n)
             async def _get_component_status():
                 return await get_component_status(fd, n)

@@ -16,16 +16,16 @@ from auto import console
 
 class Verification:
 
-    def __init__(self):
+    def __init__(self, console):
+        self.console = console
+
+    async def connected_cdp(self):
         pass
 
-    def connected_cdp(self):
+    async def new_user_session(self, username, user_session):
         pass
 
-    def new_user_session(self, username, user_session):
-        pass
-
-    def got_message(self, msg, send_func):
+    async def got_message(self, msg, send_func):
         if 'origin' in msg and msg['origin'] == 'server':
             if 'verification_text' in msg:
                 self._show_verification_text(msg['username'], msg['verification_text'], msg['expire_minutes'])
@@ -35,13 +35,13 @@ class Verification:
                 else:
                     self._show_verification_failed(msg['reason'])
 
-    def end_user_session(self, username, user_session):
+    async def end_user_session(self, username, user_session):
         pass
 
-    def disconnected_cdp(self):
+    async def disconnected_cdp(self):
         pass
 
-    def _show_verification_text(self, username, verification_text, expire_minutes):
+    async def _show_verification_text(self, username, verification_text, expire_minutes):
         text = "Hi {}!\nAuthentication Code:\n{}\n".format(username, verification_text)
         console.big_image('images/pair_pending.png')
         console.big_status(text)
@@ -49,7 +49,7 @@ class Verification:
         # TODO Use the `expire_minutes`. E.g. Put a countdown on the screen
         # and auto-close the pairing image when the countdown expires.
 
-    def _show_verification_success(self, username):
+    async def _show_verification_success(self, username):
         text = "Congrats {}!\nYou are now paired\nwith this device.\n".format(username)
         console.big_image('images/pair_success.png')
         console.big_status(text)
@@ -57,7 +57,7 @@ class Verification:
         time.sleep(5)   # <-- TODO Remove this hack. Do something that's async.
         console.big_clear()
 
-    def _show_verification_failed(self, reason):
+    async def _show_verification_failed(self, reason):
         reason = re.sub(r'\<.*?\>', '', reason)
         text = "Error:\n{}\n\n".format(reason)
         console.big_image('images/pair_error.png')
@@ -65,3 +65,4 @@ class Verification:
         print_all(text + "\n")
         time.sleep(5)   # <-- TODO Remove this hack. Do something that's async.
         console.big_clear()
+
