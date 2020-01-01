@@ -26,12 +26,24 @@ class Verification:
     async def got_message(self, msg, send_func):
         if 'origin' in msg and msg['origin'] == 'server':
             if 'verification_text' in msg:
-                await self._show_verification_text(msg['username'], msg['verification_text'], msg['expire_minutes'])
+                username = msg['username']
+                verification_text = msg['verification_text']
+                expire_minutes = msg['expire_minutes']
+                coro = self._show_verification_text(username, verification_text, expire_minutes)
+
             elif 'verification_success' in msg:
                 if msg['verification_success']:
-                    await self._show_verification_success(msg['username'])
+                    username = msg['username']
+                    coro = self._show_verification_success(username)
+
                 else:
-                    await self._show_verification_failed(msg['reason'])
+                    reason = msg['reason']
+                    coro = self._show_verification_failed(reason)
+
+            else:
+                return
+
+            asyncio.create_task(coro)
 
     async def end_user_session(self, username, user_session):
         pass
@@ -52,7 +64,8 @@ class Verification:
         await self.console.big_image('pair_success')
         await self.console.big_status(text)
         await self.console.write_text(text + "\n\n")
-        asyncio.create_task(self._delay_call(5, self.console.big_clear))
+        await asyncio.sleep(5)
+        await self.console.big_clear()
 
     async def _show_verification_failed(self, reason):
         reason = re.sub(r'\<.*?\>', '', reason)
@@ -60,9 +73,6 @@ class Verification:
         await self.console.big_image('pair_error')
         await self.console.big_status("Error:\nTry again.")
         await self.console.write_text(text + "\n\n")
-        asyncio.create_task(self._delay_call(5, self.console.big_clear))
-
-    async def _delay_call(self, seconds, func, *args):
-        await asyncio.sleep(seconds)
-        await func(*args)
+        await asyncio.sleep(5)
+        await self.console.big_clear()
 

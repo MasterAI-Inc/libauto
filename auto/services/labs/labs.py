@@ -96,6 +96,7 @@ class ConnectedUserSessions:
                     await c.new_user_session(username, user_session)
                 except:
                     _log_consumer_error(c)
+            log.info('Connected user session: {}: {}'.format(username, user_session))
 
     async def remove_user_session(self, username, user_session):
         did_remove = False
@@ -111,6 +112,7 @@ class ConnectedUserSessions:
                     await c.end_user_session(username, user_session)
                 except:
                     _log_consumer_error(c)
+            log.info('Departed user session: {}: {}'.format(username, user_session))
 
     async def close_all_user_sessions(self):
         needs_remove = []
@@ -122,8 +124,22 @@ class ConnectedUserSessions:
         for username, user_session in needs_remove:
             await self.remove_user_session(username, user_session)
 
+    async def has_specific_user_session(self, user_session):
+        return user_session in self.known_user_sessions
 
-async def _handle_message(ws, msg, consumers, console, connected_user_sessions):
+    async def has_any_user_sessions(self, username):
+        return len(self.known_usernames[username]) > 0
+
+    async def has_any_sessions(self):
+        return len(self.known_user_sessions) > 0
+
+
+async def _set_hostname(name):
+    output = await set_hostname(name)
+    log.info("Set hostname, output is: {}".format(output.strip()))
+
+
+async def _handle_message(ws, msg, consumers, console, connected_user_sessions, send_func):
     new_user_info = _is_new_user_session(msg)
     departed_user_info = _is_departed_user_session(msg)
     hello_info = _is_hello(msg)
@@ -140,13 +156,12 @@ async def _handle_message(ws, msg, consumers, console, connected_user_sessions):
         description = hello_info['description']  # <-- Where should we display this?
         await console.write_text('Device Name: {}\n'.format(name))
         await console.write_text('Device VIN:  {}\n'.format(vin))
-        output = await set_hostname(name)
-        log.info("Set hostname, output is: {}".format(output.strip()))
+        asyncio.create_task(_set_hostname(name))
 
     else:
         for c in consumers:
             try:
-                await c.got_message(msg, None)   # TODO
+                await c.got_message(msg, send_func)
             except:
                 _log_consumer_error(c)
 
@@ -162,10 +177,49 @@ async def _ping_with_interval(ws):
         log.info('Ping task is terminating.')
 
 
+def _build_send_function(ws, connected_user_sessions):
+    async def smart_send(msg):
+        if isinstance(msg, str):
+            msg = json.loads(msg)
+
+        if 'to_user_session' in msg:
+            user_session = msg['to_user_session']
+            if not connected_user_sessions.has_specific_user_session(user_session):
+                # We do not send messages that are destined for a
+                # user session that no longer exists!
+                return False
+
+        elif 'to_username' in msg:
+            username = msg['to_username']
+            if not connected_user_sessions.has_any_user_sessions(username):
+                # We don't send to a user who has zero user sessions.
+                return False
+
+        elif 'type' in msg and msg['type'] == 'proxy_send':
+            # Special case. The proxy should still work if there are no
+            # user sessions (because a user can use the proxy without the
+            # normal "session" existing).
+            pass
+
+        else:
+            if not connected_user_sessions.has_any_sessions():
+                # Literally no one is listening, so sending this generic
+                # broadcast message is pointless.
+                return False
+
+        # If we didn't bail out above, then send the message.
+        await ws.send(json.dumps(msg))
+        return True
+
+    return smart_send
+
+
 async def _run(ws, consumers, console):
     ping_task = asyncio.create_task(_ping_with_interval(ws))
 
     connected_user_sessions = ConnectedUserSessions(consumers)
+
+    send_func = _build_send_function(ws, connected_user_sessions)
 
     for c in consumers:
         try:
@@ -192,7 +246,7 @@ async def _run(ws, consumers, console):
                 log.info('Got pong from server!')
                 continue
 
-            await _handle_message(ws, msg, consumers, console, connected_user_sessions)
+            await _handle_message(ws, msg, consumers, console, connected_user_sessions, send_func)
 
     finally:
         await connected_user_sessions.close_all_user_sessions()
@@ -257,7 +311,7 @@ async def run_forever(system_up_user):
     consumers = [
         #PtyManager(system_up_user, console),
         Verification(console),
-        #Dashboard(camera, controller),
+        Dashboard(camera, controller),
         #Proxy(),
     ]
 
@@ -283,6 +337,7 @@ async def run_forever(system_up_user):
 
         finally:
             reconnect_delay_seconds = 10 + random.randint(2, 8)
+            log.info('Waiting {} seconds before reconnecting.'.format(reconnect_delay_seconds))
             await asyncio.sleep(reconnect_delay_seconds)
 
 

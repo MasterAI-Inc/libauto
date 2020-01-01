@@ -8,6 +8,12 @@
 #
 ###############################################################################
 
+"""
+This module contains functions to run external script/programs. This module
+assumes a certain setup of the system, but it tries to fail gracefully if the
+system is not configured as expected.
+"""
+
 import subprocess
 import asyncio
 import re
@@ -20,18 +26,20 @@ async def set_hostname(name):
 
 
 def _set_hostname(name):
-    """
-    The official Master AI image has the `set_hostname` script installed
-    at the path used below.
-    """
     PATH = '/usr/local/bin/set_hostname'
 
     if not os.path.isfile(PATH):
         return 'The `set_hostname` script not installed; hostname not set.'
 
     name = re.sub(r'[^A-Za-z0-9]', '', name)
-    output = subprocess.run(['sudo', PATH, name],
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT).stdout.decode('utf-8')
-    return output
+
+    try:
+        output = subprocess.run(['sudo', PATH, name],
+                                timeout=5,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT).stdout.decode('utf-8')
+        return output
+
+    except subprocess.TimeoutExpired:
+        return 'Command timed out...'
 
