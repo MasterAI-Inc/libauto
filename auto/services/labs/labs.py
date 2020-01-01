@@ -315,6 +315,12 @@ async def run_forever(system_up_user):
         #Proxy(),
     ]
 
+    for c in consumers:
+        try:
+            await c.init()
+        except:
+            _log_consumer_error(c)
+
     await console.write_text('Attempting to connect...\n')
 
     while True:

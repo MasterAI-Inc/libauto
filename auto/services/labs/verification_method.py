@@ -17,6 +17,9 @@ class Verification:
     def __init__(self, console):
         self.console = console
 
+    async def init(self):
+        pass
+
     async def connected_cdp(self):
         pass
 

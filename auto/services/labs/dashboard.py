@@ -8,11 +8,9 @@
 #
 ###############################################################################
 
-import os
 import uuid
 import asyncio
 import itertools
-import subprocess
 
 import auto
 from auto.camera import draw_frame_index, base64_encode_image
@@ -27,10 +25,15 @@ from util import shutdown, update_libauto
 class Dashboard:
 
     def __init__(self, camera, controller):
-        self.wireless = Wireless(list_wifi_ifaces()[0])   # TODO
+        self.wireless = None
         self.capture_streams = {}
         self.camera = camera
         self.controller = controller
+
+    async def init(self):
+        loop = asyncio.get_running_loop()
+        wifi_ifaces = await loop.run_in_executor(None, list_wifi_ifaces)
+        self.wireless = Wireless(wifi_ifaces[0])
 
     async def connected_cdp(self):
         pass
@@ -78,11 +81,11 @@ class Dashboard:
 
     async def _command(self, command, command_id, user_session, send_func):
         if command == 'shutdown':
-            response = await self.shutdown(reboot=False)
+            response = await shutdown(reboot=False)
         elif command == 'reboot':
-            response = await self.shutdown(reboot=True)
+            response = await shutdown(reboot=True)
         elif command == 'update_libauto':
-            response = await self.update_libauto()
+            response = await update_libauto()
         elif command == 'start_capture_stream':
             response = await self._start_capture_stream(command_id, send_func, user_session)
         elif command == 'stop_capture_stream':
@@ -97,16 +100,17 @@ class Dashboard:
         })
 
     async def _query_component(self, component, query_id, send_func, user_session):
+        loop = asyncio.get_running_loop()
         if component == 'version':
-            return await self._get_version()
+            return auto.__version__
         elif component == 'version_controller':
             return await self._get_cio_version()
         elif component == 'wifi_ssid':
-            return self.wireless.current()  # TODO
+            return await loop.run_in_executor(None, self.wireless.current)
         elif component == 'wifi_iface':
-            return self.wireless.interface  # TODO
+            return self.wireless.interface
         elif component == 'local_ip_addr':
-            return get_ip_address(self.wireless.interface)  # TODO
+            return await loop.run_in_executor(None, get_ip_address, self.wireless.interface)
         elif component == 'capture_one_frame':
             return await self._capture_one_frame(query_id, send_func, user_session)
         else:
@@ -115,8 +119,9 @@ class Dashboard:
     async def _capture_one_frame(self, query_id, send_func, user_session):
         guid = str(uuid.uuid4())
         async def run():
+            loop = asyncio.get_running_loop()
             frame = await self.camera.capture()
-            base64_img = base64_encode_image(frame)
+            base64_img = await loop.run_in_executor(None, base64_encode_image, frame)
             await send_func({
                 'type': 'query_response_async',
                 'query_id': query_id,
@@ -133,10 +138,11 @@ class Dashboard:
         guid = str(uuid.uuid4())
         async def run():
             try:
+                loop = asyncio.get_running_loop()
                 for index in itertools.count():
                     frame = await self.camera.capture()
-                    draw_frame_index(frame, index)
-                    base64_img = base64_encode_image(frame)
+                    await loop.run_in_executor(None, draw_frame_index, frame, index)
+                    base64_img = await loop.run_in_executor(None, base64_encode_image, frame)
                     await send_func({
                         'type': 'command_response_async',
                         'command_id': command_id,
@@ -158,9 +164,6 @@ class Dashboard:
         task.cancel()
         await task
         return True
-
-    async def _get_version(self):
-        return auto.__version__
 
     async def _get_cio_version(self):
         cio_version_iface = await self.controller.acquire('VersionInfo')
