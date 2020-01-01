@@ -21,6 +21,8 @@ from auto.inet import Wireless, list_wifi_ifaces, get_ip_address
 from auto import logger
 log = logger.init(__name__, terminal=True)
 
+from util import shutdown, update_libauto
+
 
 class Dashboard:
 
@@ -76,11 +78,11 @@ class Dashboard:
 
     async def _command(self, command, command_id, user_session, send_func):
         if command == 'shutdown':
-            response = await self._shutdown(reboot=False)
+            response = await self.shutdown(reboot=False)
         elif command == 'reboot':
-            response = await self._shutdown(reboot=True)
+            response = await self.shutdown(reboot=True)
         elif command == 'update_libauto':
-            response = await self._update_libauto()
+            response = await self.update_libauto()
         elif command == 'start_capture_stream':
             response = await self._start_capture_stream(command_id, send_func, user_session)
         elif command == 'stop_capture_stream':
@@ -98,7 +100,7 @@ class Dashboard:
         if component == 'version':
             return await self._get_version()
         elif component == 'version_controller':
-            return await _get_cio_version()
+            return await self._get_cio_version()
         elif component == 'wifi_ssid':
             return self.wireless.current()  # TODO
         elif component == 'wifi_iface':
@@ -129,7 +131,7 @@ class Dashboard:
         if user_session in self.capture_streams:
             return False
         guid = str(uuid.uuid4())
-        def run():
+        async def run():
             try:
                 for index in itertools.count():
                     frame = await self.camera.capture()
@@ -156,18 +158,6 @@ class Dashboard:
         task.cancel()
         await task
         return True
-
-    async def _shutdown(self, reboot):
-        cmd = 'reboot' if reboot else 'poweroff'
-        cmd = cmd.split(' ')
-        output = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.decode('utf-8')
-        return output
-
-    async def _update_libauto(self):
-        cmd = ['update_libauto']
-        log.info("Will update libauto!!!")
-        output = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.decode('utf-8')
-        return output
 
     async def _get_version(self):
         return auto.__version__

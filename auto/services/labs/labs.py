@@ -124,13 +124,13 @@ class ConnectedUserSessions:
         for username, user_session in needs_remove:
             await self.remove_user_session(username, user_session)
 
-    async def has_specific_user_session(self, user_session):
+    def has_specific_user_session(self, user_session):
         return user_session in self.known_user_sessions
 
-    async def has_any_user_sessions(self, username):
+    def has_any_user_sessions(self, username):
         return len(self.known_usernames[username]) > 0
 
-    async def has_any_sessions(self):
+    def has_any_sessions(self):
         return len(self.known_user_sessions) > 0
 
 

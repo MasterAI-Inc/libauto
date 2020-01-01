@@ -12,6 +12,9 @@
 This module contains functions to run external script/programs. This module
 assumes a certain setup of the system, but it tries to fail gracefully if the
 system is not configured as expected.
+
+**NOTE:** All paths here should be specified absolutely. Relative paths
+          can create vulnerabilities.
 """
 
 import subprocess
@@ -25,21 +28,43 @@ async def set_hostname(name):
     return await loop.run_in_executor(None, _set_hostname, name)
 
 
+async def shutdown(reboot=False):
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _shutdown, reboot)
+
+
+async def update_libauto():
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _update_libauto)
+
+
 def _set_hostname(name):
-    PATH = '/usr/local/bin/set_hostname'
-
-    if not os.path.isfile(PATH):
-        return 'The `set_hostname` script not installed; hostname not set.'
-
+    path = '/usr/local/bin/set_hostname'
     name = re.sub(r'[^A-Za-z0-9]', '', name)
+    return _run_command(path, name)
+
+
+def _shutdown(reboot):
+    path = '/sbin/reboot' if reboot else '/sbin/poweroff'
+    return _run_command(path)
+
+
+def _update_libauto():
+    path = '/usr/local/bin/update_libauto'
+    return _run_command(path)
+
+
+def _run_command(path, *args):
+    if not os.path.isfile(path):
+        return 'Error: The script or program at the specified path is not installed on your system.'
 
     try:
-        output = subprocess.run(['sudo', PATH, name],
+        output = subprocess.run(['/usr/bin/sudo', path, *args],
                                 timeout=5,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT).stdout.decode('utf-8')
         return output
 
     except subprocess.TimeoutExpired:
-        return 'Command timed out...'
+        return 'Error: Command timed out...'
 
