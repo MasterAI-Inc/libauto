@@ -76,9 +76,9 @@ class Wireless:
                 _run_cmd("nmcli con delete uuid".split(' ') + [uuid])
 
     def radio_power(self, on=None):
-        if power is True:
+        if on is True:
             _run_cmd('nmcli radio wifi on'.split(' '))
-        elif power is False:
+        elif on is False:
             _run_cmd('nmcli radio wifi off'.split(' '))
         else:
             response = _run_cmd('nmcli radio wifi'.split(' '))
@@ -88,12 +88,15 @@ class Wireless:
 def get_ip_address(ifname):
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        return socket.inet_ntoa(fcntl.ioctl(
+        ret = socket.inet_ntoa(fcntl.ioctl(
             s.fileno(),
             0x8915,  # SIOCGIFADDR
             struct.pack('256s', ifname[:15].encode('utf-8'))
         )[20:24])
+        s.close()
+        return ret
     except:
+        # Humm...
         return None
 
 

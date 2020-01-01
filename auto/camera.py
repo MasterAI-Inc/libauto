@@ -77,6 +77,22 @@ def capture(num_frames=1, verbose=False):
         return frame
 
 
+def draw_frame_index(frame, index,
+                     text_scale=0.75,
+                     text_color=[255, 255, 255],
+                     text_line_width=2):
+    text = "frame {}".format(index)
+    x = 5
+    y = frame.shape[0] - 5
+    cv2.putText(frame,
+                text,
+                (x, y),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                text_scale,
+                text_color,
+                text_line_width)
+
+
 def wrap_frame_index_decorator(camera):
     """
     Wrap `camera` in a decorator which draws the frame index onto
@@ -96,17 +112,11 @@ def wrap_frame_index_decorator(camera):
             self.text_line_width = text_line_width
 
         def _draw_frame_index(self, frame):
-            text = "frame {}".format(self.frame_index)
+            draw_frame_index(frame, self.frame_index,
+                             self.text_scale,
+                             self.text_color,
+                             self.text_line_width)
             self.frame_index += 1
-            x = 5
-            y = frame.shape[0] - 5
-            cv2.putText(frame,
-                        text,
-                        (x, y),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        self.text_scale,
-                        self.text_color,
-                        self.text_line_width)
 
         def capture(self):
             frame = self.decorated.capture()
