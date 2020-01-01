@@ -10,6 +10,8 @@
 
 """
 Module to interface with your AutoAuto device's front-panel console via RPC.
+
+This is a **synchronous** interface.
 """
 
 from auto.asyncio_tools import get_loop

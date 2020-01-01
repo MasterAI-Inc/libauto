@@ -12,6 +12,8 @@
 This module provides many pre-trained and/or pre-configured models which
 enable your device to exhibit more advanced behaviors. These models each
 provide easy interfaces which abstract the underlying algorithms.
+
+This is a **synchronous** interface.
 """
 
 import os

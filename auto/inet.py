@@ -8,14 +8,19 @@
 #
 ###############################################################################
 
+"""
+This module provides utilities for querying and controlling the network
+interfaces of your device.
+
+This is a **synchronous** interface.
+"""
+
 import subprocess
 import socket
 import fcntl
 import struct
-import signal
 import time
 import requests
-from contextlib import contextmanager
 
 
 class Wireless:
@@ -23,8 +28,6 @@ class Wireless:
     Simple python interface to the `nmcli` utility.
     See: https://developer.gnome.org/NetworkManager/stable/nmcli.html
     """
-    interface = None
-
     def __init__(self, interface=None):
         self.interface = interface
 
@@ -100,46 +103,10 @@ def get_ip_address(ifname):
         return None
 
 
-def _raise_error(signum, frame):
-    """This handler will raise an error inside gethostbyname"""
-    raise OSError
-
-
-@contextmanager
-def _set_signal(signum, handler):
-    """Temporarily set signal"""
-    old_handler = signal.getsignal(signum)
-    signal.signal(signum, handler)
-    try:
-        yield
-    finally:
-        signal.signal(signum, old_handler)
-
-
-@contextmanager
-def _set_alarm(time):
-    """Temporarily set alarm"""
-    signal.setitimer(signal.ITIMER_REAL, time)
-    try:
-        yield
-    finally:
-        signal.setitimer(signal.ITIMER_REAL, 0) # Disable alarm
-
-
-@contextmanager
-def _raise_on_timeout(time):
-    """This context manager will raise an OSError unless
-    The with scope is exited in time."""
-    with _set_signal(signal.SIGALRM, _raise_error):
-        with _set_alarm(time):
-            yield
-
-
 def has_internet_access():
     try:
-        with _raise_on_timeout(60.0):
-            params = socket.getaddrinfo('ws.autoauto.ai', 'https', proto=socket.IPPROTO_TCP)[0]
-    except OSError:
+        params = socket.getaddrinfo('ws.autoauto.ai', 'https', proto=socket.IPPROTO_TCP)[0]
+    except:
         return False
     family, type_, proto = params[:3]
     sockaddr = params[4]

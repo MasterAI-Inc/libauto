@@ -11,6 +11,8 @@
 """
 This module provides helper functions for plotting and streaming camera
 frames, or for plotting/streaming any RGB or grey image buffer.
+
+This is a **synchronous** interface.
 """
 
 from auto import console

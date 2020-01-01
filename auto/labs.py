@@ -10,6 +10,8 @@
 
 """
 Module to interface with your AutoAuto Labs account.
+
+This is a **synchronous** interface.
 """
 
 import os
