@@ -154,8 +154,10 @@ async def _handle_message(ws, msg, consumers, console, connected_user_sessions, 
         vin = hello_info['vin']
         name = hello_info['name']
         description = hello_info['description']  # <-- Where should we display this?
-        await console.write_text('Device Name: {}\n'.format(name))
-        await console.write_text('Device VIN:  {}\n'.format(vin))
+        async def write():
+            await console.write_text('Device Name: {}\n'.format(name))
+            await console.write_text('Device VIN:  {}\n'.format(vin))
+        asyncio.create_task(write())
         asyncio.create_task(_set_hostname(name))
 
     else:
@@ -221,6 +223,8 @@ async def _run(ws, consumers, console):
 
     send_func = _build_send_function(ws, connected_user_sessions)
 
+    loop = asyncio.get_running_loop()
+
     for c in consumers:
         try:
             await c.connected_cdp()
@@ -246,7 +250,13 @@ async def _run(ws, consumers, console):
                 log.info('Got pong from server!')
                 continue
 
+            start = loop.time()
             await _handle_message(ws, msg, consumers, console, connected_user_sessions, send_func)
+            end = loop.time()
+
+            if end - start > 0.01:
+                log.warning('Blocking operation suspected; message receiving loop is being throttled; delay={:.04f}'.format(end - start))
+                log.warning('Message was: {}'.format(json.dumps(msg)))
 
     finally:
         await connected_user_sessions.close_all_user_sessions()
