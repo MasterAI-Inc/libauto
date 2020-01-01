@@ -322,7 +322,7 @@ async def run_forever(system_up_user):
         #PtyManager(system_up_user, console),
         Verification(console),
         Dashboard(camera, controller),
-        #Proxy(),
+        Proxy(),
     ]
 
     for c in consumers:

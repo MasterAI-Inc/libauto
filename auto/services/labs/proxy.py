@@ -23,39 +23,26 @@ class Proxy:
     def __init__(self):
         self.connections = {}
 
-    def connected_cdp(self):
-        self.loop = asyncio.new_event_loop()
-        self.thread = Thread(target=self._run_event_loop)
-        self.thread.start()
-        log.info("Started proxy thread.")
-
-    def new_user_session(self, username, user_session):
+    async def init(self):
         pass
 
-    def got_message(self, msg, send_func):
+    async def connected_cdp(self):
+        pass
+
+    async def new_user_session(self, username, user_session):
+        pass
+
+    async def got_message(self, msg, send_func):
         if 'origin' in msg and msg['origin'] == 'proxy':
-            asyncio.run_coroutine_threadsafe(self._new_message(msg, send_func), self.loop)
+            await self._new_message(msg, send_func)
 
-    def end_user_session(self, username, user_session):
+    async def end_user_session(self, username, user_session):
         pass
 
-    def disconnected_cdp(self):
-        log.info("Will stop proxy event loop...")
-        asyncio.run_coroutine_threadsafe(self._shutdown_loop(), self.loop)
-        log.info("Will join with proxy thread...")
-        self.thread.join()
-        self.loop = None
-        self.thread = None
-        log.info("Joined proxy thread!")
+    async def disconnected_cdp(self):
+        await self._close_all_connections()
 
-    def _run_event_loop(self):
-        asyncio.set_event_loop(self.loop)
-        log.info("Proxy event loop will start!")
-        self.loop.run_forever()
-        self.loop.close()
-        log.info("Proxy event loop has stopped.")
-
-    async def _shutdown_loop(self):
+    async def _close_all_connections(self):
         try:
             read_tasks = []
             writers = []
@@ -67,13 +54,11 @@ class Proxy:
 
             for writer in writers:
                 writer.close()
-                #await writer.wait_closed()  # <-- Introduced in Python3.7+
+                await writer.wait_closed()
 
             for read_task in read_tasks:
                 read_task.cancel()
                 await read_task
-
-            self.loop.stop()
 
         except:
             traceback.print_exc(file=sys.stderr)
@@ -86,16 +71,16 @@ class Proxy:
                 port = msg['open']
                 try:
                     reader, writer = await asyncio.wait_for(asyncio.open_connection('localhost', port), 1.0)
-                    send_func({
+                    await send_func({
                         'type': 'proxy_send',
                         'channel': channel,
                         'data_b85': base64.b85encode(b'==local-connection-success==').decode('ascii'),
                     })
-                    read_task = asyncio.ensure_future(self._read(channel, reader, send_func))  # <-- Change `asyncio.ensure_future` to `asyncio.create_task` in Python3.7+.
+                    read_task = asyncio.create_task(self._read(channel, reader, send_func))
                     self.connections[channel] = (reader, writer, read_task)
                     log.info('Opened proxy for: {}'.format(channel))
                 except (asyncio.TimeoutError, ConnectionRefusedError, OSError) as e:
-                    send_func({
+                    await send_func({
                         'type': 'proxy_send',
                         'channel': channel,
                         'data_b85': base64.b85encode(b'==local-connection-failed==').decode('ascii'),
@@ -107,7 +92,7 @@ class Proxy:
                     reader, writer, read_task = self.connections[channel]
                     del self.connections[channel]
                     writer.close()
-                    #await writer.wait_closed()  # <-- Introduced in Python3.7+
+                    await writer.wait_closed()
                     read_task.cancel()
                     await read_task
                     log.info('Closed proxy for: {}'.format(channel))
@@ -138,7 +123,7 @@ class Proxy:
             while True:
                 buf = await reader.read(4096)
                 extra = {'close': True} if buf == b'' else {}
-                send_func({
+                await send_func({
                     'type': 'proxy_send',
                     'channel': channel,
                     'data_b85': base64.b85encode(buf).decode('ascii'),
