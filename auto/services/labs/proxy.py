@@ -12,7 +12,6 @@ import sys
 import base64
 import asyncio
 import traceback
-from threading import Thread
 
 from auto import logger
 log = logger.init(__name__, terminal=True)
@@ -21,52 +20,63 @@ log = logger.init(__name__, terminal=True)
 class Proxy:
 
     def __init__(self):
-        self.connections = {}
+        pass
 
     async def init(self):
         pass
 
     async def connected_cdp(self):
-        pass
+        self.connections = {}   # maps channel to task
 
     async def new_user_session(self, username, user_session):
         pass
 
     async def got_message(self, msg, send_func):
         if 'origin' in msg and msg['origin'] == 'proxy':
-            await self._new_message(msg, send_func)
+            channel = msg['channel']
+
+            if 'open' in msg:
+                if channel in self.connections:
+                    log.error('Request to open an already open connection: {}'.format(channel))
+                    return
+                queue = asyncio.Queue()
+                queue.put_nowait(msg)
+                task = asyncio.create_task(_manage_connection(channel, queue, send_func))
+                self.connections[channel] = (task, queue)
+
+            elif 'close' in msg:
+                if channel not in self.connections:
+                    log.error('Request to close an unknown connection: {}'.format(channel))
+                    return
+                task, queue = self.connections[channel]
+                del self.connections[channel]
+                task.cancel()
+
+            else:
+                if channel not in self.connections:
+                    log.error('Request to write to an unknown connection: {}'.format(channel))
+                    return
+                task, queue = self.connections[channel]
+                queue.put_nowait(msg)
 
     async def end_user_session(self, username, user_session):
         pass
 
     async def disconnected_cdp(self):
-        await self._close_all_connections()
+        for channel, (task, queue) in self.connections.items():
+            task.cancel()
+        self.connections = {}
 
-    async def _close_all_connections(self):
-        try:
-            read_tasks = []
-            writers = []
-            for channel, (reader, writer, read_task) in self.connections.items():
-                writers.append(writer)
-                read_tasks.append(read_task)
 
-            self.connections = {}
+async def _manage_connection(channel, queue, send_func):
+    reader = None
+    writer = None
+    read_task = None
 
-            for writer in writers:
-                writer.close()
-                await writer.wait_closed()
+    try:
+        while True:
+            msg = await queue.get()
 
-            for read_task in read_tasks:
-                read_task.cancel()
-                await read_task
-
-        except:
-            traceback.print_exc(file=sys.stderr)
-
-    async def _new_message(self, msg, send_func):
-        channel = msg['channel']
-
-        try:
             if 'open' in msg:
                 port = msg['open']
                 try:
@@ -76,9 +86,6 @@ class Proxy:
                         'channel': channel,
                         'data_b85': base64.b85encode(b'==local-connection-success==').decode('ascii'),
                     })
-                    read_task = asyncio.create_task(self._read(channel, reader, send_func))
-                    self.connections[channel] = (reader, writer, read_task)
-                    log.info('Opened proxy for: {}'.format(channel))
                 except (asyncio.TimeoutError, ConnectionRefusedError, OSError) as e:
                     await send_func({
                         'type': 'proxy_send',
@@ -86,56 +93,72 @@ class Proxy:
                         'data_b85': base64.b85encode(b'==local-connection-failed==').decode('ascii'),
                         'close': True,
                     })
+                    return
+                read_task = asyncio.create_task(_read(channel, reader, send_func))
+                log.info('Opened connection: {}'.format(channel))
 
             elif 'close' in msg:
-                if channel in self.connections:
-                    reader, writer, read_task = self.connections[channel]
-                    del self.connections[channel]
-                    writer.close()
-                    await writer.wait_closed()
-                    read_task.cancel()
-                    await read_task
-                    log.info('Closed proxy for: {}'.format(channel))
+                writer.close()
+                await writer.wait_closed()
+                writer = None
+                read_task.cancel()
+                await read_task
+                read_task = None
+                log.info('Closed connection: {}'.format(channel))
 
             else:
-                if channel in self.connections:
-                    reader, writer, read_task = self.connections[channel]
-                    buf = base64.b85decode(msg['data_b85'])
-                    if buf != b'':
-                        writer.write(buf)
-                        await writer.drain()
-                    else:
-                        writer.write_eof()
-                        await writer.drain()
+                buf = base64.b85decode(msg['data_b85'])
+                if buf != b'':
+                    writer.write(buf)
+                else:
+                    writer.write_eof()
+                await writer.drain()
 
-        except:
-            traceback.print_exc(file=sys.stderr)
+    except asyncio.CancelledError:
+        log.info('Connection told to cancel: {}'.format(channel))
 
-    async def _read(self, channel, reader, send_func):
-        # NOTE: The process below is a little simplified. It assumes
-        # that we want to close the connection as soon as we see EOF on
-        # the reader. This isn't strictly correct. It's possible a TCP
-        # connection can write EOF but still expect to read data. We
-        # should revisit this in the future. For now, it works for all
-        # the application-layer protocols we care about (i.e. HTTP/Websockets).
+    except:
+        log.error('Unknown exception in in manager for connection: {}'.format(channel))
+        traceback.print_exc(file=sys.stderr)
 
-        try:
-            while True:
-                buf = await reader.read(4096)
-                extra = {'close': True} if buf == b'' else {}
-                await send_func({
-                    'type': 'proxy_send',
-                    'channel': channel,
-                    'data_b85': base64.b85encode(buf).decode('ascii'),
-                    **extra
-                })
-                if buf == b'':
-                    log.info("Read task ending: {}".format(channel))
-                    break
+    finally:
+        if writer is not None:
+            writer.close()
+            await writer.wait_closed()
+            log.info('Writer closed for connection: {}'.format(channel))
 
-        except asyncio.CancelledError:
-            log.info("Read task canceled: {}".format(channel))
+        if read_task is not None:
+            read_task.cancel()
+            await read_task
+            log.info('Read task canceled for connection: {}'.format(channel))
 
-        except:
-            traceback.print_exc(file=sys.stderr)
+
+async def _read(channel, reader, send_func):
+    # NOTE: The process below is a little simplified. It assumes
+    # that we want to close the connection as soon as we see EOF on
+    # the reader. This isn't strictly correct. It's possible a TCP
+    # connection can write EOF but still expect to read data. We
+    # should revisit this in the future. For now, it works for all
+    # the application-layer protocols we care about (i.e. HTTP/Websockets).
+
+    try:
+        while True:
+            buf = await reader.read(4096)
+            extra = {'close': True} if buf == b'' else {}
+            await send_func({
+                'type': 'proxy_send',
+                'channel': channel,
+                'data_b85': base64.b85encode(buf).decode('ascii'),
+                **extra
+            })
+            if buf == b'':
+                log.info('Read task saw EOF for connection: {}'.format(channel))
+                break
+
+    except asyncio.CancelledError:
+        log.info('Read task told to cancel for connection: {}'.format(channel))
+
+    except:
+        log.error('Unknown exception in in reader for connection: {}'.format(channel))
+        traceback.print_exc(file=sys.stderr)
 
