@@ -41,25 +41,26 @@ async def update_libauto():
 def _set_hostname(name):
     path = '/usr/local/bin/set_hostname'
     name = re.sub(r'[^A-Za-z0-9]', '', name)
-    return _run_command(path, name)
+    return _run_command(True, path, name)
 
 
 def _shutdown(reboot):
     path = '/sbin/reboot' if reboot else '/sbin/poweroff'
-    return _run_command(path)
+    return _run_command(True, path)
 
 
 def _update_libauto():
     path = '/usr/local/bin/update_libauto'
-    return _run_command(path)
+    return _run_command(False, path)
 
 
-def _run_command(path, *args):
+def _run_command(use_sudo, path, *args):
     if not os.path.isfile(path):
         return 'Error: The script or program at the specified path is not installed on your system.'
 
     try:
-        output = subprocess.run(['/usr/bin/sudo', path, *args],
+        cmd = ['/usr/bin/sudo', path, *args] if use_sudo else [path, *args]
+        output = subprocess.run(cmd,
                                 timeout=5,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT).stdout.decode('utf-8')

@@ -105,6 +105,7 @@ def get_ip_address(ifname):
 
 def has_internet_access():
     try:
+        # Consider instead: https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.getaddrinfo
         params = socket.getaddrinfo('ws.autoauto.ai', 'https', proto=socket.IPPROTO_TCP)[0]
     except:
         return False
