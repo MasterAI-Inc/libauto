@@ -36,10 +36,10 @@ class Dashboard:
         self.wireless = Wireless(wifi_ifaces[0])
 
     async def connected_cdp(self):
-        pass
+        self.known_user_sessions = set()
 
     async def new_user_session(self, username, user_session):
-        pass
+        self.known_user_sessions.add(user_session)
 
     async def got_message(self, msg, send_func):
         if 'origin' in msg and msg['origin'] == 'user' and 'type' in msg:
@@ -63,10 +63,11 @@ class Dashboard:
             asyncio.create_task(coro)
 
     async def end_user_session(self, username, user_session):
+        self.known_user_sessions.remove(user_session)
         await self._stop_capture_stream(user_session)
 
     async def disconnected_cdp(self):
-        pass   # we do all the cleanup in `end_user_session`
+        self.known_user_sessions = set()
 
     async def _query(self, components, query_id, user_session, send_func):
         response = {}
@@ -134,6 +135,14 @@ class Dashboard:
 
     async def _start_capture_stream(self, command_id, send_func, user_session):
         if user_session in self.capture_streams:
+            # A single user session needs at most one camera stream.
+            return False
+        if user_session not in self.known_user_sessions:
+            # This isn't a security issue; it's a race condition issue.
+            # Because this method is run as a task, it's possible this method
+            # is running after we receive notice the user has disconnected.
+            # Thus, this check prevents creating a stream which will stream
+            # to no-one and will never halt.
             return False
         guid = str(uuid.uuid4())
         async def run():
