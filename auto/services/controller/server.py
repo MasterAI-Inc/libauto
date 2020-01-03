@@ -27,7 +27,7 @@ import importlib
 from auto import logger
 log = logger.init('controller_rpc_server', terminal=True)
 
-from cio_inspector import build_cio_method_map, get_abc_superclass_name
+from auto.services.controller.cio_inspector import build_cio_method_map, get_abc_superclass_name
 
 
 async def _get_cio_implementation():
@@ -80,7 +80,7 @@ def _wrap_value_in_async_func(val):
     return get
 
 
-async def init(loop):
+async def init():
     cio_root, caps = await _get_cio_implementation()
 
     if caps is None:
@@ -138,7 +138,7 @@ async def init(loop):
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    server = loop.run_until_complete(init(loop))
+    server = loop.run_until_complete(init())
     if server is not None:
         loop.run_forever()
 

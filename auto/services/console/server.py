@@ -79,7 +79,7 @@ async def _get_cui_implementation():
     return None, None
 
 
-async def init(loop):
+async def init():
     cui_root, _ = await _get_cui_implementation()
 
     if cui_root is None:
@@ -102,7 +102,7 @@ async def init(loop):
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    server = loop.run_until_complete(init(loop))
+    server = loop.run_until_complete(init())
     if server is not None:
         loop.run_forever()
 

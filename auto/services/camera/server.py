@@ -148,9 +148,8 @@ def _init_interface(loop, outer_frame_callback):
     return CameraRGB_RPC, pubsub
 
 
-async def init(loop=None):
-    if loop is None:
-        loop = asyncio.get_event_loop()
+async def init():
+    loop = asyncio.get_event_loop()
 
     async def frame_callback(frame):
         await publish_func('stream', frame)
@@ -166,6 +165,6 @@ async def init(loop=None):
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(init(loop))
+    loop.run_until_complete(init())
     loop.run_forever()
 
