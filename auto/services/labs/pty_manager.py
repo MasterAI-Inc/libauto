@@ -392,6 +392,51 @@ async def _clear_console(console):
     await console.clear_image()
 
 
+class PtyProcess:
+    """
+    Expose the relevant behavior of this process.
+
+    FUTURE TODO: It would be nice if we didn't rely on executors in this, but
+                 I've yet to figure out how to plug these FDs into they asyncio
+                 event loop properly... ugh.
+    """
+    def __init__(self, stdin, stdout, stderr, proc, loop):
+        self.stdin = stdin
+        self.stdout = stdout
+        self.stderr = stderr
+        self.proc = proc
+        self.loop = loop
+
+    async def write_stdin(self, buf):
+        """Write the buffer; don't return until the whole thing is written!"""
+        n = 0
+        while n < len(buf):
+            n_here = await self.loop.run_in_executor(None, os.write, self.stdin, buf[n:])  # <-- Warning: O(n^2) in the worst case; but okay in typical case.
+            n += n_here
+
+    async def read_stdout(self):
+        """Read a chunk of bytes from stdout; whatever is available first. Return an empty buffer on EOF."""
+        return await self._read(self.stdout)
+
+    async def read_stderr(self):
+        """Read a chunk of bytes from stderr; whatever is available first. Return an empty buffer on EOF."""
+        return await self._read(self.stderr)
+
+    async def _read(self, fd):
+        try:
+            return await self.loop.run_in_executor(None, os.read, fd, 4096)
+        except OSError:
+            # PTYs throw OSError when they hit EOF, for some reason.
+            # Pipes and regular files don't throw, so PTYs are unique.
+            return b''
+
+    async def close_func(self):
+        """Close the underlying file descriptors; don't leak FDs!"""
+        os.close(self.stdin)
+        os.close(self.stdout)
+        os.close(self.stderr)
+
+
 async def _run_pty_cmd_background(cmd, system_user, env_override=None, start_dir_override=None, size=None):
     loop = asyncio.get_running_loop()
 
@@ -449,41 +494,17 @@ async def _run_pty_cmd_background(cmd, system_user, env_override=None, start_dir
     os.close(fd_slave_io)
     os.close(fd_slave_er)
 
-    stdin_file = os.fdopen(fd_master_io, 'wb')
-    stdout_file = os.fdopen(os.dup(fd_master_io), 'rb')
-    stderr_file = os.fdopen(fd_master_er, 'rb')
-
-    def close_func():
-        stdin_file.close()
-        stdout_file.close()
-        stderr_file.close()
-
-    stdin_protocol = asyncio.StreamReaderProtocol(asyncio.StreamReader())
-    stdin_transport, _ = await loop.connect_write_pipe(
-        lambda: stdin_protocol,
-        stdin_file
-    )
-    stdin = asyncio.StreamWriter(stdin_transport, stdin_protocol, None, loop)
-
-    stdout = asyncio.StreamReader()
-    _, _ = await loop.connect_read_pipe(
-        lambda: asyncio.StreamReaderProtocol(stdout),
-        stdout_file
-    )
-
-    stderr = asyncio.StreamReader()
-    _, _ = await loop.connect_read_pipe(
-        lambda: asyncio.StreamReaderProtocol(stderr),
-        stderr_file
-    )
+    stdin = fd_master_io
+    stdout = os.dup(fd_master_io)
+    stderr = fd_master_er
 
     if size is None:
         size = (24, 80)
     else:
         size = (size['rows'], size['cols'])
-    setwinsize(fd_master_io, *size)
+    setwinsize(stdin, *size)
 
-    return stdin, stdout, stderr, proc, close_func, fd_master_io
+    return PtyProcess(stdin, stdout, stderr, proc, loop)
 
 
 async def _new_session(self, xterm_guid, username, user_session, send_func, settings):
