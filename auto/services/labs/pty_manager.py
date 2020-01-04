@@ -8,20 +8,20 @@
 #
 ###############################################################################
 
-from ptyprocess import PtyProcess         # <-- read/write in binary
-from ptyprocess import PtyProcessUnicode  # <-- read/write in unicode
+import os
+import re
+import pwd
+import time
+import base64
 
-from auto import console
+import fcntl
+import struct
+import termios
+
+import asyncio
 
 from contextlib import contextmanager
-from threading import Thread, Lock
-from queue import Queue, Empty
-import pwd
-import base64
-import subprocess
-import os
-import time
-import re
+
 
 NAGLE_STYLE_DELAY = 0.1
 
@@ -206,7 +206,8 @@ class PtyManager:
                 return
 
             if 'clear_screen' in settings and settings['clear_screen']:
-                await _clear_console(self.console)
+                pass
+                #await _clear_console(self.console)  <-- TODO UNCOMMNET
 
             if 'code_to_run' in settings:
                 code_path = self._write_code_from_cdp(xterm_guid, settings['code_to_run'])
@@ -269,7 +270,7 @@ class PtyManager:
 
 
 
-    def _write_code_from_cdp(self, xterm_guid, code_str):
+    async def _write_code_from_cdp(self, xterm_guid, code_str):
         uid, gid, home = await _user_uid_gid_home(self.system_up_user)
         with _switch_to_user(uid, gid):
             subdirs = xterm_guid[0:2], xterm_guid[2:4], xterm_guid[4:6], xterm_guid[6:8], xterm_guid
@@ -330,7 +331,7 @@ def setwinsize(stdin, rows, cols):
     fcntl.ioctl(stdin, termios.TIOCSWINSZ, s)
 
 
-await def _run_subprocess(cmd, system_user):
+async def _run_subprocess(cmd, system_user):
     # This runs a command _without_ a TTY.
     # Use `_run_pty_cmd_background()` when you need a TTY.
     cmd = ['sudo', '-u', system_user, '-i'] + cmd
@@ -391,24 +392,20 @@ async def _clear_console(console):
     await console.clear_image()
 
 
-def _run_pty_cmd_background(cmd, xterm_guid, send_func, username, user_session, system_user,
-                            env_override=None, start_dir_override=None, size=None):
+async def _run_pty_cmd_background(cmd, system_user, env_override=None, start_dir_override=None, size=None):
+    loop = asyncio.get_running_loop()
+
+    pw_record = await loop.run_in_executor(None, pwd.getpwnam, system_user)
+
+    if start_dir_override is None:
+        start_dir_override = pw_record.pw_dir
+
     env = dict(os.environ.copy())
 
     env['TERM'] = 'xterm-256color'   # background info: https://unix.stackexchange.com/a/198949
 
     if env_override is not None:
         env.update(env_override)
-
-    if size is None:
-        size = (24, 80)
-    else:
-        size = (size['rows'], size['cols'])
-
-    pw_record = await loop.run_in_executor(None, pwd.getpwnam, system_user)
-
-    if start_dir_override is None:
-        start_dir_override = pw_record.pw_dir
 
     env['HOME'    ] = pw_record.pw_dir
     env['LOGNAME' ] = pw_record.pw_name
@@ -423,64 +420,74 @@ def _run_pty_cmd_background(cmd, xterm_guid, send_func, username, user_session, 
     env = {k: v for k, v in env.items() if not k.startswith('SUDO_') and not k.startswith('XDG_')}
 
     def switch_user():
+        return   # <-- TODO
         os.setgid(pw_record.pw_gid)
         os.initgroups(system_user, pw_record.pw_gid)
         os.setuid(pw_record.pw_uid)
 
-    fd_master_io, fd_slave_io = os.openpty()  # run this in an executor?
-    fd_master_er, fd_slave_er = os.openpty()  # run this in an executor?
+    fd_master_io, fd_slave_io = os.openpty()
+    fd_master_er, fd_slave_er = os.openpty()
     try:
-        p = await asyncio.create_subprocess_exec(
+        proc = await asyncio.create_subprocess_exec(
                 *cmd,
-                #bufsize=0,
                 stdin=fd_slave_io,
                 stdout=fd_slave_io,
                 stderr=fd_slave_er,
                 cwd=start_dir_override,
                 env=env,
-                #start_new_session=True, ??
                 preexec_fn=switch_user,
         )
     except:
-        os.close(fd_master_io)  # run these in an executor?
+        os.close(fd_master_io)
         os.close(fd_slave_io)
         os.close(fd_master_er)
         os.close(fd_slave_er)
         raise
 
-    os.close(fd_slave_io)  # run these in an executor?
+    os.close(fd_slave_io)
     os.close(fd_slave_er)
 
-    #os.make_nonblocking(fd_master_io)  ??
-    #os.make_nonblocking(fd_master_er)  ??
+    stdin_file = os.fdopen(fd_master_io, 'wb')
+    stdout_file = os.fdopen(os.dup(fd_master_io), 'rb')
+    stderr_file = os.fdopen(fd_master_er, 'rb')
+
+    if size is None:
+        size = (24, 80)
+    else:
+        size = (size['rows'], size['cols'])
+    setwinsize(fd_master_io, *size)  # TODO pass this FD along for future calls to setwinsize()
+
+    def close_func():
+        stdin_file.close()
+        stdout_file.close()
+        stderr_file.close()
+
+    stdin_protocol = asyncio.StreamReaderProtocol(asyncio.StreamReader())
+    stdin_transport, _ = await loop.connect_write_pipe(
+        lambda: stdin_protocol,
+        stdin_file  # TODO DUP?
+    )
+    stdin = asyncio.StreamWriter(stdin_transport, stdin_protocol, None, loop)
 
     stdout = asyncio.StreamReader()
     _, _ = await loop.connect_read_pipe(
         lambda: asyncio.StreamReaderProtocol(stdout),
-        os.fdopen(fd_master_io, 'rb')
+        stdout_file
     )
 
     stderr = asyncio.StreamReader()
     _, _ = await loop.connect_read_pipe(
         lambda: asyncio.StreamReaderProtocol(stderr),
-        os.fdopen(fd_master_er, 'rb')
+        stderr_file
     )
 
-    stdin_transport, _ = await loop.connect_write_pipe(
-        lambda: asyncio.StreamReaderProtocol(asyncio.StreamReader()),
-        os.fdopen(os.dup(fd_master_io), 'wb')
-    )
-    stdin = asyncio.StreamWriter(stdin_transport, write_protocol, None, loop)
-
-    setwinsize(stdin.fileno(), *size)  # executor?
-
-    return stdin, stdout, stderr, p
+    return stdin, stdout, stderr, proc, close_func
 
 
 async def _new_session(self, xterm_guid, username, user_session, send_func, settings):
     session_name = await _next_tmux_session_name(self.system_up_user)
     start_dir = '~' if 'start_dir' not in settings else settings['start_dir']
-    cmd = ['tmux' 'new' '-c', start_dir, '-s', session_name
+    cmd = ['tmux' 'new' '-c', start_dir, '-s', session_name]
     if 'cmd' in settings:
         cmd.extend(settings['cmd'])  # <-- becomes the shell argument to tmux
     size = settings.get('size', None)
