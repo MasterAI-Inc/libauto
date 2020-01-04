@@ -319,7 +319,7 @@ async def run_forever(system_up_user):
     url = BASE_URL + '/' + token
 
     consumers = [
-        #PtyManager(system_up_user, console),
+        PtyManager(system_up_user, console),
         Verification(console),
         Dashboard(camera, controller),
         Proxy(),

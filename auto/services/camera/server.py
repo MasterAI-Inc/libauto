@@ -149,7 +149,7 @@ def _init_interface(loop, outer_frame_callback):
 
 
 async def init():
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     async def frame_callback(frame):
         await publish_func('stream', frame)

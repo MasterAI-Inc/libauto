@@ -25,87 +25,72 @@ import re
 
 NAGLE_STYLE_DELAY = 0.1
 
-
-@contextmanager
-def switch_to_user(uid, gid):
-    sgid = os.getgid()  # the "saved" gid
-    suid = os.getuid()  # the "saved" uid
-    try:
-        os.setegid(gid)
-        os.seteuid(uid)
-        yield
-    finally:
-        os.setegid(sgid)
-        os.seteuid(suid)
+TMUX_LOCK = asyncio.Lock()   # lock to protect tmux commands; we only want to execute one at a time
 
 
 class PtyManager:
 
-    def __init__(self, system_up_user, system_priv_user):
-        self.pty_lookup_lock = Lock()
-        self.pty_lookup = {}
+    def __init__(self, system_up_user, console):
         self.system_up_user = system_up_user
-        self.system_priv_user = system_priv_user
+        self.console = console
+        log.info("Will run the PTY manager using the unprivileged user: {}".format(system_up_user))
 
-
-    def _user_uid_gid_home(self, system_user):
-        pw_record = pwd.getpwnam(system_user)
-        uid = pw_record.pw_uid
-        gid = pw_record.pw_gid
-        home = pw_record.pw_dir
-        return uid, gid, home
-
-
-    def _run_subprocess(self, cmd, system_user):
-        # This runs a command without a TTY, which is fine for most commands.
-        # If you need a TTY, you should call `_run_pty_cmd_background` instead.
-        cmd = ['sudo', '-u', system_user, '-i'] + cmd
-        output = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.decode('utf-8')
-        return output
-
-
-    def connected_cdp(self):
+    async def init(self):
         pass
 
+    async def connected_cdp(self):
+        self.xterm_lookup = {}    # map xterm_guid to (task, queue)
 
-    def new_user_session(self, username, user_session):
+    async def new_user_session(self, username, user_session):
         pass
 
-
-    def got_message(self, msg, send_func):
+    async def got_message(self, msg, send_func):
         if 'origin' in msg and msg['origin'] == 'user' and 'type' in msg:
-            if msg['type'] == 'new_session':
-                self._new_session(msg['xterm_guid'], msg['username'], msg['user_session'], send_func, msg)
+            type_ = msg['type']
 
-            elif msg['type'] == 'attach_session':
-                self._attach_session(msg['xterm_guid'], msg['session_name'], msg['username'], msg['user_session'], send_func, msg)
+            if type_ in ('new_session', 'attach_session', 'start_process'):
+                xterm_guid = msg['xterm_guid']
+                if xterm_guid in self.xterm_lookup:
+                    log.error('The xterm_guid={} already exists; invalid for type={}'.format(xterm_guid, type_))
+                    return
+                queue = asyncio.Queue()
+                queue.put_nowait(msg)
+                coro = _pty_process_manager(xterm_guid, queue, send_func, self.system_up_user)
+                task = asyncio.create_task(coro)
+                self.xterm_lookup[xterm_guid] = (task, queue)
 
-            elif msg['type'] == 'start_process':
-                self._start_process(msg['xterm_guid'], msg['username'], msg['user_session'], msg.get('cmd', None), send_func, msg)
+            elif type_ in ('kill_process', 'xterm_resized', 'send_input_to_pty'):
+                xterm_guid = msg['xterm_guid']
+                if xterm_guid not in self.xterm_lookup:
+                    log.error('The xterm_guid={} does not exist; invalid for type={}'.format(xterm_guid, type_))
+                    return
+                task, queue = self.xterm_lookup[xterm_guid]
+                if type_ == 'kill_process':
+                    task.cancel()
+                    del self.xterm_lookup[xterm_guid]
+                else:
+                    queue.put_nowait(msg)
 
-            elif msg['type'] == 'kill_process':
-                self._kill_process(msg['xterm_guid'])
+            elif type_ == 'kill_session':
+                session_name = msg['session_name']
+                coro = _kill_session(session_name, self.system_up_user)
+                asyncio.create_task(coro)
 
-            elif msg['type'] == 'xterm_resized':
-                self._xterm_resized(msg['xterm_guid'], msg['size'])
+            elif type_ == 'list_sessions':
+                user_session = msg['user_session']
+                coro = _list_sessions(send_func, user_session, self.system_up_user)
+                asyncio.create_task(coro)
 
-            elif msg['type'] == 'send_input_to_pty':
-                self._send_input_to_pty(msg['xterm_guid'], msg['input'])
+            elif type_ == 'list_running':
+                user_session = msg['user_session']
+                coro = _list_running(send_func, user_session)
+                asyncio.create_task(coro)
 
-            elif msg['type'] == 'kill_session':
-                self._kill_session(msg['session_name'])
+            elif type_ == 'clear_screen':
+                coro = _clear_console(self.console)
+                asyncio.create_task(coro)
 
-            elif msg['type'] == 'list_sessions':
-                self._list_sessions(send_func, msg['user_session'])
-
-            elif msg['type'] == 'list_running':
-                self._list_running(send_func, msg['user_session'])
-
-            elif msg['type'] == 'clear_screen':
-                self._clear_screen()
-
-
-    def end_user_session(self, username, user_session):
+    async def end_user_session(self, username, user_session):
         """
         We need to kill all ptys started by this user_session.
         Note: If you kill a `tmux` process which is attached to some session,
@@ -120,33 +105,8 @@ class PtyManager:
         for pty in need_close:
             pty.terminate(force=True)  # <-- does SIGHUP, SIGINT, then SIGKILL
 
-
-    def disconnected_cdp(self):
+    async def disconnected_cdp(self):
         self.end_user_session(None, None)   # <-- flag to end ALL sessions
-
-
-    def _tmux_ls(self):
-        output = self._run_subprocess(['tmux', 'ls'], self.system_up_user)
-        if output.startswith('no server'):
-            return []
-        session_names = []
-        for line in output.split('\n'):
-            parts = line.split(': ')
-            if len(parts) == 2:
-                session_names.append(parts[0])
-        return sorted(session_names)
-
-
-    def _next_tmux_session_name(self):
-        """Like OS FDs, finds the first unused tmux number."""
-        curr_names = set(self._tmux_ls())
-        i = 0
-        while True:
-            candiate_name = 'cdp_{}'.format(i)
-            if candiate_name not in curr_names:
-                return candiate_name
-            i += 1
-
 
     def _run_pty_main(self, xterm_guid, pty, send_func, user_session):
         queue = Queue()
@@ -215,91 +175,6 @@ class PtyManager:
                 del self.pty_lookup[xterm_guid]
 
 
-    def _run_pty_cmd_background(self, cmd, xterm_guid, send_func, username, user_session, system_user,
-                                env_override=None, start_dir_override=None, size=None):
-        env = dict(os.environ.copy())
-
-        env['TERM'] = 'xterm-256color'   # background info: https://unix.stackexchange.com/a/198949
-
-        if env_override is not None:
-            env.update(env_override)
-
-        if size is None:
-            size = (24, 80)
-        else:
-            size = (size['rows'], size['cols'])
-
-        pw_record = pwd.getpwnam(system_user)
-
-        if start_dir_override is None:
-            start_dir_override = pw_record.pw_dir
-
-        env['HOME'    ] = pw_record.pw_dir
-        env['LOGNAME' ] = pw_record.pw_name
-        env['USER'    ] = pw_record.pw_name
-        env['USERNAME'] = pw_record.pw_name
-        env['SHELL'   ] = pw_record.pw_shell
-        env['UID'     ] = str(pw_record.pw_uid)
-        env['PWD'     ] = start_dir_override
-        if 'OLDPWD' in env: del env['OLDPWD']
-        if 'MAIL'   in env: del env['MAIL']
-
-        env = {k: v for k, v in env.items() if not k.startswith('SUDO_') and not k.startswith('XDG_')}
-
-        def switch_user():
-            os.setgid(pw_record.pw_gid)
-            os.initgroups(system_user, pw_record.pw_gid)
-            os.setuid(pw_record.pw_uid)
-
-        pty = PtyProcess.spawn(
-                cmd,
-                env=env,
-                cwd=start_dir_override,
-                dimensions=size,
-                preexec_fn=switch_user,
-        )  # See: http://pexpect.readthedocs.io/en/latest/FAQ.html#whynotpipe   and   https://stackoverflow.com/a/20509641
-
-        pty.delayafterclose     = 2   # <-- override the default which is 0.1
-        pty.delayafterterminate = 2   # <-- override the default which is 0.1
-        self.pty_lookup[xterm_guid] = pty
-        Thread(target=self._run_pty_main, args=(xterm_guid, pty, send_func, user_session)).start()
-        pty.start_time = time.time()
-        return pty
-
-
-    def _new_session(self, xterm_guid, username, user_session, send_func, settings):
-        with self.pty_lookup_lock:
-            if xterm_guid in self.pty_lookup:
-                # This pty already exists... :/
-                return
-
-            session_name = self._next_tmux_session_name()
-            start_dir = '~' if 'start_dir' not in settings else settings['start_dir']
-            cmd = 'tmux new -c {} -s {}'.format(start_dir, session_name)
-            cmd = cmd.split(' ')   # <-- safe because we only take input from our trusted CDP, which only takes input from authorized users
-            if 'cmd' in settings:
-                cmd.extend(settings['cmd'])  # <-- becomes the shell argument
-            size = settings.get('size', None)
-            pty = self._run_pty_cmd_background(
-                    cmd=cmd,
-                    xterm_guid=xterm_guid,
-                    send_func=send_func,
-                    username=username,
-                    user_session=user_session,
-                    system_user=self.system_up_user,
-                    size=size
-            )
-            pty.user_session = user_session
-            pty.description = "Attached session: {}".format(session_name)
-            pty.cmd = cmd
-            send_func({
-                'type': 'new_session_name_announcement',
-                'session_name': session_name,
-                'xterm_guid': xterm_guid,
-                'to_user_session': user_session,
-            })
-
-
     def _attach_session(self, xterm_guid, session_name, username, user_session, send_func, settings):
         with self.pty_lookup_lock:
             if xterm_guid in self.pty_lookup:
@@ -331,7 +206,7 @@ class PtyManager:
                 return
 
             if 'clear_screen' in settings and settings['clear_screen']:
-                self._clear_screen()
+                await _clear_console(self.console)
 
             if 'code_to_run' in settings:
                 code_path = self._write_code_from_cdp(xterm_guid, settings['code_to_run'])
@@ -393,28 +268,10 @@ class PtyManager:
         pty.write(input_buf)
 
 
-    def _kill_session(self, session_name):
-        # Since we do everything through tmux, we'll just ask tmux to kill the session.
-        # Interesting info here though, for those who want to learn something:
-        #     https://github.com/jupyter/terminado/blob/master/terminado/management.py#L74
-        #     https://unix.stackexchange.com/a/88742
-        cmd = "tmux kill-session -t".split(' ') + [session_name]
-        output = self._run_subprocess(cmd, self.system_up_user)
-
-
-    def _list_sessions(self, send_func, user_session):
-        with self.pty_lookup_lock:
-            session_names = self._tmux_ls()
-        send_func({
-            'type': 'session_list',
-            'session_names': session_names,
-            'to_user_session': user_session,
-        })
-
 
     def _write_code_from_cdp(self, xterm_guid, code_str):
-        uid, gid, home = self._user_uid_gid_home(self.system_up_user)
-        with switch_to_user(uid, gid):
+        uid, gid, home = await _user_uid_gid_home(self.system_up_user)
+        with _switch_to_user(uid, gid):
             subdirs = xterm_guid[0:2], xterm_guid[2:4], xterm_guid[4:6], xterm_guid[6:8], xterm_guid
             directory = os.path.join(home, '.cdp_runs', *subdirs)
             if not os.path.exists(directory):
@@ -447,44 +304,248 @@ class PtyManager:
         })
 
 
-    def _clear_screen(self):
-        console.clear()
+@contextmanager
+def _switch_to_user(uid, gid):
+    sgid = os.getgid()  # the "saved" gid
+    suid = os.getuid()  # the "saved" uid
+    try:
+        os.setegid(gid)
+        os.seteuid(uid)
+        yield
+    finally:
+        os.setegid(sgid)
+        os.seteuid(suid)
 
 
-if __name__ == '__main__':
-    """Demo"""
+async def _user_uid_gid_home(system_user):
+    pw_record = await loop.run_in_executor(None, pwd.getpwnam, system_user)
+    uid = pw_record.pw_uid
+    gid = pw_record.pw_gid
+    home = pw_record.pw_dir
+    return uid, gid, home
 
-    from tornado.ioloop import IOLoop
 
-    import tty
-    from functools import partial
+def setwinsize(stdin, rows, cols):
+    s = struct.pack('HHHH', rows, cols, 0, 0)
+    fcntl.ioctl(stdin, termios.TIOCSWINSZ, s)
 
-    tty.setraw(0)
 
-    pty = PtyProcess.spawn(['python'])
+await def _run_subprocess(cmd, system_user):
+    # This runs a command _without_ a TTY.
+    # Use `_run_pty_cmd_background()` when you need a TTY.
+    cmd = ['sudo', '-u', system_user, '-i'] + cmd
+    proc = await asyncio.create_subprocess_exec(
+            'tmux', 'ls',
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await proc.communicate()
+    if stderr:
+        log.error('Command {} wrote to stderr: {}'.format(repr(cmd), repr(stderr)))
+    return stdout
 
-    def pty_read(io_loop, fd, events):
-        if events & IOLoop.READ:
-            buf = pty.read(1000)
-            os.write(1, buf)
-        if events & IOLoop.ERROR:
-            io_loop.remove_handler(fd)
-            io_loop.stop()
 
-    def stdin_read(io_loop, fd, events):
-        if events & IOLoop.READ:
-            buf = os.read(0, 1000)
-            pty.write(buf)
-        if events & IOLoop.ERROR:
-            io_loop.remove_handler(fd)
+async def _tmux_ls(system_user):
+    output = await _run_subprocess(['tmux', 'ls'], system_user)
+    session_names = []
+    for line in output.split('\n'):
+        parts = line.split(': ')
+        if len(parts) == 2:
+            session_names.append(parts[0])
+    return sorted(session_names)
 
-    io_loop = IOLoop.current()
-    io_loop.add_handler(pty.fd, partial(pty_read, io_loop), io_loop.READ)
-    io_loop.add_handler(0, partial(stdin_read, io_loop), io_loop.READ)
-    io_loop.start()
 
-    tty.setraw(1)
-    # Note: This doesn't resport the tty fully to its original state. We'll have
-    # to do other things to restore the tty to how we found it, before our pty
-    # passthrough messed it up.
+async def _next_tmux_session_name(system_user):
+    """Like OS FDs, finds the first unused tmux number."""
+    curr_names = await _tmux_ls(system_user)
+    curr_names = set(curr_names)
+    i = 0
+    while True:
+        candiate_name = 'cdp_{}'.format(i)
+        if candiate_name not in curr_names:
+            return candiate_name
+        i += 1
+
+
+async def _kill_session(session_name, system_user):
+    # Since we do everything through tmux, we'll just ask tmux to kill the session.
+    # Interesting info here though, for those who want to learn something:
+    #     https://github.com/jupyter/terminado/blob/master/terminado/management.py#L74
+    #     https://unix.stackexchange.com/a/88742
+    cmd = "tmux kill-session -t".split(' ') + [session_name]
+    output = await _run_subprocess(cmd, system_user)
+
+
+async def _list_sessions(send_func, user_session, system_user):
+    session_names = await _tmux_ls(system_user)
+    await send_func({
+        'type': 'session_list',
+        'session_names': session_names,
+        'to_user_session': user_session,
+    })
+
+
+async def _clear_console(console):
+    await console.clear_text()
+    await console.big_clear()
+    await console.clear_image()
+
+
+def _run_pty_cmd_background(cmd, xterm_guid, send_func, username, user_session, system_user,
+                            env_override=None, start_dir_override=None, size=None):
+    env = dict(os.environ.copy())
+
+    env['TERM'] = 'xterm-256color'   # background info: https://unix.stackexchange.com/a/198949
+
+    if env_override is not None:
+        env.update(env_override)
+
+    if size is None:
+        size = (24, 80)
+    else:
+        size = (size['rows'], size['cols'])
+
+    pw_record = await loop.run_in_executor(None, pwd.getpwnam, system_user)
+
+    if start_dir_override is None:
+        start_dir_override = pw_record.pw_dir
+
+    env['HOME'    ] = pw_record.pw_dir
+    env['LOGNAME' ] = pw_record.pw_name
+    env['USER'    ] = pw_record.pw_name
+    env['USERNAME'] = pw_record.pw_name
+    env['SHELL'   ] = pw_record.pw_shell
+    env['UID'     ] = str(pw_record.pw_uid)
+    env['PWD'     ] = start_dir_override
+    if 'OLDPWD' in env: del env['OLDPWD']
+    if 'MAIL'   in env: del env['MAIL']
+
+    env = {k: v for k, v in env.items() if not k.startswith('SUDO_') and not k.startswith('XDG_')}
+
+    def switch_user():
+        os.setgid(pw_record.pw_gid)
+        os.initgroups(system_user, pw_record.pw_gid)
+        os.setuid(pw_record.pw_uid)
+
+    fd_master_io, fd_slave_io = os.openpty()  # run this in an executor?
+    fd_master_er, fd_slave_er = os.openpty()  # run this in an executor?
+    try:
+        p = await asyncio.create_subprocess_exec(
+                *cmd,
+                #bufsize=0,
+                stdin=fd_slave_io,
+                stdout=fd_slave_io,
+                stderr=fd_slave_er,
+                cwd=start_dir_override,
+                env=env,
+                #start_new_session=True, ??
+                preexec_fn=switch_user,
+        )
+    except:
+        os.close(fd_master_io)  # run these in an executor?
+        os.close(fd_slave_io)
+        os.close(fd_master_er)
+        os.close(fd_slave_er)
+        raise
+
+    os.close(fd_slave_io)  # run these in an executor?
+    os.close(fd_slave_er)
+
+    #os.make_nonblocking(fd_master_io)  ??
+    #os.make_nonblocking(fd_master_er)  ??
+
+    stdout = asyncio.StreamReader()
+    _, _ = await loop.connect_read_pipe(
+        lambda: asyncio.StreamReaderProtocol(stdout),
+        os.fdopen(fd_master_io, 'rb')
+    )
+
+    stderr = asyncio.StreamReader()
+    _, _ = await loop.connect_read_pipe(
+        lambda: asyncio.StreamReaderProtocol(stderr),
+        os.fdopen(fd_master_er, 'rb')
+    )
+
+    stdin_transport, _ = await loop.connect_write_pipe(
+        lambda: asyncio.StreamReaderProtocol(asyncio.StreamReader()),
+        os.fdopen(os.dup(fd_master_io), 'wb')
+    )
+    stdin = asyncio.StreamWriter(stdin_transport, write_protocol, None, loop)
+
+    setwinsize(stdin.fileno(), *size)  # executor?
+
+    return stdin, stdout, stderr, p
+
+
+async def _new_session(self, xterm_guid, username, user_session, send_func, settings):
+    session_name = await _next_tmux_session_name(self.system_up_user)
+    start_dir = '~' if 'start_dir' not in settings else settings['start_dir']
+    cmd = ['tmux' 'new' '-c', start_dir, '-s', session_name
+    if 'cmd' in settings:
+        cmd.extend(settings['cmd'])  # <-- becomes the shell argument to tmux
+    size = settings.get('size', None)
+    pty = self._run_pty_cmd_background(
+            cmd=cmd,
+            xterm_guid=xterm_guid,
+            send_func=send_func,
+            username=username,
+            user_session=user_session,
+            system_user=self.system_up_user,
+            size=size
+    )
+    pty.user_session = user_session
+    pty.description = "Attached session: {}".format(session_name)
+    pty.cmd = cmd
+    send_func({
+        'type': 'new_session_name_announcement',
+        'session_name': session_name,
+        'xterm_guid': xterm_guid,
+        'to_user_session': user_session,
+    })
+
+
+async def _pty_process_manager(xterm_guid, queue, send_func, system_user):
+    try:
+        msg = await queue.get()
+        type_ = msg['type']
+
+        if type_ == 'new_session':
+            username = msg['username']
+            user_session = msg['user_session']
+            await _new_session(xterm_guid, username, user_session, send_func, msg)
+
+        elif type_ == 'attach_session':
+            session_name = msg['session_name']
+            username = msg['username']
+            user_session = msg['user_session']
+            await _attach_session(xterm_guid, session_name, username, user_session, send_func, msg)
+
+        elif type_ == 'start_process':
+            username = msg['username']
+            user_session = msg['user_session']
+            cmd = msg.get('cmd', None)
+            await _start_process(xterm_guid, username, user_session, cmd, send_func, msg)
+
+        else:
+            raise Exception('Unexpected type sent to process manager: {}'.format(repr(msg)))
+
+        while True:
+            msg = await queue.get()
+            type_ = msg['type']
+
+            if type_ == 'xterm_resized':
+                size = msg['size']
+                await _xterm_resized(xterm_guid, size)
+
+            elif type_ == 'send_input_to_pty':
+                input_ = msg['input']
+                await _send_input_to_pty(xterm_guid, input_)
+
+            else:
+                raise Exception('Unexpected type sent to process manager: {}'.format(repr(msg)))
+
+    except asyncio.CancelledError:
+        # TODO
+        pass
+        #await _kill_process(xterm_guid)
 
