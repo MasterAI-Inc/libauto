@@ -185,27 +185,6 @@ class PtyManager:
         pty.terminate(force=True)  # <-- does SIGHUP, SIGINT, then SIGKILL
 
 
-    def _xterm_resized(self, xterm_guid, size):
-        with self.pty_lookup_lock:
-            if xterm_guid not in self.pty_lookup:
-                # Why are you resizing to an unknown pty?
-                return
-            pty = self.pty_lookup[xterm_guid]
-
-        pty.setwinsize(size['rows'], size['cols'])
-
-
-    def _send_input_to_pty(self, xterm_guid, input_):
-        with self.pty_lookup_lock:
-            if xterm_guid not in self.pty_lookup:
-                # Why are you sending input to an unknown pty?
-                return
-            pty = self.pty_lookup[xterm_guid]
-
-        input_buf = base64.b64decode(input_)
-        pty.write(input_buf)
-
-
 
     async def _write_code_from_cdp(self, xterm_guid, code_str):
         uid, gid, home = await _user_uid_gid_home(self.system_up_user)
@@ -263,21 +242,16 @@ async def _user_uid_gid_home(system_user):
     return uid, gid, home
 
 
-def setwinsize(stdin, rows, cols):
-    s = struct.pack('HHHH', rows, cols, 0, 0)
-    fcntl.ioctl(stdin, termios.TIOCSWINSZ, s)
-
-
 async def _run_subprocess(cmd, system_user):
     # This runs a command _without_ a TTY.
     # Use `_run_pty_cmd_background()` when you need a TTY.
     cmd = ['sudo', '-u', system_user, '-i'] + cmd
-    proc = await asyncio.create_subprocess_exec(
+    p = await asyncio.create_subprocess_exec(
             'tmux', 'ls',
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
     )
-    stdout, stderr = await proc.communicate()
+    stdout, stderr = await p.communicate()
     if stderr:
         log.error('Command {} wrote to stderr: {}'.format(repr(cmd), repr(stderr)))
     return stdout
@@ -337,11 +311,11 @@ class PtyProcess:
                  I've yet to figure out how to plug these FDs into they asyncio
                  event loop properly... ugh.
     """
-    def __init__(self, stdin, stdout, stderr, proc, loop):
+    def __init__(self, stdin, stdout, stderr, p, loop):
         self.stdin = stdin
         self.stdout = stdout
         self.stderr = stderr
-        self.proc = proc
+        self.p = p
         self.loop = loop
 
     async def write_stdin(self, buf):
@@ -372,6 +346,10 @@ class PtyProcess:
         os.close(self.stdin)
         os.close(self.stdout)
         os.close(self.stderr)
+
+    async def setwinsize(self, rows, cols):
+        s = struct.pack('HHHH', rows, cols, 0, 0)
+        fcntl.ioctl(self.stdin, termios.TIOCSWINSZ, s)
 
 
 async def _run_pty_cmd_background(cmd, system_user, env_override=None, start_dir_override=None, size=None):
@@ -412,7 +390,7 @@ async def _run_pty_cmd_background(cmd, system_user, env_override=None, start_dir
     fd_master_io, fd_slave_io = os.openpty()
     fd_master_er, fd_slave_er = os.openpty()
     try:
-        proc = await asyncio.create_subprocess_exec(
+        p = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdin=fd_slave_io,
                 stdout=fd_slave_io,
@@ -435,13 +413,15 @@ async def _run_pty_cmd_background(cmd, system_user, env_override=None, start_dir
     stdout = os.dup(fd_master_io)
     stderr = fd_master_er
 
+    proc = PtyProcess(stdin, stdout, stderr, p, loop)
+
     if size is None:
         size = (24, 80)
     else:
         size = (size['rows'], size['cols'])
-    setwinsize(stdin, *size)
+    await proc.setwinsize(*size)
 
-    return PtyProcess(stdin, stdout, stderr, proc, loop)
+    return proc
 
 
 async def _new_session(xterm_guid, user_session, send_func, settings, system_user):
@@ -545,11 +525,13 @@ async def _pty_process_manager(xterm_guid, queue, send_func, system_user, consol
 
             if type_ == 'xterm_resized':
                 size = msg['size']
-                await _xterm_resized(xterm_guid, size)
+                size = (size['rows'], size['cols'])
+                await proc.setwinsize(*size)
 
             elif type_ == 'send_input_to_pty':
                 input_ = msg['input']
-                await _send_input_to_pty(xterm_guid, input_)
+                input_buf = base64.b64decode(input_)
+                await proc.write_stdin(input_buf)
 
             else:
                 raise Exception('Unexpected type sent to process manager: {}'.format(repr(msg)))
