@@ -181,37 +181,42 @@ async def _ping_with_interval(ws):
 
 def _build_send_function(ws, connected_user_sessions):
     async def smart_send(msg):
-        if isinstance(msg, str):
-            msg = json.loads(msg)
+        try:
+            if isinstance(msg, str):
+                msg = json.loads(msg)
 
-        if 'to_user_session' in msg:
-            user_session = msg['to_user_session']
-            if not connected_user_sessions.has_specific_user_session(user_session):
-                # We do not send messages that are destined for a
-                # user session that no longer exists!
-                return False
+            if 'to_user_session' in msg:
+                user_session = msg['to_user_session']
+                if not connected_user_sessions.has_specific_user_session(user_session):
+                    # We do not send messages that are destined for a
+                    # user session that no longer exists!
+                    return False
 
-        elif 'to_username' in msg:
-            username = msg['to_username']
-            if not connected_user_sessions.has_any_user_sessions(username):
-                # We don't send to a user who has zero user sessions.
-                return False
+            elif 'to_username' in msg:
+                username = msg['to_username']
+                if not connected_user_sessions.has_any_user_sessions(username):
+                    # We don't send to a user who has zero user sessions.
+                    return False
 
-        elif 'type' in msg and msg['type'] == 'proxy_send':
-            # Special case. The proxy should still work if there are no
-            # user sessions (because a user can use the proxy without the
-            # normal "session" existing).
-            pass
+            elif 'type' in msg and msg['type'] == 'proxy_send':
+                # Special case. The proxy should still work if there are no
+                # user sessions (because a user can use the proxy without the
+                # normal "session" existing).
+                pass
 
-        else:
-            if not connected_user_sessions.has_any_sessions():
-                # Literally no one is listening, so sending this generic
-                # broadcast message is pointless.
-                return False
+            else:
+                if not connected_user_sessions.has_any_sessions():
+                    # Literally no one is listening, so sending this generic
+                    # broadcast message is pointless.
+                    return False
 
-        # If we didn't bail out above, then send the message.
-        await ws.send(json.dumps(msg))
-        return True
+            # If we didn't bail out above, then send the message.
+            await ws.send(json.dumps(msg))
+            return True
+
+        except Exception as e:
+            log.error('Exception in `smart_send`: {}'.format(e))
+            return False
 
     return smart_send
 

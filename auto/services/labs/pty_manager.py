@@ -17,6 +17,7 @@ import base64
 import fcntl
 import struct
 import termios
+import signal
 
 import asyncio
 
@@ -348,8 +349,23 @@ class PtyProcess:
         os.close(self.stderr)
 
     async def setwinsize(self, rows, cols):
-        s = struct.pack('HHHH', rows, cols, 0, 0)
-        fcntl.ioctl(self.stdin, termios.TIOCSWINSZ, s)
+        try:
+            s = struct.pack('HHHH', rows, cols, 0, 0)
+            fcntl.ioctl(self.stdin, termios.TIOCSWINSZ, s)
+        except Exception as e:
+            log.error('Failed to `setwinsize`: {}'.format(e))
+
+    async def gentle_kill(self):
+        self.p.send_signal(signal.SIGHUP)
+        try:
+            asyncio.wait_for(self.p.wait(), 2.0)
+        except asyncio.TimeoutError:
+            self.p.send_signal(signal.SIGINT)
+            try:
+                asyncio.wait_for(self.p.wait(), 2.0)
+            except asyncio.TimeoutError:
+                self.p.kill()
+                await self.p.wait()
 
 
 async def _run_pty_cmd_background(cmd, system_user, env_override=None, start_dir_override=None, size=None):
@@ -500,24 +516,22 @@ async def _pty_process_manager(xterm_guid, queue, send_func, system_user, consol
     try:
         msg = await queue.get()
         type_ = msg['type']
+        user_session = msg['user_session']
 
         if type_ == 'new_session':
-            user_session = msg['user_session']
             proc = await _new_session(xterm_guid, user_session, send_func, msg, system_user)
 
         elif type_ == 'attach_session':
             session_name = msg['session_name']
-            user_session = msg['user_session']
             proc = await _attach_session(session_name, user_session, msg)
 
         elif type_ == 'start_process':
-            user_session = msg['user_session']
             proc = await _start_process(xterm_guid, user_session, msg, system_user, console)
 
         else:
             raise Exception('Unexpected type sent to process manager: {}'.format(repr(msg)))
 
-        log.info('Process started; description={}; cmd={}'.format(proc.description, proc.cmd))
+        log.info('Process started; pid={}; description={}; cmd={}'.format(proc.p.pid, proc.description, proc.cmd))
 
         while True:
             msg = await queue.get()
@@ -540,10 +554,22 @@ async def _pty_process_manager(xterm_guid, queue, send_func, system_user, consol
         if proc is None:
             log.info('Process canceled before it began.')
         else:
-            log.info('Process canceled; description={}; cmd={}'.format(proc.description, proc.cmd))
+            log.info('Process canceled; pid={}; description={}; cmd={}'.format(proc.p.pid, proc.description, proc.cmd))
 
     finally:
         if proc is not None:
-            await proc.gentle_kill()  # TODO send SIGHUP, SIGINT, then SIGKILL
+            if proc.p.returncode is None:
+                await proc.gentle_kill()
             await proc.close_fds()
+            returncode = proc.p.returncode
+            assert returncode is not None
+            exitcode = returncode if returncode >= 0 else None
+            signalcode = -returncode if returncode < 0 else None
+            await send_func({
+                'type': 'pty_program_exited',
+                'xterm_guid': xterm_guid,
+                'exitcode': exitcode,
+                'signalcode': signalcode,
+                'to_user_session': user_session,
+            })
 
