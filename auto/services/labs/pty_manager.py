@@ -55,7 +55,7 @@ class PtyManager:
                     return
                 queue = asyncio.Queue()
                 queue.put_nowait(msg)
-                coro = _pty_process_manager(xterm_guid, queue, send_func, self.system_up_user)
+                coro = _pty_process_manager(xterm_guid, queue, send_func, self.system_up_user, self.console)
                 task = asyncio.create_task(coro)
                 self.xterm_lookup[xterm_guid] = (task, queue)
 
@@ -173,69 +173,6 @@ class PtyManager:
 
             with self.pty_lookup_lock:
                 del self.pty_lookup[xterm_guid]
-
-
-    def _attach_session(self, xterm_guid, session_name, username, user_session, send_func, settings):
-        with self.pty_lookup_lock:
-            if xterm_guid in self.pty_lookup:
-                # This pty already exists... :/
-                return
-
-            session_name = re.sub(r'[^A-Za-z0-9_]', '', session_name)  # safe string
-            cmd = 'tmux attach -d -t {}'.format(session_name)
-            cmd = cmd.split(' ')   # <-- only take input from our trusted CDP, which only takes input from authorized users
-            size = settings.get('size', None)
-            pty = self._run_pty_cmd_background(
-                    cmd=cmd,
-                    xterm_guid=xterm_guid,
-                    send_func=send_func,
-                    username=username,
-                    user_session=user_session,
-                    system_user=self.system_up_user,
-                    size=size
-            )
-            pty.user_session = user_session
-            pty.description = "Attached session: {}".format(session_name)
-            pty.cmd = cmd
-
-
-    def _start_process(self, xterm_guid, username, user_session, cmd, send_func, settings):
-        with self.pty_lookup_lock:
-            if xterm_guid in self.pty_lookup:
-                # This pty already exists... :/
-                return
-
-            if 'clear_screen' in settings and settings['clear_screen']:
-                pass
-                #await _clear_console(self.console)  <-- TODO UNCOMMNET
-
-            if 'code_to_run' in settings:
-                code_path = self._write_code_from_cdp(xterm_guid, settings['code_to_run'])
-                cmd = ['python', code_path]
-                description = 'Running Code'
-            else:
-                description = 'Custom Command'
-
-            env_override = settings.get('env', {})
-            env_override['TO_USER_SESSION'] = user_session
-
-            start_dir_override = settings.get('start_dir', None)
-            size = settings.get('size', None)
-
-            pty = self._run_pty_cmd_background(
-                    cmd=cmd,
-                    xterm_guid=xterm_guid,
-                    send_func=send_func,
-                    username=username,
-                    user_session=user_session,
-                    system_user=self.system_up_user,
-                    env_override=env_override,
-                    start_dir_override=start_dir_override,
-                    size=size
-            )
-            pty.user_session = user_session
-            pty.description = description
-            pty.cmd = cmd
 
 
     def _kill_process(self, xterm_guid):
@@ -430,7 +367,7 @@ class PtyProcess:
             # Pipes and regular files don't throw, so PTYs are unique.
             return b''
 
-    async def close_func(self):
+    async def close_fds(self):
         """Close the underlying file descriptors; don't leak FDs!"""
         os.close(self.stdin)
         os.close(self.stdout)
@@ -507,57 +444,100 @@ async def _run_pty_cmd_background(cmd, system_user, env_override=None, start_dir
     return PtyProcess(stdin, stdout, stderr, proc, loop)
 
 
-async def _new_session(self, xterm_guid, username, user_session, send_func, settings):
-    session_name = await _next_tmux_session_name(self.system_up_user)
+async def _new_session(xterm_guid, user_session, send_func, settings, system_user):
+    session_name = await _next_tmux_session_name(system_user)
     start_dir = '~' if 'start_dir' not in settings else settings['start_dir']
     cmd = ['tmux' 'new' '-c', start_dir, '-s', session_name]
     if 'cmd' in settings:
         cmd.extend(settings['cmd'])  # <-- becomes the shell argument to tmux
     size = settings.get('size', None)
-    pty = self._run_pty_cmd_background(
+    proc = await _run_pty_cmd_background(
             cmd=cmd,
-            xterm_guid=xterm_guid,
-            send_func=send_func,
-            username=username,
-            user_session=user_session,
-            system_user=self.system_up_user,
+            system_user=system_user,
             size=size
     )
-    pty.user_session = user_session
-    pty.description = "Attached session: {}".format(session_name)
-    pty.cmd = cmd
-    send_func({
+    proc.user_session = user_session
+    proc.description = "Attached session: {}".format(session_name)
+    proc.cmd = cmd
+    await send_func({
         'type': 'new_session_name_announcement',
         'session_name': session_name,
         'xterm_guid': xterm_guid,
         'to_user_session': user_session,
     })
+    return proc
 
 
-async def _pty_process_manager(xterm_guid, queue, send_func, system_user):
+async def _attach_session(session_name, user_session, settings):
+    session_name = re.sub(r'[^A-Za-z0-9_]', '', session_name)  # safe string
+    cmd = ['tmux', 'attach', '-d', '-t', session_name]
+    size = settings.get('size', None)
+    proc = await _run_pty_cmd_background(
+            cmd=cmd,
+            system_user=system_user,
+            size=size
+    )
+    proc.user_session = user_session
+    proc.description = "Attached session: {}".format(session_name)
+    proc.cmd = cmd
+    return proc
+
+
+async def _start_process(xterm_guid, user_session, settings, system_user, console):
+    if 'clear_screen' in settings and settings['clear_screen']:
+        await _clear_console(console)
+
+    if 'code_to_run' in settings:
+        code_path = await _write_code_from_cdp(xterm_guid, settings['code_to_run'], system_user)
+        cmd = ['python3', code_path]
+        description = 'Running Code'
+    else:
+        cmd = settings['cmd']
+        description = 'Custom Command'
+
+    env_override = settings.get('env', {})
+    env_override['TO_USER_SESSION'] = user_session
+
+    start_dir_override = settings.get('start_dir', None)
+    size = settings.get('size', None)
+
+    proc = await _run_pty_cmd_background(
+            cmd=cmd,
+            system_user=system_user,
+            env_override=env_override,
+            start_dir_override=start_dir_override,
+            size=size
+    )
+    proc.user_session = user_session
+    proc.description = description
+    proc.cmd = cmd
+    return proc
+
+
+async def _pty_process_manager(xterm_guid, queue, send_func, system_user, console):
+    proc = None
+
     try:
         msg = await queue.get()
         type_ = msg['type']
 
         if type_ == 'new_session':
-            username = msg['username']
             user_session = msg['user_session']
-            await _new_session(xterm_guid, username, user_session, send_func, msg)
+            proc = await _new_session(xterm_guid, user_session, send_func, msg, system_user)
 
         elif type_ == 'attach_session':
             session_name = msg['session_name']
-            username = msg['username']
             user_session = msg['user_session']
-            await _attach_session(xterm_guid, session_name, username, user_session, send_func, msg)
+            proc = await _attach_session(session_name, user_session, msg)
 
         elif type_ == 'start_process':
-            username = msg['username']
             user_session = msg['user_session']
-            cmd = msg.get('cmd', None)
-            await _start_process(xterm_guid, username, user_session, cmd, send_func, msg)
+            proc = await _start_process(xterm_guid, user_session, msg, system_user, console)
 
         else:
             raise Exception('Unexpected type sent to process manager: {}'.format(repr(msg)))
+
+        log.info('Process started; description={}; cmd={}'.format(proc.description, proc.cmd))
 
         while True:
             msg = await queue.get()
@@ -575,7 +555,13 @@ async def _pty_process_manager(xterm_guid, queue, send_func, system_user):
                 raise Exception('Unexpected type sent to process manager: {}'.format(repr(msg)))
 
     except asyncio.CancelledError:
-        # TODO
-        pass
-        #await _kill_process(xterm_guid)
+        if proc is None:
+            log.info('Process canceled before it began.')
+        else:
+            log.info('Process canceled; description={}; cmd={}'.format(proc.description, proc.cmd))
+
+    finally:
+        if proc is not None:
+            await proc.gentle_kill()  # TODO send SIGHUP, SIGINT, then SIGKILL
+            await proc.close_fds()
 
