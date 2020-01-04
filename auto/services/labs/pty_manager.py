@@ -58,14 +58,14 @@ class PtyManager:
                 queue.put_nowait(msg)
                 coro = _pty_process_manager(xterm_guid, queue, send_func, self.system_up_user, self.console)
                 task = asyncio.create_task(coro)
-                self.xterm_lookup[xterm_guid] = (task, queue)
+                self.xterm_lookup[xterm_guid] = (task, queue, time.time(), user_session)
 
             elif type_ in ('kill_process', 'xterm_resized', 'send_input_to_pty'):
                 xterm_guid = msg['xterm_guid']
                 if xterm_guid not in self.xterm_lookup:
                     log.error('The xterm_guid={} does not exist; invalid for type={}'.format(xterm_guid, type_))
                     return
-                task, queue = self.xterm_lookup[xterm_guid]
+                task, queue, _, _ = self.xterm_lookup[xterm_guid]
                 if type_ == 'kill_process':
                     task.cancel()
                     del self.xterm_lookup[xterm_guid]
@@ -84,12 +84,10 @@ class PtyManager:
 
             elif type_ == 'list_running':
                 user_session = msg['user_session']
-                coro = _list_running(send_func, user_session)
-                asyncio.create_task(coro)
+                await self._list_running(send_func, user_session)
 
             elif type_ == 'clear_screen':
-                coro = _clear_console(self.console)
-                asyncio.create_task(coro)
+                asyncio.create_task(_clear_console(self.console))
 
     async def end_user_session(self, username, user_session):
         """
@@ -107,119 +105,33 @@ class PtyManager:
             pty.terminate(force=True)  # <-- does SIGHUP, SIGINT, then SIGKILL
 
     async def disconnected_cdp(self):
-        self.end_user_session(None, None)   # <-- flag to end ALL sessions
+        pass
 
-    def _run_pty_main(self, xterm_guid, pty, send_func, user_session):
-        queue = Queue()
-
-        def buffered_write():
-            def flush(big_buf):
-                send_func({
-                    'type': 'pty_output', 'xterm_guid': xterm_guid,
-                    'output': base64.b64encode(big_buf).decode('utf-8'),
-                    'to_user_session': user_session,
-                })
-            last_sent_time = -1
-            to_send = []
-            while True:
-                wait_time = NAGLE_STYLE_DELAY - (time.time() - last_sent_time)
-                if wait_time > 0:
-                    try:
-                        buf = queue.get(timeout=wait_time)
-                        if buf is False:
-                            if len(to_send) > 0:
-                                flush(b''.join(to_send))
-                            return
-                        to_send.append(buf)
-                        continue
-                    except Empty:
-                        # We waited the `wait_time` and got nothing new.
-                        pass
-                if len(to_send) == 0:
-                    # We could send something... but we have nothing to send. Block until we get something.
-                    buf = queue.get()
-                    if buf is False:
-                        return
-                    to_send.append(buf)
-                # Finally, we have something to send for sure, and we are allowed to send it.
-                flush(b''.join(to_send))
-                last_sent_time = time.time()
-                to_send = []
-
-        write_thread = Thread(target=buffered_write)
-        write_thread.start()
-
-        try:
-            while True:
-                buf = pty.read()
-                queue.put(buf)
-
-        except Exception as e:  # <-- we expect to catch EOFError (normally) and ValueError if the fd is closed while we're still tyring to read here.
-            queue.put(False)
-            write_thread.join()
-
-            send_func({
-                'type': 'pty_output_closed',
-                'xterm_guid': xterm_guid,
-                'to_user_session': user_session,
-            })
-            exitcode = pty.wait()
-            send_func({
-                'type': 'pty_program_exited',
-                'xterm_guid': xterm_guid,
-                'exitcode': exitcode,
-                'signalcode': pty.signalstatus,
-                'to_user_session': user_session,
-            })
-
-            with self.pty_lookup_lock:
-                del self.pty_lookup[xterm_guid]
-
-
-    def _kill_process(self, xterm_guid):
-        with self.pty_lookup_lock:
-            if xterm_guid not in self.pty_lookup:
-                # Why are you killing an unknown pty?
-                return
-            pty = self.pty_lookup[xterm_guid]
-
-        pty.terminate(force=True)  # <-- does SIGHUP, SIGINT, then SIGKILL
-
-
-
-    async def _write_code_from_cdp(self, xterm_guid, code_str):
-        uid, gid, home = await _user_uid_gid_home(self.system_up_user)
-        with _switch_to_user(uid, gid):
-            subdirs = xterm_guid[0:2], xterm_guid[2:4], xterm_guid[4:6], xterm_guid[6:8], xterm_guid
-            directory = os.path.join(home, '.cdp_runs', *subdirs)
-            if not os.path.exists(directory):
-                os.makedirs(directory)
-            code_path = os.path.join(directory, 'main.py')
-            with open(code_path, 'w') as f:
-                f.write(code_str)
-        return code_path
-
-
-    def _list_running(self, send_func, user_session):
+    async def _list_running(self, send_func, user_session):
         running = []
 
-        with self.pty_lookup_lock:
-            for xterm_guid, pty in self.pty_lookup.items():
-                x = {
-                    'xterm_guid': xterm_guid,
-                    'start_time': pty.start_time,
-                    'user_session': pty.user_session,
-                    'description': pty.description,
-                    'cmd': pty.cmd,
-                }
-                running.append(x)
+        for xterm_guid, (task, queue, start_time, user_session_here) in self.xterm_lookup.items():
+            x = {
+                'xterm_guid':   xterm_guid,
+                'start_time':   start_time,
+                'user_session': user_session_here,
+                'description':  '',  # TODO pty.description,
+                'cmd':          '',  # TODO pty.cmd,
+            }
+            running.append(x)
 
-        send_func({
+        await send_func({
             'type': 'running_list',
             'running': running,
             'curtime': time.time(),
             'to_user_session': user_session,
         })
+
+
+async def _clear_console(console):
+    await console.clear_text()
+    await console.big_clear()
+    await console.clear_image()
 
 
 @contextmanager
@@ -243,19 +155,17 @@ async def _user_uid_gid_home(system_user):
     return uid, gid, home
 
 
-async def _kill_session(session_name, system_user):
-    # Since we do everything through tmux, we'll just ask tmux to kill the session.
-    # Interesting info here though, for those who want to learn something:
-    #     https://github.com/jupyter/terminado/blob/master/terminado/management.py#L74
-    #     https://unix.stackexchange.com/a/88742
-    cmd = "tmux kill-session -t".split(' ') + [session_name]
-    output = await _run_subprocess(cmd, system_user)
-
-
-async def _clear_console(console):
-    await console.clear_text()
-    await console.big_clear()
-    await console.clear_image()
+async def _write_code_from_cdp(xterm_guid, code_str, system_user):
+    uid, gid, home = await _user_uid_gid_home(system_user)
+    with _switch_to_user(uid, gid):
+        subdirs = xterm_guid[0:2], xterm_guid[2:4], xterm_guid[4:6], xterm_guid[6:8], xterm_guid
+        directory = os.path.join(home, '.cdp_runs', *subdirs)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        code_path = os.path.join(directory, 'main.py')
+        with open(code_path, 'w') as f:
+            f.write(code_str)
+    return code_path
 
 
 async def _run_subprocess(cmd, system_user):
@@ -293,6 +203,16 @@ async def _next_tmux_session_name(system_user):
         if candiate_name not in curr_names:
             return candiate_name
         i += 1
+
+
+async def _kill_session(session_name, system_user):
+    # Since we do everything through tmux, we'll just ask tmux to kill the session.
+    # Interesting info here though, for those who want to learn something:
+    #     https://github.com/jupyter/terminado/blob/master/terminado/management.py#L74
+    #     https://unix.stackexchange.com/a/88742
+    cmd = "tmux kill-session -t".split(' ') + [session_name]
+    output = await _run_subprocess(cmd, system_user)
+    return output
 
 
 async def _list_sessions(send_func, user_session, system_user):
@@ -452,7 +372,6 @@ async def _new_session(xterm_guid, user_session, send_func, settings, system_use
             system_user=system_user,
             size=size
     )
-    proc.user_session = user_session
     proc.description = "Attached session: {}".format(session_name)
     proc.cmd = cmd
     await send_func({
@@ -464,7 +383,7 @@ async def _new_session(xterm_guid, user_session, send_func, settings, system_use
     return proc
 
 
-async def _attach_session(session_name, user_session, settings):
+async def _attach_session(session_name, settings):
     session_name = re.sub(r'[^A-Za-z0-9_]', '', session_name)  # safe string
     cmd = ['tmux', 'attach', '-d', '-t', session_name]
     size = settings.get('size', None)
@@ -473,7 +392,6 @@ async def _attach_session(session_name, user_session, settings):
             system_user=system_user,
             size=size
     )
-    proc.user_session = user_session
     proc.description = "Attached session: {}".format(session_name)
     proc.cmd = cmd
     return proc
@@ -504,7 +422,6 @@ async def _start_process(xterm_guid, user_session, settings, system_user, consol
             start_dir_override=start_dir_override,
             size=size
     )
-    proc.user_session = user_session
     proc.description = description
     proc.cmd = cmd
     return proc
@@ -587,7 +504,7 @@ async def _pty_process_manager(xterm_guid, queue, send_func, system_user, consol
 
         elif type_ == 'attach_session':
             session_name = msg['session_name']
-            proc = await _attach_session(session_name, user_session, msg)
+            proc = await _attach_session(session_name, msg)
 
         elif type_ == 'start_process':
             proc = await _start_process(xterm_guid, user_session, msg, system_user, console)
