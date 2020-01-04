@@ -243,12 +243,27 @@ async def _user_uid_gid_home(system_user):
     return uid, gid, home
 
 
+async def _kill_session(session_name, system_user):
+    # Since we do everything through tmux, we'll just ask tmux to kill the session.
+    # Interesting info here though, for those who want to learn something:
+    #     https://github.com/jupyter/terminado/blob/master/terminado/management.py#L74
+    #     https://unix.stackexchange.com/a/88742
+    cmd = "tmux kill-session -t".split(' ') + [session_name]
+    output = await _run_subprocess(cmd, system_user)
+
+
+async def _clear_console(console):
+    await console.clear_text()
+    await console.big_clear()
+    await console.clear_image()
+
+
 async def _run_subprocess(cmd, system_user):
     # This runs a command _without_ a TTY.
     # Use `_run_pty_cmd_background()` when you need a TTY.
     cmd = ['sudo', '-u', system_user, '-i'] + cmd
     p = await asyncio.create_subprocess_exec(
-            'tmux', 'ls',
+            *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
     )
@@ -280,15 +295,6 @@ async def _next_tmux_session_name(system_user):
         i += 1
 
 
-async def _kill_session(session_name, system_user):
-    # Since we do everything through tmux, we'll just ask tmux to kill the session.
-    # Interesting info here though, for those who want to learn something:
-    #     https://github.com/jupyter/terminado/blob/master/terminado/management.py#L74
-    #     https://unix.stackexchange.com/a/88742
-    cmd = "tmux kill-session -t".split(' ') + [session_name]
-    output = await _run_subprocess(cmd, system_user)
-
-
 async def _list_sessions(send_func, user_session, system_user):
     session_names = await _tmux_ls(system_user)
     await send_func({
@@ -296,12 +302,6 @@ async def _list_sessions(send_func, user_session, system_user):
         'session_names': session_names,
         'to_user_session': user_session,
     })
-
-
-async def _clear_console(console):
-    await console.clear_text()
-    await console.big_clear()
-    await console.clear_image()
 
 
 class PtyProcess:
@@ -510,6 +510,70 @@ async def _start_process(xterm_guid, user_session, settings, system_user, consol
     return proc
 
 
+async def _handle_ouptput(xterm_guid, user_session, proc, send_func):
+    async def send(stream_name, buf):
+        await send_func({
+            'type': 'pty_output', 'xterm_guid': xterm_guid,
+            'output': base64.b64encode(buf).decode('utf-8'),
+            'stream_name': stream_name,
+            'to_user_session': user_session,
+        })
+
+    async def read_stream(stream_name, read_func):
+        try:
+            while True:
+                buf = await read_func()
+                if buf == b'':
+                    break
+                await send(stream_name, buf)
+        except asyncio.CancelledError:
+            pass
+
+    stdout_task = asyncio.create_task(read_stream('stdout', proc.read_stdout))
+    stderr_task = asyncio.create_task(read_stream('stdout', proc.read_stderr))
+
+    try:
+        _, _ = await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)
+
+    except asyncil.CancelledError:
+        stdout_task.cancel()
+        stderr_task.cancel()
+        await stdout_task
+        await stderr_task
+
+    finally:
+        await send_func({
+            'type': 'pty_output_closed',
+            'xterm_guid': xterm_guid,
+            'to_user_session': user_session,
+        })
+
+        log.info('Process output closed; pid={}; description={}; cmd={}'.format(proc.p.pid, proc.description, proc.cmd))
+
+
+async def _handle_input(queue, proc):
+    try:
+        while True:
+            msg = await queue.get()
+            type_ = msg['type']
+
+            if type_ == 'xterm_resized':
+                size = msg['size']
+                size = (size['rows'], size['cols'])
+                await proc.setwinsize(*size)
+
+            elif type_ == 'send_input_to_pty':
+                input_ = msg['input']
+                input_buf = base64.b64decode(input_)
+                await proc.write_stdin(input_buf)
+
+            else:
+                raise Exception('Unexpected type sent to process manager: {}'.format(repr(msg)))
+
+    except asyncio.CancelledError:
+        log.info('Process input closed; pid={}; description={}; cmd={}'.format(proc.p.pid, proc.description, proc.cmd))
+
+
 async def _pty_process_manager(xterm_guid, queue, send_func, system_user, console):
     proc = None
 
@@ -533,22 +597,16 @@ async def _pty_process_manager(xterm_guid, queue, send_func, system_user, consol
 
         log.info('Process started; pid={}; description={}; cmd={}'.format(proc.p.pid, proc.description, proc.cmd))
 
-        while True:
-            msg = await queue.get()
-            type_ = msg['type']
+        output_task = asyncio.create_task(_handle_ouptput(xterm_guid, user_session, proc, send_func))
+        input_task  = asyncio.create_task(_handle_input(queue, proc))
 
-            if type_ == 'xterm_resized':
-                size = msg['size']
-                size = (size['rows'], size['cols'])
-                await proc.setwinsize(*size)
-
-            elif type_ == 'send_input_to_pty':
-                input_ = msg['input']
-                input_buf = base64.b64decode(input_)
-                await proc.write_stdin(input_buf)
-
-            else:
-                raise Exception('Unexpected type sent to process manager: {}'.format(repr(msg)))
+        try:
+            await proc.wait()
+        finally:
+            output_task.cancel()
+            input_task.cancel()
+            await output_task
+            await input_task
 
     except asyncio.CancelledError:
         if proc is None:
@@ -572,4 +630,5 @@ async def _pty_process_manager(xterm_guid, queue, send_func, system_user, consol
                 'signalcode': signalcode,
                 'to_user_session': user_session,
             })
+            log.info('Process exited; pid={}; description={}; cmd={}; exitcode={}'.format(proc.p.pid, proc.description, proc.cmd, (exitcode, signalcode)))
 
