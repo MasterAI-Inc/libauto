@@ -419,11 +419,13 @@ async def _run_pty_cmd_background(cmd, system_user, env_override=None, start_dir
 
     env = {k: v for k, v in env.items() if not k.startswith('SUDO_') and not k.startswith('XDG_')}
 
+    my_uid = os.getuid()
+
     def switch_user():
-        return   # <-- TODO
-        os.setgid(pw_record.pw_gid)
-        os.initgroups(system_user, pw_record.pw_gid)
-        os.setuid(pw_record.pw_uid)
+        if my_uid != pw_record.pw_uid:
+            os.setgid(pw_record.pw_gid)
+            os.initgroups(system_user, pw_record.pw_gid)
+            os.setuid(pw_record.pw_uid)
 
     fd_master_io, fd_slave_io = os.openpty()
     fd_master_er, fd_slave_er = os.openpty()
@@ -451,12 +453,6 @@ async def _run_pty_cmd_background(cmd, system_user, env_override=None, start_dir
     stdout_file = os.fdopen(os.dup(fd_master_io), 'rb')
     stderr_file = os.fdopen(fd_master_er, 'rb')
 
-    if size is None:
-        size = (24, 80)
-    else:
-        size = (size['rows'], size['cols'])
-    setwinsize(fd_master_io, *size)  # TODO pass this FD along for future calls to setwinsize()
-
     def close_func():
         stdin_file.close()
         stdout_file.close()
@@ -465,7 +461,7 @@ async def _run_pty_cmd_background(cmd, system_user, env_override=None, start_dir
     stdin_protocol = asyncio.StreamReaderProtocol(asyncio.StreamReader())
     stdin_transport, _ = await loop.connect_write_pipe(
         lambda: stdin_protocol,
-        stdin_file  # TODO DUP?
+        stdin_file
     )
     stdin = asyncio.StreamWriter(stdin_transport, stdin_protocol, None, loop)
 
@@ -481,7 +477,13 @@ async def _run_pty_cmd_background(cmd, system_user, env_override=None, start_dir
         stderr_file
     )
 
-    return stdin, stdout, stderr, proc, close_func
+    if size is None:
+        size = (24, 80)
+    else:
+        size = (size['rows'], size['cols'])
+    setwinsize(fd_master_io, *size)
+
+    return stdin, stdout, stderr, proc, close_func, fd_master_io
 
 
 async def _new_session(self, xterm_guid, username, user_session, send_func, settings):
