@@ -15,7 +15,7 @@ from . import N_I2C_TRIES
 from .components import KNOWN_COMPONENTS
 
 from auto import logger
-log = logger.init('cio.aa_controller_v1', terminal=True)
+log = logger.init(__name__, terminal=True)
 
 
 CAPABILITIES_REG_NUM = 0x01

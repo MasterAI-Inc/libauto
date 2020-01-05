@@ -24,7 +24,7 @@ import inspect
 import importlib
 
 from auto import logger
-log = logger.init('console_rpc_server', terminal=True)
+log = logger.init(__name__, terminal=True)
 
 
 async def _safe_invoke(func, *args):

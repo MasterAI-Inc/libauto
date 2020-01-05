@@ -22,7 +22,7 @@ from auto import logger
 class CuiMock(cui.CuiRoot):
     async def init(self):
         self.lock = asyncio.Lock()
-        self.log = logger.init('mock_cui', terminal=True)
+        self.log = logger.init(__name__, terminal=True)
         return True
 
     async def write_text(self, text):

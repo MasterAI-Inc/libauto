@@ -15,7 +15,7 @@ import numpy as np
 from collections import deque
 
 from auto import logger
-log = logger.init('pygame_cui', terminal=True)
+log = logger.init(__name__, terminal=True)
 
 
 RESOURCE_DIR_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'resources')

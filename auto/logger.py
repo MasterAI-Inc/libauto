@@ -31,7 +31,7 @@ set_root_log_level()
 
 
 def _get_formatter():
-    formatter = logging.Formatter('%(asctime)s: %(name)-25s: %(levelname)-10s: %(message)s')
+    formatter = logging.Formatter('%(asctime)s: %(name)-35s: %(levelname)-10s: %(message)s')
     return formatter
 
 

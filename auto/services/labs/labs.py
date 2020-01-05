@@ -26,7 +26,7 @@ from auto.services.camera.client import CameraRGB
 from auto.services.console.client import CuiRoot
 
 from auto import logger
-log = logger.init('labs connection', terminal=True)
+log = logger.init(__name__, terminal=True)
 
 from auto.services.labs.pty_manager import PtyManager
 from auto.services.labs.verification_method import Verification

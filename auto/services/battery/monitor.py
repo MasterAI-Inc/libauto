@@ -19,7 +19,7 @@ from auto.services.controller.client import CioRoot
 from auto.services.console.client import CuiRoot
 
 from auto import logger
-log = logger.init('battery_monitor', terminal=True)
+log = logger.init(__name__, terminal=True)
 
 
 async def run_forever():

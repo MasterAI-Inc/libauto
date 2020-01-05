@@ -24,7 +24,7 @@ from auto.rpc.server import serve
 
 
 from auto import logger
-log = logger.init('camera_rpc_server', terminal=True)
+log = logger.init(__name__, terminal=True)
 
 
 from threading import Thread

@@ -25,7 +25,7 @@ import inspect
 import importlib
 
 from auto import logger
-log = logger.init('controller_rpc_server', terminal=True)
+log = logger.init(__name__, terminal=True)
 
 from auto.services.controller.cio_inspector import build_cio_method_map, get_abc_superclass_name
 
