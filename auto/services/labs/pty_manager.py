@@ -23,10 +23,8 @@ import asyncio
 
 from contextlib import contextmanager
 
-
-NAGLE_STYLE_DELAY = 0.1
-
-TMUX_LOCK = asyncio.Lock()   # lock to protect tmux commands; we only want to execute one at a time
+from auto import logger
+log = logger.init(__name__, terminal=True)
 
 
 class PtyManager:
@@ -40,7 +38,7 @@ class PtyManager:
         pass
 
     async def connected_cdp(self):
-        self.xterm_lookup = {}    # map xterm_guid to (task, queue)
+        self.xterm_lookup = {}    # map xterm_guid to (task, queue, start_time, user_session)
 
     async def new_user_session(self, username, user_session):
         pass
@@ -51,12 +49,13 @@ class PtyManager:
 
             if type_ in ('new_session', 'attach_session', 'start_process'):
                 xterm_guid = msg['xterm_guid']
+                user_session = msg['user_session']
                 if xterm_guid in self.xterm_lookup:
                     log.error('The xterm_guid={} already exists; invalid for type={}'.format(xterm_guid, type_))
                     return
                 queue = asyncio.Queue()
                 queue.put_nowait(msg)
-                coro = _pty_process_manager(xterm_guid, queue, send_func, self.system_up_user, self.console)
+                coro = _pty_process_manager(xterm_guid, user_session, queue, send_func, self.system_up_user, self.console)
                 task = asyncio.create_task(coro)
                 self.xterm_lookup[xterm_guid] = (task, queue, time.time(), user_session)
 
@@ -87,7 +86,8 @@ class PtyManager:
                 await self._list_running(send_func, user_session)
 
             elif type_ == 'clear_screen':
-                asyncio.create_task(_clear_console(self.console))
+                coro = _clear_console(self.console)
+                asyncio.create_task(coro)
 
     async def end_user_session(self, username, user_session):
         """
@@ -96,13 +96,13 @@ class PtyManager:
               it will just detach from the underlying tmux session (which is
               what we want).
         """
-        need_close = []
-        with self.pty_lookup_lock:
-            for xterm_guid, pty in self.pty_lookup.items():
-                if user_session is None or pty.user_session == user_session:
-                    need_close.append(pty)
-        for pty in need_close:
-            pty.terminate(force=True)  # <-- does SIGHUP, SIGINT, then SIGKILL
+        needs_delete = []
+        for xterm_guid, (task, queue, start_time, user_session_here) in self.xterm_lookup.items():
+            if user_session_here == user_session:
+                needs_delete.append(xterm_guid)
+                taks.cancel()
+        for xterm_guid in needs_delete:
+            del self.xterm_lookup[xterm_guid]
 
     async def disconnected_cdp(self):
         pass
@@ -148,6 +148,7 @@ def _switch_to_user(uid, gid):
 
 
 async def _user_uid_gid_home(system_user):
+    loop = asyncio.get_running_loop()
     pw_record = await loop.run_in_executor(None, pwd.getpwnam, system_user)
     uid = pw_record.pw_uid
     gid = pw_record.pw_gid
@@ -278,11 +279,11 @@ class PtyProcess:
     async def gentle_kill(self):
         self.p.send_signal(signal.SIGHUP)
         try:
-            asyncio.wait_for(self.p.wait(), 2.0)
+            await asyncio.wait_for(self.p.wait(), 2.0)
         except asyncio.TimeoutError:
             self.p.send_signal(signal.SIGINT)
             try:
-                asyncio.wait_for(self.p.wait(), 2.0)
+                await asyncio.wait_for(self.p.wait(), 2.0)
             except asyncio.TimeoutError:
                 self.p.kill()
                 await self.p.wait()
@@ -437,6 +438,7 @@ async def _handle_ouptput(xterm_guid, user_session, proc, send_func):
         })
 
     async def read_stream(stream_name, read_func):
+        # TODO: Should we buffer these `send()` calls? E.g. The Naggle-style delays?
         try:
             while True:
                 buf = await read_func()
@@ -465,7 +467,7 @@ async def _handle_ouptput(xterm_guid, user_session, proc, send_func):
             'to_user_session': user_session,
         })
 
-        log.info('Process output closed; pid={}; description={}; cmd={}'.format(proc.p.pid, proc.description, proc.cmd))
+        log.info('Process output closed; pid={}; description={}; cmd={}'.format(proc.p.pid, proc.description, proc.cmd[0]))
 
 
 async def _handle_input(queue, proc):
@@ -488,16 +490,15 @@ async def _handle_input(queue, proc):
                 raise Exception('Unexpected type sent to process manager: {}'.format(repr(msg)))
 
     except asyncio.CancelledError:
-        log.info('Process input closed; pid={}; description={}; cmd={}'.format(proc.p.pid, proc.description, proc.cmd))
+        log.info('Process input closed; pid={}; description={}; cmd={}'.format(proc.p.pid, proc.description, proc.cmd[0]))
 
 
-async def _pty_process_manager(xterm_guid, queue, send_func, system_user, console):
+async def _pty_process_manager(xterm_guid, user_session, queue, send_func, system_user, console):
     proc = None
 
     try:
         msg = await queue.get()
         type_ = msg['type']
-        user_session = msg['user_session']
 
         if type_ == 'new_session':
             proc = await _new_session(xterm_guid, user_session, send_func, msg, system_user)
@@ -512,7 +513,7 @@ async def _pty_process_manager(xterm_guid, queue, send_func, system_user, consol
         else:
             raise Exception('Unexpected type sent to process manager: {}'.format(repr(msg)))
 
-        log.info('Process started; pid={}; description={}; cmd={}'.format(proc.p.pid, proc.description, proc.cmd))
+        log.info('Process started; pid={}; description={}; cmd={}'.format(proc.p.pid, proc.description, proc.cmd[0]))
 
         output_task = asyncio.create_task(_handle_ouptput(xterm_guid, user_session, proc, send_func))
         input_task  = asyncio.create_task(_handle_input(queue, proc))
@@ -529,7 +530,7 @@ async def _pty_process_manager(xterm_guid, queue, send_func, system_user, consol
         if proc is None:
             log.info('Process canceled before it began.')
         else:
-            log.info('Process canceled; pid={}; description={}; cmd={}'.format(proc.p.pid, proc.description, proc.cmd))
+            log.info('Process canceled; pid={}; description={}; cmd={}'.format(proc.p.pid, proc.description, proc.cmd[0]))
 
     finally:
         if proc is not None:
@@ -547,5 +548,5 @@ async def _pty_process_manager(xterm_guid, queue, send_func, system_user, consol
                 'signalcode': signalcode,
                 'to_user_session': user_session,
             })
-            log.info('Process exited; pid={}; description={}; cmd={}; exitcode={}'.format(proc.p.pid, proc.description, proc.cmd, (exitcode, signalcode)))
+            log.info('Process exited; pid={}; description={}; cmd={}; exitcode={}'.format(proc.p.pid, proc.description, proc.cmd[0], (exitcode, signalcode)))
 
