@@ -19,7 +19,7 @@ from auto.inet import Wireless, list_wifi_ifaces, get_ip_address
 from auto import logger
 log = logger.init(__name__, terminal=True)
 
-from util import shutdown, update_libauto
+from auto.services.labs.util import shutdown, update_libauto
 
 
 class Dashboard:

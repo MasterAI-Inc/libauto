@@ -28,12 +28,12 @@ from auto.services.console.client import CuiRoot
 from auto import logger
 log = logger.init('labs connection', terminal=True)
 
-from pty_manager import PtyManager
-from verification_method import Verification
-from dashboard import Dashboard
-from proxy import Proxy
+from auto.services.labs.pty_manager import PtyManager
+from auto.services.labs.verification_method import Verification
+from auto.services.labs.dashboard import Dashboard
+from auto.services.labs.proxy import Proxy
 
-from util import set_hostname
+from auto.services.labs.util import set_hostname
 
 
 BASE_PROTO = os.environ.get('LABS_PROTO', 'wss')
@@ -363,7 +363,10 @@ async def run_forever(system_up_user):
 
 
 if __name__ == '__main__':
-    system_up_user = sys.argv[1]   # the "UnPrivileged" system user
+    if len(sys.argv) > 1:
+        system_up_user = sys.argv[1]   # the "UnPrivileged" system user
+    else:
+        system_up_user = os.environ['USER']
 
     asyncio.run(run_forever(system_up_user))
 
