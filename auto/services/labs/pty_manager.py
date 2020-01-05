@@ -185,8 +185,9 @@ async def _run_subprocess(cmd, system_user):
         stdout, stderr = await p.communicate()
         p = None
         if stderr:
+            stderr = stderr.decode('utf-8')
             log.error('Command {} wrote to stderr: {}'.format(repr(cmd), repr(stderr)))
-        return stdout
+        return stdout.decode('utf-8')
     except:
         if p is not None:
             p.kill()
@@ -283,6 +284,7 @@ class PtyProcess:
         try:
             s = struct.pack('HHHH', rows, cols, 0, 0)
             fcntl.ioctl(self.stdin, termios.TIOCSWINSZ, s)
+            self.p.send_signal(signal.SIGWINCH)
         except Exception as e:
             log.error('Failed to `setwinsize`: {}'.format(e))
             traceback.print_exc(file=sys.stderr)
@@ -292,7 +294,7 @@ class PtyProcess:
         try:
             await asyncio.wait_for(self.p.wait(), 2.0)
         except asyncio.TimeoutError:
-            self.p.send_signal(signal.SIGINT)
+            self.p.send_signal(signal.SIGTERM)
             try:
                 await asyncio.wait_for(self.p.wait(), 2.0)
             except asyncio.TimeoutError:
@@ -375,7 +377,7 @@ async def _run_pty_cmd_background(cmd, system_user, env_override=None, start_dir
 async def _new_session(xterm_guid, user_session, send_func, settings, system_user):
     session_name = await _next_tmux_session_name(system_user)
     start_dir = '~' if 'start_dir' not in settings else settings['start_dir']
-    cmd = ['tmux' 'new' '-c', start_dir, '-s', session_name]
+    cmd = ['tmux', 'new', '-c', start_dir, '-s', session_name]
     if 'cmd' in settings:
         cmd.extend(settings['cmd'])  # <-- becomes the shell argument to tmux
     size = settings.get('size', None)
@@ -403,7 +405,7 @@ async def _new_session(xterm_guid, user_session, send_func, settings, system_use
         raise
 
 
-async def _attach_session(session_name, settings):
+async def _attach_session(session_name, settings, system_user):
     session_name = re.sub(r'[^A-Za-z0-9_]', '', session_name)  # safe string
     cmd = ['tmux', 'attach', '-d', '-t', session_name]
     size = settings.get('size', None)
@@ -458,14 +460,11 @@ async def _handle_ouptput(xterm_guid, user_session, proc, send_func):
 
     async def read_stream(stream_name, read_func):
         # TODO: Should we buffer these `send()` calls? E.g. The Naggle-style delays?
-        try:
-            while True:
-                buf = await read_func()
-                if buf == b'':
-                    break
-                await send(stream_name, buf)
-        except asyncio.CancelledError:
-            pass
+        while True:
+            buf = await read_func()
+            if buf == b'':
+                break
+            await send(stream_name, buf)
 
     stdout_task = asyncio.create_task(read_stream('stdout', proc.read_stdout))
     stderr_task = asyncio.create_task(read_stream('stdout', proc.read_stderr))
@@ -474,14 +473,18 @@ async def _handle_ouptput(xterm_guid, user_session, proc, send_func):
         _, _ = await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)
 
     except asyncio.CancelledError:
-        stdout_task.cancel()
-        stderr_task.cancel()
-        await stdout_task
-        await stderr_task
+        for t in [stdout_task, stderr_task]:
+            t.cancel()
+            try:
+                await t
+            except asyncio.CancelledError:
+                pass
+        raise
 
     except Exception as e:
         log.error('Unknown exception: {}'.format(e))
         traceback.print_exc(file=sys.stderr)
+        raise
 
     finally:
         await send_func({
@@ -514,10 +517,14 @@ async def _handle_input(queue, proc):
 
     except asyncio.CancelledError:
         log.info('Process input closed; pid={}; description={}; cmd={}'.format(proc.p.pid, proc.description, proc.cmd[0]))
+        raise
 
 
 async def _pty_process_manager(xterm_guid, user_session, queue, send_func, system_user, console):
     proc = None
+
+    output_task = None
+    input_task = None
 
     try:
         msg = await queue.get()
@@ -528,7 +535,7 @@ async def _pty_process_manager(xterm_guid, user_session, queue, send_func, syste
 
         elif type_ == 'attach_session':
             session_name = msg['session_name']
-            proc = await _attach_session(session_name, msg)
+            proc = await _attach_session(session_name, msg, system_user)
 
         elif type_ == 'start_process':
             proc = await _start_process(xterm_guid, user_session, msg, system_user, console)
@@ -541,19 +548,8 @@ async def _pty_process_manager(xterm_guid, user_session, queue, send_func, syste
         output_task = asyncio.create_task(_handle_ouptput(xterm_guid, user_session, proc, send_func))
         input_task  = asyncio.create_task(_handle_input(queue, proc))
 
-        try:
-            await output_task
-            await proc.p.wait()
-        except asyncio.CancelledError:
-            pass
-        except Exception as e:
-            log.error('Unknown exception: {}'.format(e))
-            traceback.print_exc(file=sys.stderr)
-        finally:
-            output_task.cancel()
-            input_task.cancel()
-            await output_task
-            await input_task
+        await output_task
+        await proc.p.wait()
 
     except asyncio.CancelledError:
         if proc is None:
@@ -566,6 +562,33 @@ async def _pty_process_manager(xterm_guid, user_session, queue, send_func, syste
         traceback.print_exc(file=sys.stderr)
 
     finally:
+        exitcode, signalcode = await _cleanup(proc, output_task, input_task)
+
+        await send_func({
+            'type': 'pty_program_exited',
+            'xterm_guid': xterm_guid,
+            'exitcode': exitcode,
+            'signalcode': signalcode,
+            'to_user_session': user_session,
+        })
+
+
+async def _cleanup(proc, output_task, input_task):
+    try:
+        if output_task is not None:
+            output_task.cancel()
+            try:
+                await output_task
+            except asyncio.CancelledError:
+                pass
+
+        if input_task is not None:
+            input_task.cancel()
+            try:
+                await input_task
+            except asyncio.CancelledError:
+                pass
+
         if proc is not None:
             if proc.p.returncode is None:
                 await proc.gentle_kill()
@@ -578,11 +601,11 @@ async def _pty_process_manager(xterm_guid, user_session, queue, send_func, syste
         else:
             exitcode = None
             signalcode = signal.SIGHUP.value   # <-- The use canceled the process before it could even begin. Simulate a SIGHUP.
-        await send_func({
-            'type': 'pty_program_exited',
-            'xterm_guid': xterm_guid,
-            'exitcode': exitcode,
-            'signalcode': signalcode,
-            'to_user_session': user_session,
-        })
+
+        return exitcode, signalcode
+
+    except Exception as e:
+        log.error('Unknown exception: {}'.format(e))
+        traceback.print_exc(file=sys.stderr)
+        return 500, None
 
