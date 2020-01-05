@@ -10,6 +10,7 @@
 
 import os
 import re
+import sys
 import pwd
 import time
 import base64
@@ -18,6 +19,7 @@ import fcntl
 import struct
 import termios
 import signal
+import traceback
 
 import asyncio
 
@@ -100,7 +102,7 @@ class PtyManager:
         for xterm_guid, (task, queue, start_time, user_session_here) in self.xterm_lookup.items():
             if user_session_here == user_session:
                 needs_delete.append(xterm_guid)
-                taks.cancel()
+                task.cancel()
         for xterm_guid in needs_delete:
             del self.xterm_lookup[xterm_guid]
 
@@ -275,6 +277,7 @@ class PtyProcess:
             fcntl.ioctl(self.stdin, termios.TIOCSWINSZ, s)
         except Exception as e:
             log.error('Failed to `setwinsize`: {}'.format(e))
+            traceback.print_exc(file=sys.stderr)
 
     async def gentle_kill(self):
         self.p.send_signal(signal.SIGHUP)
@@ -460,6 +463,10 @@ async def _handle_ouptput(xterm_guid, user_session, proc, send_func):
         await stdout_task
         await stderr_task
 
+    except Exception as e:
+        log.error('Unknown exception: {}'.format(e))
+        traceback.print_exc(file=sys.stderr)
+
     finally:
         await send_func({
             'type': 'pty_output_closed',
@@ -519,7 +526,13 @@ async def _pty_process_manager(xterm_guid, user_session, queue, send_func, syste
         input_task  = asyncio.create_task(_handle_input(queue, proc))
 
         try:
-            await proc.wait()
+            await output_task
+            await proc.p.wait()
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            log.error('Unknown exception: {}'.format(e))
+            traceback.print_exc(file=sys.stderr)
         finally:
             output_task.cancel()
             input_task.cancel()
@@ -531,6 +544,10 @@ async def _pty_process_manager(xterm_guid, user_session, queue, send_func, syste
             log.info('Process canceled before it began.')
         else:
             log.info('Process canceled; pid={}; description={}; cmd={}'.format(proc.p.pid, proc.description, proc.cmd[0]))
+
+    except Exception as e:
+        log.error('Unknown exception: {}'.format(e))
+        traceback.print_exc(file=sys.stderr)
 
     finally:
         if proc is not None:
