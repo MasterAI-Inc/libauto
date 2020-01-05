@@ -175,15 +175,23 @@ async def _run_subprocess(cmd, system_user):
     # This runs a command _without_ a TTY.
     # Use `_run_pty_cmd_background()` when you need a TTY.
     cmd = ['sudo', '-u', system_user, '-i'] + cmd
-    p = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-    )
-    stdout, stderr = await p.communicate()
-    if stderr:
-        log.error('Command {} wrote to stderr: {}'.format(repr(cmd), repr(stderr)))
-    return stdout
+    p = None
+    try:
+        p = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await p.communicate()
+        p = None
+        if stderr:
+            log.error('Command {} wrote to stderr: {}'.format(repr(cmd), repr(stderr)))
+        return stdout
+    except:
+        if p is not None:
+            p.kill()
+            await p.wait()
+        raise
 
 
 async def _tmux_ls(system_user):
@@ -271,7 +279,7 @@ class PtyProcess:
         os.close(self.stdout)
         os.close(self.stderr)
 
-    async def setwinsize(self, rows, cols):
+    def setwinsize(self, rows, cols):
         try:
             s = struct.pack('HHHH', rows, cols, 0, 0)
             fcntl.ioctl(self.stdin, termios.TIOCSWINSZ, s)
@@ -359,7 +367,7 @@ async def _run_pty_cmd_background(cmd, system_user, env_override=None, start_dir
         size = (24, 80)
     else:
         size = (size['rows'], size['cols'])
-    await proc.setwinsize(*size)
+    proc.setwinsize(*size)
 
     return proc
 
@@ -371,20 +379,28 @@ async def _new_session(xterm_guid, user_session, send_func, settings, system_use
     if 'cmd' in settings:
         cmd.extend(settings['cmd'])  # <-- becomes the shell argument to tmux
     size = settings.get('size', None)
-    proc = await _run_pty_cmd_background(
-            cmd=cmd,
-            system_user=system_user,
-            size=size
-    )
-    proc.description = "Attached session: {}".format(session_name)
-    proc.cmd = cmd
-    await send_func({
-        'type': 'new_session_name_announcement',
-        'session_name': session_name,
-        'xterm_guid': xterm_guid,
-        'to_user_session': user_session,
-    })
-    return proc
+    proc = None
+    try:
+        proc = await _run_pty_cmd_background(
+                cmd=cmd,
+                system_user=system_user,
+                size=size
+        )
+        proc.description = "Attached session: {}".format(session_name)
+        proc.cmd = cmd
+        await send_func({
+            'type': 'new_session_name_announcement',
+            'session_name': session_name,
+            'xterm_guid': xterm_guid,
+            'to_user_session': user_session,
+        })
+        return proc
+    except:
+        if proc is not None:
+            proc.p.kill()
+            await proc.p.wait()
+            await proc.close_fds()
+        raise
 
 
 async def _attach_session(session_name, settings):
@@ -457,7 +473,7 @@ async def _handle_ouptput(xterm_guid, user_session, proc, send_func):
     try:
         _, _ = await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)
 
-    except asyncil.CancelledError:
+    except asyncio.CancelledError:
         stdout_task.cancel()
         stderr_task.cancel()
         await stdout_task
@@ -486,7 +502,7 @@ async def _handle_input(queue, proc):
             if type_ == 'xterm_resized':
                 size = msg['size']
                 size = (size['rows'], size['cols'])
-                await proc.setwinsize(*size)
+                proc.setwinsize(*size)
 
             elif type_ == 'send_input_to_pty':
                 input_ = msg['input']
@@ -558,12 +574,15 @@ async def _pty_process_manager(xterm_guid, user_session, queue, send_func, syste
             assert returncode is not None
             exitcode = returncode if returncode >= 0 else None
             signalcode = -returncode if returncode < 0 else None
-            await send_func({
-                'type': 'pty_program_exited',
-                'xterm_guid': xterm_guid,
-                'exitcode': exitcode,
-                'signalcode': signalcode,
-                'to_user_session': user_session,
-            })
             log.info('Process exited; pid={}; description={}; cmd={}; exitcode={}'.format(proc.p.pid, proc.description, proc.cmd[0], (exitcode, signalcode)))
+        else:
+            exitcode = None
+            signalcode = signal.SIGHUP.value   # <-- The use canceled the process before it could even begin. Simulate a SIGHUP.
+        await send_func({
+            'type': 'pty_program_exited',
+            'xterm_guid': xterm_guid,
+            'exitcode': exitcode,
+            'signalcode': signalcode,
+            'to_user_session': user_session,
+        })
 
