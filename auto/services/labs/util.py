@@ -51,6 +51,6 @@ def _shutdown(reboot):
 
 
 def _update_libauto():
-    path = os.path.join(SCRIPTS_DIRECTORY, 'update_libauto'
+    path = os.path.join(SCRIPTS_DIRECTORY, 'update_libauto')
     return run_script(path)
 
