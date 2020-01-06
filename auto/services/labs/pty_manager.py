@@ -158,11 +158,11 @@ async def _user_uid_gid_home(system_user):
     return uid, gid, home
 
 
-async def _write_code_from_cdp(xterm_guid, code_str, system_user):
+async def _write_code(xterm_guid, code_str, system_user):
     uid, gid, home = await _user_uid_gid_home(system_user)
     with _switch_to_user(uid, gid):
         subdirs = xterm_guid[0:2], xterm_guid[2:4], xterm_guid[4:6], xterm_guid[6:8], xterm_guid
-        directory = os.path.join(home, '.cdp_runs', *subdirs)
+        directory = os.path.join(home, '.labs_code', *subdirs)
         if not os.path.exists(directory):
             os.makedirs(directory)
         code_path = os.path.join(directory, 'main.py')
@@ -211,7 +211,7 @@ async def _next_tmux_session_name(system_user):
     curr_names = set(curr_names)
     i = 0
     while True:
-        candiate_name = 'cdp_{}'.format(i)
+        candiate_name = 'labs_{}'.format(i)
         if candiate_name not in curr_names:
             return candiate_name
         i += 1
@@ -424,7 +424,7 @@ async def _start_process(xterm_guid, user_session, settings, system_user, consol
         await _clear_console(console)
 
     if 'code_to_run' in settings:
-        code_path = await _write_code_from_cdp(xterm_guid, settings['code_to_run'], system_user)
+        code_path = await _write_code(xterm_guid, settings['code_to_run'], system_user)
         cmd = ['python3', code_path]
         description = 'Running Code'
     else:

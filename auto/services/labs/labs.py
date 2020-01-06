@@ -35,6 +35,8 @@ from auto.services.labs.proxy import Proxy
 
 from auto.services.labs.util import set_hostname
 
+from auto.services.labs.rpc.server import init as init_rpc_server
+
 
 BASE_PROTO = os.environ.get('LABS_PROTO', 'wss')
 BASE_HOST  = os.environ.get('LABS_HOST', 'ws.autoauto.ai')
@@ -221,7 +223,7 @@ def _build_send_function(ws, connected_user_sessions):
     return smart_send
 
 
-async def _run(ws, consumers, console):
+async def _run(ws, consumers, console, rpc_interface):
     ping_task = asyncio.create_task(_ping_with_interval(ws))
 
     connected_user_sessions = ConnectedUserSessions(consumers)
@@ -235,6 +237,8 @@ async def _run(ws, consumers, console):
             await c.connected_cdp()
         except:
             _log_consumer_error(c)
+
+    rpc_interface.send_func = send_func
 
     try:
         while True:
@@ -264,6 +268,8 @@ async def _run(ws, consumers, console):
                 log.warning('Message was: {}'.format(json.dumps(msg)))
 
     finally:
+        rpc_interface.send_func = None
+
         await connected_user_sessions.close_all_user_sessions()
 
         for c in consumers:
@@ -323,6 +329,8 @@ async def run_forever(system_up_user):
 
     url = BASE_URL + '/' + token
 
+    rpc_server, rpc_interface = await init_rpc_server()
+
     consumers = [
         PtyManager(system_up_user, console),
         Verification(console),
@@ -344,14 +352,14 @@ async def run_forever(system_up_user):
         try:
             async with ws_connect(url) as ws:
                 log.info("Connected: {}...".format(BASE_URL + '/' + token[:4]))
-                await console.write_text('Connected to CDP. Standing by...\n')
+                await console.write_text('Connected to Labs. Standing by...\n')
                 was_connected = True
-                await _run(ws, consumers, console)
+                await _run(ws, consumers, console, rpc_interface)
 
         except WebSocketException as e:
             log.info('Connection closed: {}'.format(e))
             if was_connected:
-                await console.write_text('Connection to CDP lost. Reconnecting...\n')
+                await console.write_text('Connection to Labs was lost.\nReconnecting...\n')
 
         except Exception as e:
             log.error('Unknown error: {}'.format(e))

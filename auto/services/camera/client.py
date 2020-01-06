@@ -12,7 +12,7 @@
 This modules provides an **asynchronous** camera class abstraction which pulls
 frames from the camera RPC server.
 
-For the server, see `services/camera/camera.py`.
+For the server, see `auto/services/camera/server.py`.
 
 The camera is a shared resource which can only be used by one
 process at a time, thus this RPC interface is a way to allow
