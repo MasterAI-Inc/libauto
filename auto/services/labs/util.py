@@ -22,6 +22,8 @@ import asyncio
 import re
 import os
 
+from auto.services.scripts import SCRIPTS_DIRECTORY
+
 
 async def set_hostname(name):
     loop = asyncio.get_running_loop()
@@ -39,27 +41,27 @@ async def update_libauto():
 
 
 def _set_hostname(name):
-    path = '/usr/local/bin/set_hostname'
+    path = os.path.join(SCRIPTS_DIRECTORY, 'set_hostname')
     name = re.sub(r'[^A-Za-z0-9]', '', name)
-    return _run_command(True, path, name)
+    return _run_command(path, name)
 
 
 def _shutdown(reboot):
     path = '/sbin/reboot' if reboot else '/sbin/poweroff'
-    return _run_command(True, path)
+    return _run_command(path)
 
 
 def _update_libauto():
-    path = '/usr/local/bin/update_libauto'
-    return _run_command(False, path)
+    path = os.path.join(SCRIPTS_DIRECTORY, 'update_libauto'
+    return _run_command(path)
 
 
-def _run_command(use_sudo, path, *args):
+def _run_command(path, *args):
     if not os.path.isfile(path):
         return 'Error: The script or program at the specified path is not installed on your system.'
 
     try:
-        cmd = ['/usr/bin/sudo', path, *args] if use_sudo else [path, *args]
+        cmd = [path, *args]
         output = subprocess.run(cmd,
                                 timeout=5,
                                 stdout=subprocess.PIPE,

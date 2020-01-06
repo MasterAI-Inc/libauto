@@ -1,0 +1,29 @@
+#!/bin/bash
+
+set -e
+
+if ! [ $(id -u) = 0 ]
+then
+    echo "You must be root to use this script."
+    exit 1
+fi
+
+
+LIBAUTO_PATH=$(python3 -c 'import auto; print(auto.__file__)')
+LIBAUTO_PATH=$(dirname "$LIBAUTO_PATH")
+LIBAUTO_PATH=$(dirname "$LIBAUTO_PATH")
+
+OWNER=$(stat -c %U "$LIBAUTO_PATH")
+
+echo "Libauto directory:" "$LIBAUTO_PATH"
+echo "Owner is:" "$OWNER"
+
+cd "$LIBAUTO_PATH"
+
+sudo -u "$OWNER" git pull
+
+sync
+
+sleep 2    # Allows the user time to see what happened.
+
+reboot
