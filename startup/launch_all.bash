@@ -25,6 +25,8 @@ then
     exit 1
 fi
 
+exit
+
 "$LIBAUTO_SERVICES_PYTHON" startup/cio_rpc_server/cio_rpc_server.py &
 CIO_RPC_SERVER_PID=$!
 

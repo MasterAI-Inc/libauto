@@ -1,19 +1,31 @@
-import pexpect
-import time
-import hashlib
+import os
 import base64
+import hashlib
+import asyncio
+
+from auto.services.scripts import SCRIPTS_DIRECTORY, run_script
 
 
-def change_system_password(system_user, new_password):
+async def change_system_password(system_user, new_password):
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _change_system_password, system_user, new_password)
 
-    p = pexpect.spawn('sudo', ['passwd', system_user], timeout=5)
 
-    for i in range(2):
-        p.expect('new.*password.*:')
-        time.sleep(0.5)
-        p.sendline(new_password)
+def _change_system_password(system_user, new_password):
+    path = os.path.join(SCRIPTS_DIRECTORY, 'set_password')
+    return run_script(path, new_password, system_user)
 
-    p.expect('.*success')
+
+def derive_system_password(token):
+    return _hashed_token(token, 'AutoAuto privileged system password salt value!', 12)
+
+
+def derive_jupyter_password(token):
+    return _hashed_token(token, 'AutoAuto Jupyter server password salt value!', 24)
+
+
+def derive_labs_auth(token):
+    return _hashed_token(token, 'AutoAuto Lab single device authentication code!', 24)
 
 
 def _hashed_token(token, salt, length):
@@ -71,12 +83,4 @@ def _hashed_token(token, salt, length):
     password = hash_base64[:length].decode('utf-8')
     password = password.replace('/', '_').replace('+', '_')  # '/' and '+' are confusing for users to see in a password; this replacement is easier on the eyes and only decreases the level of security by a miniscule amount (the password length is plenty long, and we're just giving up 1 character from an alphabet of 64.)
     return password
-
-
-def token_to_system_password(token):
-    return _hashed_token(token, 'AutoAuto privileged system password salt value!', 12)
-
-
-def token_to_jupyter_password(token):
-    return _hashed_token(token, 'AutoAuto Jupyter server password salt value!', 24)
 
