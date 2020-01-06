@@ -136,19 +136,6 @@ async def _clear_console(console):
     await console.clear_image()
 
 
-@contextmanager
-def _switch_to_user(uid, gid):
-    sgid = os.getgid()  # the "saved" gid
-    suid = os.getuid()  # the "saved" uid
-    try:
-        os.setegid(gid)
-        os.seteuid(uid)
-        yield
-    finally:
-        os.setegid(sgid)
-        os.seteuid(suid)
-
-
 async def _user_uid_gid_home(system_user):
     loop = asyncio.get_running_loop()
     pw_record = await loop.run_in_executor(None, pwd.getpwnam, system_user)
@@ -160,14 +147,13 @@ async def _user_uid_gid_home(system_user):
 
 async def _write_code(xterm_guid, code_str, system_user):
     uid, gid, home = await _user_uid_gid_home(system_user)
-    with _switch_to_user(uid, gid):
-        subdirs = xterm_guid[0:2], xterm_guid[2:4], xterm_guid[4:6], xterm_guid[6:8], xterm_guid
-        directory = os.path.join(home, '.labs_code', *subdirs)
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-        code_path = os.path.join(directory, 'main.py')
-        with open(code_path, 'w') as f:
-            f.write(code_str)
+    subdirs = xterm_guid[0:2], xterm_guid[2:4], xterm_guid[4:6], xterm_guid[6:8], xterm_guid
+    directory = os.path.join(home, '.labs_code', *subdirs)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    code_path = os.path.join(directory, 'main.py')
+    with open(code_path, 'w') as f:
+        f.write(code_str)
     return code_path
 
 
