@@ -233,22 +233,15 @@ def calibrate(io_device=['computer', 'car'][0]):
                      io_device=io_device) == 'y':
         _calibrate_microcontroller(io_device=io_device)
 
-    if _choice_input(prompt="Run fully automatic calibration?\n[EXPERIMENTAL]",
+    if _choice_input("Calibrate safe throttle speed?",
                      choices=['n', 'y'],
                      io_device=io_device) == 'y':
-        from car.calibration_self import calibrate as calibrate_self
-        calibrate_self(io_device)
+        _calibrate_safe_throttle(io_device)
 
-    else:
-        if _choice_input("Calibrate safe throttle speed?",
-                         choices=['n', 'y'],
-                         io_device=io_device) == 'y':
-            _calibrate_safe_throttle(io_device)
-
-        if _choice_input("Calibrate servo range?",
-                         choices=['n', 'y'],
-                         io_device=io_device) == 'y':
-            _calibrate_servo_range(io_device)
+    if _choice_input("Calibrate servo range?",
+                     choices=['n', 'y'],
+                     io_device=io_device) == 'y':
+        _calibrate_servo_range(io_device)
 
     if _choice_input("Calibrate steering PID?",
                      choices=['n', 'y'],

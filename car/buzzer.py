@@ -12,17 +12,23 @@
 This module provides a simple helper to use the buzzer.
 """
 
-from cio.rpc_client import acquire_component_interface
-
-BUZZER = acquire_component_interface('Buzzer')
+from auto.capabilities import list_caps, acquire
 
 
 def buzz(notes):
     """
     Play the given `notes` on the device's buzzer.
     """
-    BUZZER.play(notes)
-    BUZZER.wait()
+    global _BUZZER
+    try:
+        _BUZZER
+    except NameError:
+        caps = list_caps()
+        if 'Buzzer' not in caps:
+            raise AttributeError("This device does not have a buzzer.")
+        _BUZZER = acquire('Buzzer')
+    _BUZZER.play(notes)
+    _BUZZER.wait()
 
 
 def honk(count=1):

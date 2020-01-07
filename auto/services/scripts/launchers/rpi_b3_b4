@@ -21,6 +21,10 @@ do
     sleep 0.3
 done
 
+# Disable screensaver and screen-off-power-savings.
+xset -dpms
+xset s off
+
 # Run the startup demo program and play the boot video.
 auto/resources/bin/startup_demo_car &
 DEMO_PID=$!
