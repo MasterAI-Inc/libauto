@@ -61,7 +61,7 @@ class Wireless:
                 continue
             iface, name = lst
             if iface == self.interface:
-                if name == '--':
+                if name in ('', '--'):
                     return None
                 return name
 
