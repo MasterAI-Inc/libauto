@@ -17,13 +17,14 @@ from auto.services.controller.server import init as controller_init
 from auto.services.console.server import init as console_init
 from auto.services.labs.labs import run_forever as labs_run_forever
 from auto.services.battery.monitor import run_forever as battery_run_forever
+from auto.services.wifi.monitor import run_forever as wifi_run_forever
 
 import os
 import sys
 import asyncio
 
 
-async def init_all(system_up_user):
+async def init_all(system_up_user, system_priv_user):
     # Camera Service
     camera_server = await camera_init()
 
@@ -39,6 +40,9 @@ async def init_all(system_up_user):
     # Battery Monitor
     battery_task = asyncio.create_task(battery_run_forever())
 
+    # Wifi Monitor
+    wifi_task = asyncio.create_task(wifi_run_forever(system_priv_user))
+
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
@@ -46,7 +50,12 @@ if __name__ == '__main__':
     else:
         system_up_user = os.environ['USER']
 
+    if len(sys.argv) > 2:
+        system_priv_user = sys.argv[2]   # the "Privileged" system user
+    else:
+        system_priv_user = os.environ['USER']
+
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(init_all(system_up_user))
+    loop.run_until_complete(init_all(system_up_user, system_priv_user))
     loop.run_forever()
 

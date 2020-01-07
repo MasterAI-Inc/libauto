@@ -219,7 +219,7 @@ async def _print_connection_info(wireless, console):
         await console.write_text("Current IP address: {}\n".format(ip_address))
 
 
-async def _main_loop(wireless, console, controller):
+async def _main_loop(wireless, console, controller, system_priv_user):
     loop = asyncio.get_running_loop()
 
     last_wifi_seen = None
@@ -303,7 +303,7 @@ async def run_forever(system_priv_user):
 
     await _print_connection_info(wireless, console)
 
-    await _main_loop(wireless, console, controller)
+    await _main_loop(wireless, console, controller, system_priv_user)
 
 
 async def _mock_wifi_run_forever(system_priv_user):
@@ -347,7 +347,7 @@ async def _mock_wifi_run_forever(system_priv_user):
 
     await _print_connection_info(wireless, console)
 
-    await _main_loop(wireless, console, controller)
+    await _main_loop(wireless, console, controller, system_priv_user)
 
 
 if __name__ == '__main__':
