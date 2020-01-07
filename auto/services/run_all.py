@@ -18,6 +18,7 @@ from auto.services.console.server import init as console_init
 from auto.services.labs.labs import run_forever as labs_run_forever
 from auto.services.battery.monitor import run_forever as battery_run_forever
 from auto.services.wifi.monitor import run_forever as wifi_run_forever
+from auto.services.jupyter.run import run_jupyter_in_background
 
 import os
 import sys
@@ -42,6 +43,9 @@ async def init_all(system_up_user, system_priv_user):
 
     # Wifi Monitor
     wifi_task = asyncio.create_task(wifi_run_forever(system_priv_user))
+
+    # Jupyter
+    jupyter_thread = run_jupyter_in_background(system_up_user)
 
 
 if __name__ == '__main__':

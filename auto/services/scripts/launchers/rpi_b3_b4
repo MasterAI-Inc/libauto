@@ -1,0 +1,36 @@
+#!/bin/bash
+
+set -e
+
+if ! [ $(id -u) = 0 ]
+then
+    echo "You must be root to use this script."
+    exit 1
+fi
+
+sync
+
+# Change to the `libauto` directory.
+cd "$(dirname "$0")"/../../../..
+echo 'Starting in directory' $(pwd) 'as user' $(whoami)
+
+# Make sure X is running.
+while ! xset q &>/dev/null
+do
+    echo 'Waiting for X Server ...'
+    sleep 0.3
+done
+
+# Run the startup demo program and play the boot video.
+auto/resources/bin/startup_demo_car &
+DEMO_PID=$!
+fbcp &
+FBCP_PID=$!
+omxplayer -b auto/resources/videos/boot_up_video.mp4
+kill $FBCP_PID
+wait $FBCP_PID || true
+wait $DEMO_PID
+
+# Run all the services.
+exec python3 auto/services/run_all.py "$@"
+
