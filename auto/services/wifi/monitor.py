@@ -219,23 +219,8 @@ async def _print_connection_info(wireless, console):
         await console.write_text("Current IP address: {}\n".format(ip_address))
 
 
-async def run_forever(system_priv_user):
+async def _main_loop(wireless, console, controller):
     loop = asyncio.get_running_loop()
-
-    log.info("Starting Wifi controller using the privileged user: {}".format(system_priv_user))
-
-    wifi_interface = await loop.run_in_executor(None, list_wifi_ifaces)
-    wifi_interface = wifi_interface[0]
-
-    wireless = Wireless(wifi_interface)
-
-    console = CuiRoot()
-    controller = CioRoot()
-
-    await console.init()
-    await controller.init()
-
-    await _print_connection_info(wireless, console)
 
     last_wifi_seen = None
     confident_about_token = False
@@ -285,7 +270,9 @@ async def run_forever(system_priv_user):
                         break
                 await console.big_clear()
 
-                await _update_and_reboot_if_no_token(controller)
+                update_result = await _update_and_reboot_if_no_token(controller)
+                if update_result is not None:
+                    log.info('Attempted to update libauto, got response: {}'.format(update_result))
 
         else:
             # We have WiFi.
@@ -298,11 +285,77 @@ async def run_forever(system_priv_user):
         await asyncio.sleep(5)
 
 
+async def run_forever(system_priv_user):
+    loop = asyncio.get_running_loop()
+
+    log.info("Starting Wifi controller using the privileged user: {}".format(system_priv_user))
+
+    wifi_interface = await loop.run_in_executor(None, list_wifi_ifaces)
+    wifi_interface = wifi_interface[0]
+
+    wireless = Wireless(wifi_interface)
+
+    console = CuiRoot()
+    controller = CioRoot()
+
+    await console.init()
+    await controller.init()
+
+    await _print_connection_info(wireless, console)
+
+    await _main_loop(wireless, console, controller)
+
+
+async def _mock_wifi_run_forever(system_priv_user):
+    loop = asyncio.get_running_loop()
+
+    log.info("Starting Mock Wifi controller!!!")
+
+    class MockWireless:
+        def __init__(self, interface):
+            self.interface = interface
+            self.curr = None
+            self.fail_count = 2
+
+        def connect(self, ssid, password):
+            log.info('Calling Mock Wireless: connect({}, {})'.format(repr(ssid), repr(password)))
+            if self.fail_count > 0:
+                self.fail_count -= 1
+                return False
+            self.curr = ssid
+            return True
+
+        def current(self):
+            log.info('Calling Mock Wireless: current()')
+            return self.curr
+
+        def delete_connection(self, ssid_to_delete):
+            log.info('Calling Mock Wireless: delete_connection({})'.format(repr(ssid_to_delete)))
+            if ssid_to_delete == self.curr:
+                self.curr = None
+
+    wifi_interface = await loop.run_in_executor(None, list_wifi_ifaces)
+    wifi_interface = wifi_interface[0]
+
+    wireless = MockWireless(wifi_interface)
+
+    console = CuiRoot()
+    controller = CioRoot()
+
+    await console.init()
+    await controller.init()
+
+    await _print_connection_info(wireless, console)
+
+    await _main_loop(wireless, console, controller)
+
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         system_priv_user = sys.argv[1]   # the "Privileged" system user
     else:
         system_priv_user = os.environ['USER']
 
+    #asyncio.run(_mock_wifi_run_forever(system_priv_user))
     asyncio.run(run_forever(system_priv_user))
 
