@@ -117,6 +117,7 @@ class CredentialsIface(abc.ABC):
     async def set_labs_auth_code(self, auth_code):
         """
         Set (and save) the authentication code.
+        Might allow only a single write. Returns True/False if write was successful.
         """
         pass
 
@@ -133,6 +134,7 @@ class CredentialsIface(abc.ABC):
     async def set_jupyter_password(self, password):
         """
         Set (and save) the Jupter password.
+        Might allow only a single write. Returns True/False if write was successful.
         """
         pass
 

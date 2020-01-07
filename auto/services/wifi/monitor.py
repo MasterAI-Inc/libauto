@@ -68,7 +68,7 @@ async def _current(wireless):
     return await loop.run_in_executor(None, wireless.current)
 
 
-async def _get_wifi_info_from_user(wireless):
+async def _get_wifi_info_from_user(wireless, console):
     loop = asyncio.get_running_loop()
 
     camera = CameraRGB()
@@ -114,14 +114,16 @@ async def _get_labs_auth_code(controller):
 
 async def _store_labs_auth_code(controller, auth_code):
     auth = await controller.acquire('Credentials')
-    await auth.set_labs_auth_code(auth_code)
+    did_save = await auth.set_labs_auth_code(auth_code)
     await controller.release(auth)
+    return did_save
 
 
 async def _store_jupyter_password(controller, jupyter_password):
     auth = await controller.acquire('Credentials')
-    await auth.set_jupyter_password(jupyter_password)
+    did_save = await auth.set_jupyter_password(jupyter_password)
     await controller.release(auth)
+    return did_save
 
 
 async def _ensure_token(console, controller, system_priv_user):
@@ -161,6 +163,12 @@ async def _ensure_token(console, controller, system_priv_user):
                 pass
 
     await camera.close()
+    await console.clear_image()
+
+    await console.big_image('token_success')
+    await console.big_status('Success. Token: {}...'.format(token[:4]))
+
+    await console.write_text("Received token: {}...\n".format(token[:4]))
 
     if system_password is None:
         # If a particular default system_password was not specified, we will generate a good
@@ -171,20 +179,20 @@ async def _ensure_token(console, controller, system_priv_user):
     jupyter_password = util.derive_jupyter_password(token)
     auth_code = util.derive_labs_auth_code(token)
 
-    await util.change_system_password(system_priv_user, system_password)
+    if await util.change_system_password(system_priv_user, system_password):
+        await console.write_text("Successfully changed {}'s password!\n".format(system_priv_user))
+    else:
+        await console.write_text("Failed to change {}' password.\n".format(system_priv_user))
 
-    await _store_jupyter_password(controller, jupyter_password)
-    await _store_labs_auth_code(controller, auth_code)
+    if await _store_jupyter_password(controller, jupyter_password):
+        await console.write_text("Stored Jupyter password: {}...\n".format(jupyter_password[:4]))
+    else:
+        await console.write_text("Failed to store Jupyter password.\n")
 
-    await console.clear_image()
-
-    await console.big_image('token_success')
-    await console.big_status('Success. Token: {}...'.format(token[:5]))
-
-    await console.write_text("Stored Device token: {}...\n".format(token[:5]))
-    await console.write_text("Stored Jupyter password: {}...\n".format(jupyter_password[:2]))
-
-    await console.write_text("Successfully changed {}'s password!\n".format(system_priv_user))
+    if await _store_labs_auth_code(controller, auth_code):
+        await console.write_text("Stored Labs Auth Code: {}...\n".format(auth_code[:4]))
+    else:
+        await console.write_text("Failed to store Labs Auth Code.\n")
 
     await asyncio.sleep(2)
 
@@ -194,7 +202,7 @@ async def _ensure_token(console, controller, system_priv_user):
 async def _update_and_reboot_if_no_token(controller):
     if (await _get_labs_auth_code(controller)) is None:
         log.info("We now have Wifi, but we doesn't yet have a token. Therefore we will take this opportunity to update libauto.")
-        await update_libauto()
+        return await update_libauto()
 
 
 async def _print_connection_info(wireless, console):
@@ -229,13 +237,18 @@ async def run_forever(system_priv_user):
 
     await _print_connection_info(wireless, console)
 
+    last_wifi_seen = None
+    confident_about_token = False
+
     # Repeat forever: Check to see if we are connected to WiFi. If not, wait 10 seconds
     #                 to see if anything changes. If after 10 seconds we still don't have
     #                 WiFi, initiate the WiFi connection screen. If we _do_ have WiFi, then
     #                 we'll repeat this whole process after 5 seconds.
     while True:
         current = await _current(wireless)
-        log.info("Current WiFi network: {}".format(current))
+        if current != last_wifi_seen:
+            log.info("Current WiFi network: {}".format(current))
+            last_wifi_seen = current
 
         if current is None:
             log.info("No WiFi!")
@@ -245,7 +258,7 @@ async def run_forever(system_priv_user):
                 await console.big_image('wifi_error')
                 await console.big_status('https://labs.autoauto.ai/wifi')
                 while (await _current(wireless)) is None:
-                    ssid, password = await _get_wifi_info_from_user(wireless)
+                    ssid, password = await _get_wifi_info_from_user(wireless, console)
                     if ssid is None:
                         log.info("WiFi magically came back before user input.")
                         break
@@ -277,7 +290,10 @@ async def run_forever(system_priv_user):
         else:
             # We have WiFi.
             # After WiFi, we care that we have a Token so that we can authenticate with the CDP.
-            await _ensure_token(console, controller, system_priv_user)
+            if not confident_about_token:
+                await _ensure_token(console, controller, system_priv_user)
+                confident_about_token = True
+                log.info('Ensured token.')
 
         await asyncio.sleep(5)
 

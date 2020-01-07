@@ -287,7 +287,7 @@ async def _get_labs_auth_code(controller, console):
     was_missing = False
     while True:
         auth_code = await auth.get_labs_auth_code()
-        if auth_code:
+        if auth_code is not None:
             if was_missing:
                 await console.write_text("The auth code is now set!\n")
                 log.info('The auth code is now set!')

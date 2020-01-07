@@ -18,7 +18,8 @@ from auto.services.scripts import SCRIPTS_DIRECTORY, run_script
 
 async def change_system_password(system_user, new_password):
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, _change_system_password, system_user, new_password)
+    output = await loop.run_in_executor(None, _change_system_password, system_user, new_password)
+    return 'success' in output.lower()
 
 
 def _change_system_password(system_user, new_password):
