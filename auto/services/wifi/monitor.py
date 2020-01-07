@@ -8,52 +8,49 @@
 #
 ###############################################################################
 
-from auto.camera_rpc_client import CameraRGB
+from auto.services.camera.client import CameraRGB
+from auto.services.console.client import CuiRoot
+from auto.services.controller.client import CioRoot
+from auto.services.labs.util import update_libauto
+from auto.services.wifi import myzbarlight
+from auto.services.wifi import util
+
 from auto.inet import Wireless, list_wifi_ifaces, get_ip_address, has_internet_access
-from auto.db import secure_db
-from auto import print_all
-from auto import console
 
-import myzbarlight
-import util
-
-import subprocess
+import itertools
+import asyncio
 import json
-import time
 import cv2
 import sys
+import os
 
 from auto import logger
-log = logger.init('wifi_controller', terminal=True)
+log = logger.init(__name__, terminal=True)
 
 
 NUM_INTERNET_ATTEMPTS = 5
 INTERNET_ATTEMPT_SLEEP = 4
 
 
-STORE = secure_db()
+async def _has_internet_access_multi_try():
+    loop = asyncio.get_running_loop()
 
-wireless = Wireless(list_wifi_ifaces()[0])
-
-
-system_priv_user = sys.argv[1]   # the "Privileged" system user
-
-log.info("Starting Wifi controller using the privileged user: {}".format(system_priv_user))
-
-
-def has_internet_access_multi_try():
     for i in range(NUM_INTERNET_ATTEMPTS-1):
-        if has_internet_access():
+        success = await loop.run_in_executor(None, has_internet_access)
+        if success:
             return True
         log.info("Check for internet FAILED.")
-        time.sleep(INTERNET_ATTEMPT_SLEEP)
-    if has_internet_access():
+        await asyncio.sleep(INTERNET_ATTEMPT_SLEEP)
+
+    success = await loop.run_in_executor(None, has_internet_access)
+    if success:
         return True
+
     log.info("Check for internet FAILED last attempt. Concluding there is no internet access.")
     return False
 
 
-def stream_frame(frame):
+async def _stream_frame(frame, console):
     if frame.ndim == 2:
         height, width = frame.shape
         channels = 1
@@ -63,16 +60,25 @@ def stream_frame(frame):
         return  # :(
     shape = [width, height, channels]
     rect = [22, 20, width, height]
-    console.stream_image(rect, shape, frame.tobytes())
+    await console.stream_image(rect, shape, frame.tobytes())
 
 
-def get_wifi_info_from_user():
+async def _current(wireless):
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, wireless.current)
+
+
+async def _get_wifi_info_from_user(wireless):
+    loop = asyncio.get_running_loop()
+
     camera = CameraRGB()
+    await camera.connect()
 
-    for i, frame in enumerate(camera.stream()):
-        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-        stream_frame(frame)
-        qrcodes = myzbarlight.qr_scan(frame)
+    for i in itertools.count():
+        frame = await camera.capture()
+        frame = await loop.run_in_executor(None, cv2.cvtColor, frame, cv2.COLOR_RGB2GRAY)
+        await _stream_frame(frame, console)
+        qrcodes = await loop.run_in_executor(None, myzbarlight.qr_scan, frame)
 
         if len(qrcodes) > 0:
             qr_data = qrcodes[0]
@@ -88,44 +94,58 @@ def get_wifi_info_from_user():
 
         if (i % 100) == 99:
             # Every 100 frames, we'll check to see if WiFi magically came back.
-            if wireless.current() is not None:
+            if (await _current(wireless)) is not None:
                 ssid = None
                 password = None
                 break
 
-    console.clear_image()
-    camera.close()
+    await console.clear_image()
+    await camera.close()
 
     return ssid, password
 
 
-def update_and_reboot_if_no_token():
-    token = STORE.get('DEVICE_TOKEN', None)
-
-    if token is None:
-        log.info("We now have Wifi, but we doesn't yet have a token. Therefore we will take this opportunity to update libauto.")
-        cmd = ['update_libauto']
-        output = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.decode('utf-8')
+async def _get_labs_auth_code(controller):
+    auth = await controller.acquire('Credentials')
+    auth_code = await auth.get_labs_auth_code()
+    await controller.release(auth)
+    return auth_code
 
 
-def ensure_token():
-    token = STORE.get('DEVICE_TOKEN', None)
+async def _store_labs_auth_code(controller, auth_code):
+    auth = await controller.acquire('Credentials')
+    await auth.set_labs_auth_code(auth_code)
+    await controller.release(auth)
 
-    if token is not None:
-        # We have a token. All is well.
+
+async def _store_jupyter_password(controller, jupyter_password):
+    auth = await controller.acquire('Credentials')
+    await auth.set_jupyter_password(jupyter_password)
+    await controller.release(auth)
+
+
+async def _ensure_token(console, controller, system_priv_user):
+    loop = asyncio.get_running_loop()
+
+    auth_code = await _get_labs_auth_code(controller)
+
+    if auth_code is not None:
+        # We have an auth code which means this device was set with a token already. All is well.
         return
 
-    console.big_image('images/token_error.png')
-    console.big_status('Ready to receive login token.')
+    await console.big_image('token_error')
+    await console.big_status('Ready to receive login token.')
 
     camera = CameraRGB()
+    await camera.connect()
 
     system_password = None
 
-    for i, frame in enumerate(camera.stream()):
-        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-        stream_frame(frame)
-        qrcodes = myzbarlight.qr_scan(frame)
+    for i in itertools.count():
+        frame = await camera.capture()
+        frame = await loop.run_in_executor(None, cv2.cvtColor, frame, cv2.COLOR_RGB2GRAY)
+        await _stream_frame(frame, console)
+        qrcodes = await loop.run_in_executor(None, myzbarlight.qr_scan, frame)
 
         if len(qrcodes) > 0:
             qr_data = qrcodes[0]
@@ -140,96 +160,133 @@ def ensure_token():
             except:
                 pass
 
-    console.clear_image()
-    camera.close()
-
-    console.big_image('images/token_success.png')
-    console.big_status('Success. Token: {}...'.format(token[:5]))
-
-    STORE.put('DEVICE_TOKEN', token)
-    print_all("Stored Device token: {}...".format(token[:5]))
-
-    jupyter_password = util.token_to_jupyter_password(token)
-    STORE.put('DEVICE_JUPYTER_PASSWORD', jupyter_password)
-    print_all("Stored Jupyter password: {}...".format(jupyter_password[:2]))
+    await camera.close()
 
     if system_password is None:
         # If a particular default system_password was not specified, we will generate a good
         # default system_password from the token. This is a good thing, since it ensures that
         # each device is given a strong, unique default system_password.
-        system_password = util.token_to_system_password(token)
+        system_password = util.derive_system_password(token)
 
-    util.change_system_password(system_priv_user, system_password)
-    print_all("Successfully changed {}'s password!".format(system_priv_user))
+    jupyter_password = util.derive_jupyter_password(token)
+    auth_code = util.derive_labs_auth_code(token)
 
-    time.sleep(2)
+    await util.change_system_password(system_priv_user, system_password)
 
-    console.big_clear()
+    await _store_jupyter_password(controller, jupyter_password)
+    await _store_labs_auth_code(controller, auth_code)
+
+    await console.clear_image()
+
+    await console.big_image('token_success')
+    await console.big_status('Success. Token: {}...'.format(token[:5]))
+
+    await console.write_text("Stored Device token: {}...\n".format(token[:5]))
+    await console.write_text("Stored Jupyter password: {}...\n".format(jupyter_password[:2]))
+
+    await console.write_text("Successfully changed {}'s password!\n".format(system_priv_user))
+
+    await asyncio.sleep(2)
+
+    await console.big_clear()
 
 
-def print_connection_info():
+async def _update_and_reboot_if_no_token(controller):
+    if (await _get_labs_auth_code(controller)) is None:
+        log.info("We now have Wifi, but we doesn't yet have a token. Therefore we will take this opportunity to update libauto.")
+        await update_libauto()
+
+
+async def _print_connection_info(wireless, console):
+    loop = asyncio.get_running_loop()
+
     iface = wireless.interface
-    print_all("WiFi interface name: {}".format(iface))
+    await console.write_text("WiFi interface name: {}\n".format(iface))
 
-    current = wireless.current()
-    print_all("Connected to WiFi SSID: {}".format(current))
+    current = await _current(wireless)
+    await console.write_text("Connected to WiFi SSID: {}\n".format(current))
 
     if iface and current:
-        print_all("Current IP address: {}".format(get_ip_address(iface)))
+        ip_address = await loop.run_in_executor(None, get_ip_address, iface)
+        await console.write_text("Current IP address: {}\n".format(ip_address))
 
 
-print_connection_info()
+async def run_forever(system_priv_user):
+    loop = asyncio.get_running_loop()
 
+    log.info("Starting Wifi controller using the privileged user: {}".format(system_priv_user))
 
-# Repeat forever: Check to see if we are connected to WiFi. If not, wait 10 seconds
-#                 to see if anything changes. If after 10 seconds we still don't have
-#                 WiFi, initiate the WiFi connection screen. If we _do_ have WiFi, then
-#                 we'll repeat this whole process after 5 seconds.
-while True:
-    current = wireless.current()
-    log.info("Current WiFi network: {}".format(current))
+    wifi_interface = await loop.run_in_executor(None, list_wifi_ifaces)
+    wifi_interface = wifi_interface[0]
 
-    if current is None:
-        log.info("No WiFi!")
-        time.sleep(10)
-        if wireless.current() is None:
-            log.info("Still no WiFi after 10 seconds... will ask user to connect.")
-            console.big_image('images/wifi_error.png')
-            console.big_status('https://labs.autoauto.ai/wifi')
-            while wireless.current() is None:
-                ssid, password = get_wifi_info_from_user()
-                if ssid is None:
-                    log.info("WiFi magically came back before user input.")
-                    break
-                log.info("Will try to connect to SSID: {}".format(ssid))
-                console.big_image('images/wifi_pending.png')
-                console.big_status('Trying to connect...')
-                did_connect = wireless.connect(ssid, password)
-                has_internet = has_internet_access_multi_try() if did_connect else False
-                if not did_connect or not has_internet:
-                    if did_connect:
-                        wireless.delete_connection(ssid)
-                        msg = 'Connected to WiFi...\nbut no internet detected.\nPlease use another network.'
+    wireless = Wireless(wifi_interface)
+
+    console = CuiRoot()
+    controller = CioRoot()
+
+    await console.init()
+    await controller.init()
+
+    await _print_connection_info(wireless, console)
+
+    # Repeat forever: Check to see if we are connected to WiFi. If not, wait 10 seconds
+    #                 to see if anything changes. If after 10 seconds we still don't have
+    #                 WiFi, initiate the WiFi connection screen. If we _do_ have WiFi, then
+    #                 we'll repeat this whole process after 5 seconds.
+    while True:
+        current = await _current(wireless)
+        log.info("Current WiFi network: {}".format(current))
+
+        if current is None:
+            log.info("No WiFi!")
+            await asyncio.sleep(10)
+            if (await _current(wireless)) is None:
+                log.info("Still no WiFi after 10 seconds... will ask user to connect.")
+                await console.big_image('wifi_error')
+                await console.big_status('https://labs.autoauto.ai/wifi')
+                while (await _current(wireless)) is None:
+                    ssid, password = await _get_wifi_info_from_user(wireless)
+                    if ssid is None:
+                        log.info("WiFi magically came back before user input.")
+                        break
+                    log.info("Will try to connect to SSID: {}".format(ssid))
+                    await console.big_image('wifi_pending')
+                    await console.big_status('Trying to connect...')
+                    did_connect = await loop.run_in_executor(None, wireless.connect, ssid, password)
+                    has_internet = (await _has_internet_access_multi_try()) if did_connect else False
+                    if not did_connect or not has_internet:
+                        if did_connect:
+                            await loop.run_in_executor(None, wireless.delete_connection, ssid)
+                            msg = 'Connected to WiFi...\nbut no internet detected.\nPlease use another network.'
+                        else:
+                            msg = 'WiFi credentials did not work.\nDid you type them correctly?\nPlease try again.'
+                        log.info(msg)
+                        await console.big_image('wifi_error')
+                        await console.big_status(msg)
                     else:
-                        msg = 'WiFi credentials did not work.\nDid you type them correctly?\nPlease try again.'
-                    log.info(msg)
-                    console.big_image('images/wifi_error.png')
-                    console.big_status(msg)
-                else:
-                    log.info("Success! Connected to SSID: {}".format(ssid))
-                    console.big_image('images/wifi_success.png')
-                    console.big_status('WiFi connection success!')
-                    time.sleep(5)
-                    print_connection_info()
-                    break
-            console.big_clear()
+                        log.info("Success! Connected to SSID: {}".format(ssid))
+                        await console.big_image('wifi_success')
+                        await console.big_status('WiFi connection success!')
+                        await asyncio.sleep(5)
+                        await _print_connection_info(wireless, console)
+                        break
+                await console.big_clear()
 
-            update_and_reboot_if_no_token()
+                await _update_and_reboot_if_no_token(controller)
 
+        else:
+            # We have WiFi.
+            # After WiFi, we care that we have a Token so that we can authenticate with the CDP.
+            await _ensure_token(console, controller, system_priv_user)
+
+        await asyncio.sleep(5)
+
+
+if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        system_priv_user = sys.argv[1]   # the "Privileged" system user
     else:
-        # We have WiFi.
-        # After WiFi, we care that we have a Token so that we can authenticate with the CDP.
-        ensure_token()
+        system_priv_user = os.environ['USER']
 
-    time.sleep(5)
+    asyncio.run(run_forever(system_priv_user))
 

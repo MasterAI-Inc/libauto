@@ -97,8 +97,7 @@ class VersionInfoIface(abc.ABC):
 
 class CredentialsIface(abc.ABC):
     """
-    Store and retrieve the authentication token used to authenticate with the
-    AutoAuto servers.
+    Store and retrieve various authentication details.
 
     Required: True
 
@@ -106,16 +105,34 @@ class CredentialsIface(abc.ABC):
     """
 
     @abc.abstractmethod
-    async def get_token(self):
+    async def get_labs_auth_code(self):
         """
-        Return the authentication token stored on this device.
+        Return the stored authentication code.
+        This authentication code is used to authenticate
+        with the AutoAuto servers.
         """
         pass
 
     @abc.abstractmethod
-    async def set_token(self, token):
+    async def set_labs_auth_code(self, auth_code):
         """
-        Set (and save) the authentication token to be used on this device.
+        Set (and save) the authentication code.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def get_jupyter_password(self):
+        """
+        Return the Jupter password.
+        This password will be used by Jupyter to protect
+        network access.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def set_jupyter_password(self, password):
+        """
+        Set (and save) the Jupter password.
         """
         pass
 

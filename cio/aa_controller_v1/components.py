@@ -45,22 +45,34 @@ class Credentials(cio.CredentialsIface):
         self.db = None
         self.loop = asyncio.get_running_loop()
 
-    async def get_token(self):
-        return await self.loop.run_in_executor(None, self._get_token)
+    async def get_labs_auth_code(self):
+        return await self.loop.run_in_executor(None, self._get_labs_auth_code)
 
-    async def set_token(self, token):
-        return await self.loop.run_in_executor(None, self._set_token, token)
+    async def set_labs_auth_code(self, auth_code):
+        return await self.loop.run_in_executor(None, self._set_labs_auth_code, auth_code)
+
+    async def get_jupyter_password(self):
+        return await self.loop.run_in_executor(None, self._get_jupyter_password)
+
+    async def set_jupyter_password(self, password):
+        return await self.loop.run_in_executor(None, self._set_jupyter_password, password)
 
     def _get_db(self):
         if self.db is None:
             self.db = default_db()
         return self.db
 
-    def _get_token(self):
-        return self._get_db().get('DEVICE_TOKEN', None)
+    def _get_labs_auth_code(self):
+        return self._get_db().get('DEVICE_LABS_AUTH_CODE', None)
 
-    def _set_token(self, token):
-        return self._get_db().put('DEVICE_TOKEN', token)
+    def _set_labs_auth_code(self, auth_code):
+        return self._get_db().put('DEVICE_LABS_AUTH_CODE', auth_code)
+
+    def _get_jupyter_password(self):
+        return self._get_db().get('DEVICE_JUPYTER_PASSWORD', None)
+
+    def _set_jupyter_password(self, password):
+        return self._get_db().put('DEVICE_JUPYTER_PASSWORD', password)
 
 
 class LoopFrequency(cio.LoopFrequencyIface):

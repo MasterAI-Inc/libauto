@@ -282,24 +282,24 @@ async def _run(ws, consumers, console, rpc_interface):
         await ping_task
 
 
-async def _get_token(controller, console):
+async def _get_labs_auth_code(controller, console):
     auth = await controller.acquire('Credentials')
     was_missing = False
     while True:
-        token = await auth.get_token()
-        if token:
+        auth_code = await auth.get_labs_auth_code()
+        if auth_code:
             if was_missing:
-                await console.write_text("The token is now set!\n")
-                log.info('The token is now set!')
+                await console.write_text("The auth code is now set!\n")
+                log.info('The auth code is now set!')
             break
         else:
             if not was_missing:
-                await console.write_text("Token not yet set...\n")
-                log.info("Token not yet set... will wait...")
+                await console.write_text("The auth code is not yet set...\n")
+                log.info("The auth code is not yet set... will wait...")
                 was_missing = True
             await asyncio.sleep(2)
     await controller.release(auth)
-    return token
+    return auth_code
 
 
 async def run_forever(system_up_user):
@@ -325,9 +325,9 @@ async def run_forever(system_up_user):
     await console.write_text("Libauto version:    {}\n".format(libauto_version))
     await console.write_text("Controller version: {}\n".format(cio_version))
 
-    token = await _get_token(controller, console)
+    auth_code = await _get_labs_auth_code(controller, console)
 
-    url = BASE_URL + '/' + token
+    url = BASE_URL + '/' + auth_code
 
     rpc_server, rpc_interface = await init_rpc_server()
 
@@ -351,7 +351,7 @@ async def run_forever(system_up_user):
 
         try:
             async with ws_connect(url) as ws:
-                log.info("Connected: {}...".format(BASE_URL + '/' + token[:4]))
+                log.info("Connected: {}...".format(BASE_URL + '/' + auth_code[:4]))
                 await console.write_text('Connected to Labs. Standing by...\n')
                 was_connected = True
                 await _run(ws, consumers, console, rpc_interface)

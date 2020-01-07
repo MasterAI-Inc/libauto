@@ -16,6 +16,12 @@ NAME="$1"
 NAME="${NAME//[^A-Za-z0-9]/}"
 echo "$NAME"
 
+if [ $(hostname) = "$NAME" ]
+then
+    echo 'ALREADY EQUAL'
+    exit
+fi
+
 # This change makes it permanent, but you have to reboot for it to take effect.
 echo "$NAME" > /etc/hostname
 sed -i '/^.*set_hostname.*$/d' /etc/hosts

@@ -34,7 +34,7 @@ def derive_jupyter_password(token):
     return _hashed_token(token, 'AutoAuto Jupyter server password salt value!', 24)
 
 
-def derive_labs_auth(token):
+def derive_labs_auth_code(token):
     return _hashed_token(token, 'AutoAuto Lab single device authentication code!', 24)
 
 
