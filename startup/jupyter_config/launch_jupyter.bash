@@ -25,7 +25,7 @@ touch "$JUPYTER_CONFIG_FILE"
 chown "$LIBAUTO_UP_USER":"$LIBAUTO_UP_USER" "$JUPYTER_CONFIG_FILE"
 chmod 400 "$JUPYTER_CONFIG_FILE"
 
-python write_jupyter_config.py jupyter_notebook_config_template.py > "$JUPYTER_CONFIG_FILE"
+python3 write_jupyter_config.py jupyter_notebook_config_template.py > "$JUPYTER_CONFIG_FILE"
 
 exec sudo -u "$LIBAUTO_UP_USER" -i jupyter notebook --ip=0.0.0.0 --no-browser --config="$JUPYTER_CONFIG_FILE"
 

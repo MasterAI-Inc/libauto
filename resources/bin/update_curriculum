@@ -1,0 +1,32 @@
+#!/bin/bash
+
+cd "$HOME"
+
+CURRICULUM_DIR="Curriculum"
+AA_CURRICULUM_REPO="https://github.com/AutoAutoAI/Curriculum.git"
+
+echo "Deleting old curriculum directory..."
+rm -rf "$CURRICULUM_DIR"
+
+echo "Cloning new curriculum repo into" "$HOME"/"$CURRICULUM_DIR"
+git clone "$AA_CURRICULUM_REPO" "$CURRICULUM_DIR"
+rm -rf "$CURRICULUM_DIR"/.git*
+
+shopt -s globstar
+
+echo "Duplicating the Jupyter notebooks..."
+for i in **/*.ipynb
+do
+    dir="$(dirname "$i")"
+    filename="$(basename "$i")"
+    extension="${filename##*.}"
+    filename="${filename%.*}"
+    cp "$i" "$dir/$filename (Student 1).$extension"
+    cp "$i" "$dir/$filename (Student 2).$extension"
+    cp "$i" "$dir/$filename (Student 3).$extension"
+    cp "$i" "$dir/$filename (Student 4).$extension"
+    cp "$i" "$dir/$filename (Student 5).$extension"
+    rm "$i"
+done
+
+echo 'Done!'
