@@ -13,6 +13,8 @@ import base64
 import hashlib
 import asyncio
 
+from notebook.auth import passwd as jupyter_passwd_hasher
+
 from auto.services.scripts import SCRIPTS_DIRECTORY, run_script
 
 
@@ -32,7 +34,8 @@ def derive_system_password(token):
 
 
 def derive_jupyter_password(token):
-    return _hashed_token(token, 'AutoAuto Jupyter server password salt value!', 24)
+    jupyter_password = _hashed_token(token, 'AutoAuto Jupyter server password salt value!', 24)
+    return jupyter_passwd_hasher(jupyter_password)
 
 
 def derive_labs_auth_code(token):

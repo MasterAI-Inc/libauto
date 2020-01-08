@@ -18,7 +18,6 @@ import time
 import socket
 import subprocess
 from threading import Thread
-from notebook.auth import passwd
 from auto.capabilities import list_caps, acquire, release
 
 from auto import logger
@@ -53,12 +52,10 @@ def _write_config_file():
 
     log.info('Got Jupyter password.')
 
-    hashed_password = passwd(jupyter_password)
-
     with open(JUPYTER_CONFIG_TEMPLATE, 'r') as f_template:
         template = f_template.read()
         with open(JUPYTER_CONFIG_OUTPUT, 'w') as f_out:
-            final_config = template.replace(r'<JUPYTER_PASSWORD>', repr(hashed_password))
+            final_config = template.replace(r'<JUPYTER_PASSWORD>', repr(jupyter_password))
             f_out.write(final_config)
 
 
