@@ -26,7 +26,7 @@ xset -dpms
 xset s off
 
 # Run the startup demo program and play the boot video.
-auto/resources/bin/startup_demo_car &
+python3 auto/services/scripts/demos/demo_car.py &
 DEMO_PID=$!
 fbcp &
 FBCP_PID=$!
