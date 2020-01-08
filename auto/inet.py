@@ -115,7 +115,7 @@ def has_internet_access():
     sock.settimeout(20.0)
     try:
         sock.connect(sockaddr)   # <-- blocking, but respects the `settimeout()` call above
-    except socket.timeout:
+    except (socket.timeout, OSError):
         sock.close()
         return False
     sock.close()
