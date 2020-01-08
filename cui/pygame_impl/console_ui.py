@@ -24,16 +24,25 @@ log = logger.init(__name__, terminal=True)
 RESOURCE_DIR_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'resources')
 
 
+def hex_to_rgb(hex_str):
+    assert hex_str[0] == '#'
+    assert len(hex_str) == 7
+    r = int(hex_str[1:3], 16)
+    g = int(hex_str[3:5], 16)
+    b = int(hex_str[5:], 16)
+    return r, g, b
+
+
 # Settings:
 CONSOLE_FONT_SIZE = 20
 HEADER_FONT_SIZE = 25
 BIG_STATUS_FONT_SIZE = 25
 BG_COLOR = (0, 0, 0)
-HEADER_BG_COLOR = (136, 204, 136)
-HEADER_TXT_COLOR = (0, 68, 0)
-CONSOLE_BG_COLOR = (255, 255, 255)
-CONSOLE_TXT_COLOR = (0, 0, 255)
-CONSOLE_TXT_BG_COLOR = (198, 205, 246)
+HEADER_BG_COLOR = hex_to_rgb("#0c0032")
+HEADER_TXT_COLOR = (255, 255, 255)
+CONSOLE_BG_COLOR = hex_to_rgb("#240090")
+CONSOLE_TXT_COLOR = (255, 255, 255)
+CONSOLE_TXT_BG_COLOR = hex_to_rgb("#3500d3")
 BIG_STATUS_COLOR = (255, 255, 255)
 BIG_STATUS_BG_COLOR = (50, 50, 50)
 HEADER_CONSOLE_SPLIT = 7
