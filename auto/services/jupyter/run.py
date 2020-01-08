@@ -14,6 +14,7 @@ This script runs Jupyter in the background.
 
 import os
 import sys
+import pwd
 import time
 import socket
 import subprocess
@@ -30,8 +31,10 @@ JUPYTER_CONFIG_TEMPLATE = os.path.join(CURR_DIR, "jupyter_notebook_config_templa
 
 JUPYTER_CONFIG_OUTPUT = "/tmp/jupyter_notebook_config.py"
 
+JUPYTER_LAUNCH_SHIM = os.path.join(CURR_DIR, "jupyter_launch_shim")
 
-def _write_config_file():
+
+def _write_config_file(run_as_user):
     caps = list_caps()
 
     if 'Credentials' not in caps:
@@ -52,19 +55,23 @@ def _write_config_file():
 
     log.info('Got Jupyter password.')
 
+    user_home_dir_path = pwd.getpwnam(run_as_user).pw_dir
+
     with open(JUPYTER_CONFIG_TEMPLATE, 'r') as f_template:
         template = f_template.read()
         with open(JUPYTER_CONFIG_OUTPUT, 'w') as f_out:
-            final_config = template.replace(r'<JUPYTER_PASSWORD>', repr(jupyter_password))
+            final_config = template
+            final_config = final_config.replace(r'<JUPYTER_PASSWORD>', repr(jupyter_password))
+            final_config = final_config.replace(r'<JUPYTER_START_DIR>', repr(user_home_dir_path))
             f_out.write(final_config)
 
 
 def _thread_main(run_as_user):
-    _write_config_file()
+    _write_config_file(run_as_user)
 
     log.info('Write Jupyter config file; will launch Jupyter!')
 
-    cmd = ['sudo', '-u', run_as_user, '-i', 'jupyter', 'notebook', '--config={}'.format(JUPYTER_CONFIG_OUTPUT)]
+    cmd = ['sudo', '-u', run_as_user, '-i', JUPYTER_LAUNCH_SHIM, JUPYTER_CONFIG_OUTPUT]
 
     proc = subprocess.run(cmd)  # stdin/out/err are inherited, and this command blocks until the subprocess exits
 

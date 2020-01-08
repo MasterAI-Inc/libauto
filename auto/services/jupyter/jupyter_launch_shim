@@ -1,0 +1,6 @@
+#!/bin/bash
+
+cd /
+
+exec jupyter notebook --config="$1"
+
