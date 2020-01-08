@@ -33,16 +33,22 @@ def hex_to_rgb(hex_str):
     return r, g, b
 
 
+# Pallets
+# #0c0032 #190061 #240090 #3500d3 #282828
+# #0b0c10 #1f2833 #c5c6c7 #66fcf1 #45a29e
+# #2c3531 #116466 #d9b08c #ffcb9a #d1e8e2
+
+
 # Settings:
 CONSOLE_FONT_SIZE = 20
 HEADER_FONT_SIZE = 25
 BIG_STATUS_FONT_SIZE = 25
 BG_COLOR = (0, 0, 0)
-HEADER_BG_COLOR = hex_to_rgb("#0c0032")
+HEADER_BG_COLOR = hex_to_rgb("#116466")
 HEADER_TXT_COLOR = (255, 255, 255)
-CONSOLE_BG_COLOR = hex_to_rgb("#240090")
-CONSOLE_TXT_COLOR = (255, 255, 255)
-CONSOLE_TXT_BG_COLOR = hex_to_rgb("#3500d3")
+CONSOLE_BG_COLOR = hex_to_rgb("#d1e8e2")
+CONSOLE_TXT_COLOR = hex_to_rgb("#2c3531")
+CONSOLE_TXT_BG_COLOR = hex_to_rgb("#d1e8e2")
 BIG_STATUS_COLOR = (255, 255, 255)
 BIG_STATUS_BG_COLOR = (50, 50, 50)
 HEADER_CONSOLE_SPLIT = 7
