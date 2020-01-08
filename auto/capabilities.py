@@ -65,7 +65,7 @@ def acquire(capability_name):
     `release()`.
     """
     if capability_name not in list_caps():
-        raise Exception("The given capability name (\"{}\") is not available.".format(capability_name))
+        raise AttributeError("The given capability name (\"{}\") is not available.".format(capability_name))
     iface = _CAPABILITIES_MAP[capability_name]['acquire'](capability_name)
     iface._capability_name = capability_name
     return iface

@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e
-
 if ! [ $(id -u) = 0 ]
 then
     echo "You must be root to use this script."

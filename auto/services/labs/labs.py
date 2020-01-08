@@ -314,16 +314,19 @@ async def run_forever(system_up_user):
     cio_version_iface = await controller.acquire('VersionInfo')
     cio_version = await cio_version_iface.version()
     cio_version = '.'.join([str(v) for v in cio_version])
+    cio_name = await cio_version_iface.name()
     await controller.release(cio_version_iface)
 
     log.info("Libauto version:    {}".format(libauto_version))
     log.info("Controller version: {}".format(cio_version))
+    log.info("Controller name:    {}".format(cio_name))
 
     await console.clear_text()
     await console.big_clear()
     await console.clear_image()
     await console.write_text("Libauto version:    {}\n".format(libauto_version))
     await console.write_text("Controller version: {}\n".format(cio_version))
+    await console.write_text("Controller name: {}\n".format(cio_name))
 
     auth_code = await _get_labs_auth_code(controller, console)
 
