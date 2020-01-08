@@ -30,7 +30,7 @@ The library is segmented into three packages:
 
 - [cio](./cio/): A package whose only job is to talk to the on-board microcontroller. The name `cio` is short for "controller input/output".
 
-- [cui](./cui/): .....
+- [cui](./cui/): ......
 
 - [car](./car/): The `car` package contains helper functions that are only useful for AutoAuto _cars_. E.g. `car.forward()`, `car.left()`, `car.right()`, `car.reverse()`. If you look at the implementations of these helper functions, you'll find they use the `auto` and `cio` packages under the hood (pun intended). Overall the `car` package makes doing common operations take less code.
 
