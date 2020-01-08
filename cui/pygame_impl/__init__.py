@@ -24,6 +24,7 @@ class CuiPyGame(cui.CuiRoot):
         # we delay it until this `init()` is called.
         self.lock = asyncio.Lock()
         self.loop = asyncio.get_running_loop()
+        self.event_task = asyncio.create_task(self._check_events())
         return True
 
     async def write_text(self, text):
@@ -94,4 +95,13 @@ class CuiPyGame(cui.CuiRoot):
                     None,
                     console_ui.close,
             )
+
+    async def _check_events(self):
+        while True:
+            async with self.lock:
+                await self.loop.run_in_executor(
+                        None,
+                        console_ui.check_events,
+                )
+            await asyncio.sleep(0.2)
 

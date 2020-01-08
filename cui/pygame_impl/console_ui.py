@@ -10,9 +10,12 @@
 
 import os
 import sys
+import time
 import pygame
 import numpy as np
 from collections import deque
+
+from auto.services.labs.util import _shutdown
 
 from auto import logger
 log = logger.init(__name__, terminal=True)
@@ -261,6 +264,26 @@ def set_battery_percent(pct):
 def close():
     log.info('Will close...')
     sys.exit(1)
+
+
+mouse_up_event_times = deque()
+n_mouse_up_target = 2
+mouse_up_max_delay = 1.0  # seconds
+
+
+def check_events():
+    events = pygame.event.get()
+    for event in events:
+        if event.type == pygame.MOUSEBUTTONUP:
+            mouse_up_event_times.append(time.time())
+            while len(mouse_up_event_times) > n_mouse_up_target:
+                mouse_up_event_times.popleft()
+            if len(mouse_up_event_times) == n_mouse_up_target:
+                delay_here = mouse_up_event_times[-1] - mouse_up_event_times[0]
+                if delay_here <= mouse_up_max_delay:
+                    write_text('\nSHUTTING DOWN\n\n')
+                    output = _shutdown(reboot=False)
+                    write_text(output + '\n')
 
 
 log.info("RUNNING!")
