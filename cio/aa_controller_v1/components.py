@@ -16,11 +16,13 @@ from . import N_I2C_TRIES
 from .timers import Timer1PWM, Timer3PWM
 
 from .db import default_db
+from .battery_discharge_curve import battery_map_millivolts_to_percentage
 
 import cio
 
 import struct
 import asyncio
+from math import floor
 from collections import deque
 
 
@@ -105,12 +107,9 @@ class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
     async def estimate_remaining(self, millivolts=None):
         if millivolts is None:
             millivolts = await self.millivolts()
-        batt_low, batt_high = 6500, 8400
-        # TODO: The following calculation is a very bad approximation. It should be _entirely_ redone.
-        pct_estimate = (millivolts - batt_low) / (batt_high - batt_low)
-        pct_estimate = max(min(pct_estimate, 1.0), 0.0)
-        mins_estimate  = pct_estimate * 3.5 * 60.0   # assume a full battery lasts 3.5 hours
-        return int(round(mins_estimate)), int(round(pct_estimate * 100))
+        percentage = battery_map_millivolts_to_percentage(millivolts)
+        minutes = 4.0 * 60.0 * (percentage / 100.0)  # Assumes the full battery lasts 4 hours.
+        return floor(minutes), floor(percentage)
 
     async def should_shut_down(self):
         # Notes for version 3.
