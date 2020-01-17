@@ -18,8 +18,28 @@ import asyncio
 from auto.services.controller.client import CioRoot
 from auto.services.console.client import CuiRoot
 
+from auto.services.labs.util import _shutdown
+
 from auto import logger
 log = logger.init(__name__, terminal=True)
+
+
+async def _display_forever(battery, console):
+    while True:
+        minutes, percentage = await battery.minutes()
+        await console.set_battery_percent(percentage)
+        await asyncio.sleep(2)
+
+
+async def _check_shutdown_forever(battery):
+    while True:
+        v = await battery.should_shut_down()
+        if v:
+            log.info('Off switch triggered; shutting down...')
+            output = _shutdown(reboot=False)
+            log.info('Shutdown command output: {}'.format(output))
+            break
+        await asyncio.sleep(0.3)
 
 
 async def run_forever():
@@ -40,10 +60,10 @@ async def run_forever():
 
         battery = await controller.acquire('BatteryVoltageReader')
 
-        while True:
-            minutes, percentage = await battery.minutes()
-            await console.set_battery_percent(percentage)
-            await asyncio.sleep(2)
+        await asyncio.gather(
+                _display_forever(battery, console),
+                _check_shutdown_forever(battery),
+        )
 
     except asyncio.CancelledError:
         log.info('Battery monitor is being canceled...')

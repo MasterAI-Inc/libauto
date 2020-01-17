@@ -117,6 +117,13 @@ class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
         return int(round(mins_estimate)), int(round(pct_estimate * 100))
 
     async def should_shut_down(self):
+        # Notes for version 3.
+        #import RPi.GPIO as GPIO
+        #GPIO.setmode(GPIO.BCM)
+        #BCM_PIN = 26
+        #GPIO.setup(BCM_PIN, GPIO.IN, GPIO.PUD_UP)
+        #val = GPIO.input(BCM_PIN)
+        #return val == 0
         return False
 
 
