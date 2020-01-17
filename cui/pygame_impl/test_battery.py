@@ -16,11 +16,13 @@ async def run():
     c = CuiPyGame()
     await c.init()
 
-    for i in range(0, 101):
-        await c.set_battery_percent(i)
+    for percentage in range(0, 101):
+        minutes = 2 * percentage
+        await c.set_battery(minutes, percentage)
         await asyncio.sleep(0.01)
-    for i in range(100, -1, -1):
-        await c.set_battery_percent(i)
+    for percentage in range(100, -1, -1):
+        minutes = 2 * percentage
+        await c.set_battery(minutes, percentage)
         await asyncio.sleep(0.01)
 
 

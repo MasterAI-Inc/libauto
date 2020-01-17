@@ -184,9 +184,9 @@ class BatteryVoltageReaderIface(abc.ABC):
     @abc.abstractmethod
     async def minutes(self):
         """
-        Estimate of time remaining (in minutes) and the percent remaining
+        Estimate of time remaining (in minutes) and the percentage remaining
         of the battery (an integer from 0 to 100).
-        Return a two-tuple of `(minutes, percent)`.
+        Return a two-tuple of `(minutes, percentage)`.
         """
         pass
 

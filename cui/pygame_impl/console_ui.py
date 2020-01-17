@@ -264,15 +264,13 @@ def clear_image():
     draw_all()
 
 
-def set_battery_percent(pct):
-    """
-    `pct` should be an integer in [0, 100].
-    """
-    if not isinstance(pct, int) or not (0 <= pct <= 100):
-        raise Exception("Invalid battery percent")
-    pct = "{}%".format(pct)
+def set_battery(minutes, percentage):
+    # TODO: Show the `minutes` somewhere/somehow.
+    if not isinstance(percentage, int) or not (0 <= percentage <= 100):
+        raise Exception("Invalid battery percentage")
+    percentage = "{}%".format(percentage)
     global battery_sprite
-    battery_sprite = header_font.render(pct, True, HEADER_TXT_COLOR)
+    battery_sprite = header_font.render(percentage, True, HEADER_TXT_COLOR)
     draw_all()
 
 

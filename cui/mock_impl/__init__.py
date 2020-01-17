@@ -53,9 +53,9 @@ class CuiMock(cui.CuiRoot):
         async with self.lock:
             return self.log.info("clear_image()")
 
-    async def set_battery_percent(self, pct):
+    async def set_battery(self, minutes, percentage):
         async with self.lock:
-            return self.log.info("set_battery_percent({})".format(repr(pct)))
+            return self.log.info("set_battery({}, {})".format(repr(minutes), repr(percentage)))
 
     async def close(self):
         async with self.lock:
