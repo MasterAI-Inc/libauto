@@ -26,7 +26,7 @@ from auto import logger
 log = logger.init(__name__, terminal=True)
 
 
-async def _display_forever(battery, console, labs):
+async def _display_forever(battery, console, labs, buzzer):
     while True:
         minutes, percentage = await battery.minutes()
         await console.set_battery(minutes, percentage)
@@ -35,6 +35,10 @@ async def _display_forever(battery, console, labs):
             'minutes': minutes,
             'percentage': percentage,
         })
+        if percentage <= 5:
+            await console.write_text("Warning: Battery is LOW!\n\n")
+            if buzzer is not None:
+                await buzzer.play("EEE")
         await asyncio.sleep(5)
 
 
@@ -59,18 +63,24 @@ async def run_forever():
     await labs.connect()
 
     battery = None
+    buzzer = None
 
     try:
-        if 'BatteryVoltageReader' not in capabilities:
+        if 'BatteryVoltageReader' in capabilities:
+            battery = await controller.acquire('BatteryVoltageReader')
+        else:
             log.warning('No battery component exists on this device; exiting...')
             return
 
+        if 'Buzzer' in capabilities:
+            buzzer = await controller.acquire('Buzzer')
+        else:
+            pass  # We can tolerate not buzzer.
+
         log.info('RUNNING!')
 
-        battery = await controller.acquire('BatteryVoltageReader')
-
         await asyncio.gather(
-                _display_forever(battery, console, labs),
+                _display_forever(battery, console, labs, buzzer),
                 _check_shutdown_forever(battery),
         )
 
@@ -81,6 +91,9 @@ async def run_forever():
         if battery is not None:
             await controller.release(battery)
             battery = None
+        if buzzer is not None:
+            await controller.release(buzzer)
+            buzzer = None
         await controller.close()
         await console.close()
         await labs.close()
