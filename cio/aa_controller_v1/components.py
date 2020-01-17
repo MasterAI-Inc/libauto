@@ -104,7 +104,7 @@ class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
 
     async def estimate_remaining(self, millivolts=None):
         if millivolts is None:
-            millivolts = self.millivolts()
+            millivolts = await self.millivolts()
         batt_low, batt_high = 6500, 8400
         # TODO: The following calculation is a very bad approximation. It should be _entirely_ redone.
         pct_estimate = (millivolts - batt_low) / (batt_high - batt_low)
