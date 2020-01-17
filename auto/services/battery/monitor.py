@@ -18,17 +18,24 @@ import asyncio
 from auto.services.controller.client import CioRoot
 from auto.services.console.client import CuiRoot
 
+from auto.services.labs.rpc.client import LabsService
+
 from auto.services.labs.util import _shutdown
 
 from auto import logger
 log = logger.init(__name__, terminal=True)
 
 
-async def _display_forever(battery, console):
+async def _display_forever(battery, console, labs):
     while True:
         minutes, percentage = await battery.minutes()
         await console.set_battery_percent(percentage)
-        await asyncio.sleep(2)
+        await labs.send({
+            'type': 'battery_state',
+            'minutes': minutes,
+            'percentage': percentage,
+        })
+        await asyncio.sleep(5)
 
 
 async def _check_shutdown_forever(battery):
@@ -45,9 +52,11 @@ async def _check_shutdown_forever(battery):
 async def run_forever():
     controller = CioRoot()
     console = CuiRoot()
+    labs = LabsService()
 
     capabilities = await controller.init()
     await console.init()
+    await labs.connect()
 
     battery = None
 
@@ -61,7 +70,7 @@ async def run_forever():
         battery = await controller.acquire('BatteryVoltageReader')
 
         await asyncio.gather(
-                _display_forever(battery, console),
+                _display_forever(battery, console, labs),
                 _check_shutdown_forever(battery),
         )
 
@@ -74,6 +83,7 @@ async def run_forever():
             battery = None
         await controller.close()
         await console.close()
+        await labs.close()
 
 
 if __name__ == '__main__':
