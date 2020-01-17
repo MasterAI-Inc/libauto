@@ -26,9 +26,24 @@ from auto import logger
 log = logger.init(__name__, terminal=True)
 
 
-async def _display_forever(battery, console, labs, buzzer):
+def _gen_sample_sizes():
+    yield 3
     while True:
-        minutes, percentage = await battery.estimate_remaining()
+        yield 10
+
+
+async def _display_forever(battery, console, labs, buzzer):
+    for sample_size in _gen_sample_sizes():
+        samples = []
+
+        for _ in range(sample_size):
+            millivolts = await battery.millivolts()
+            samples.append(millivolts)
+            await asyncio.sleep(3)
+
+        millivolts = sum(samples) / len(samples)
+        minutes, percentage = await battery.estimate_remaining(millivolts)
+
         await console.set_battery(minutes, percentage)
         await labs.send({
             'type': 'battery_state',
@@ -39,7 +54,6 @@ async def _display_forever(battery, console, labs, buzzer):
             await console.write_text("Warning: Battery is LOW!\n\n")
             if buzzer is not None:
                 await buzzer.play("EEE")
-        await asyncio.sleep(5)
 
 
 async def _check_shutdown_forever(battery):
