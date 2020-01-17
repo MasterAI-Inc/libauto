@@ -102,14 +102,9 @@ class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
         lsb, msb = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 2)
         return (msb << 8) | lsb   # <-- You can also use int.from_bytes(...) but I think doing the bitwise operations explicitly is cooler.
 
-    async def millivolt_range(self):
-        batt_low = 6500
-        batt_high = 8400
-        return batt_low, batt_high
-
     async def minutes(self):
         mv = await self.millivolts()
-        batt_low, batt_high = await self.millivolt_range()
+        batt_low, batt_high = 6500, 8400
         # TODO: The following calculation is a very bad approximation. It should be _entirely_ redone.
         pct_estimate = (mv - batt_low) / (batt_high - batt_low)
         pct_estimate = max(min(pct_estimate, 1.0), 0.0)

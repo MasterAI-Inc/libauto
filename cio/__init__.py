@@ -174,14 +174,6 @@ class BatteryVoltageReaderIface(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def millivolt_range(self):
-        """
-        Return the voltage range of this battery as a tuple as `(min, max)`
-        in millivolts.
-        """
-        pass
-
-    @abc.abstractmethod
     async def minutes(self):
         """
         Estimate of time remaining (in minutes) and the percentage remaining
