@@ -28,7 +28,7 @@ log = logger.init(__name__, terminal=True)
 
 async def _display_forever(battery, console, labs, buzzer):
     while True:
-        minutes, percentage = await battery.minutes()
+        minutes, percentage = await battery.estimate_remaining()
         await console.set_battery(minutes, percentage)
         await labs.send({
             'type': 'battery_state',

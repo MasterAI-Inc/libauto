@@ -174,11 +174,13 @@ class BatteryVoltageReaderIface(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def minutes(self):
+    async def estimate_remaining(self, millivolts=None):
         """
-        Estimate of time remaining (in minutes) and the percentage remaining
-        of the battery (an integer from 0 to 100).
-        Return a two-tuple of `(minutes, percentage)`.
+        Given the battery voltage of `millivolts`, estimate of run-time remaining of
+        the batter (in minutes) and the percentage remaining of the battery (an
+        integer from 0 to 100). Return a two-tuple of `(minutes, percentage)`.
+        If you pass `millivolts=None`, the battery's current millivolts reading will
+        be queried and used.
         """
         pass
 

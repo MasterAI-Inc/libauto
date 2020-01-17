@@ -185,7 +185,7 @@ class Dashboard:
 
     async def _get_battery_state(self):
         battery = await self.controller.acquire('BatteryVoltageReader')
-        minutes, percentage = await battery.minutes()
+        minutes, percentage = await battery.estimate_remaining()
         await self.controller.release(battery)
         return {
             'minutes': minutes,
