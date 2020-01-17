@@ -112,6 +112,8 @@ class Dashboard:
             return self.wireless.interface
         elif component == 'local_ip_addr':
             return await loop.run_in_executor(None, get_ip_address, self.wireless.interface)
+        elif component == 'battery_state':
+            return await self._get_battery_state()
         elif component == 'capture_one_frame':
             return await self._capture_one_frame(query_id, send_func, user_session)
         else:
@@ -180,4 +182,13 @@ class Dashboard:
         cio_version = '.'.join([str(v) for v in cio_version])
         await self.controller.release(cio_version_iface)
         return cio_version
+
+    async def _get_battery_state(self):
+        battery = await self.controller.acquire('BatteryVoltageReader')
+        minutes, percentage = await battery.minutes()
+        await self.controller.release(battery)
+        return {
+            'minutes': minutes,
+            'percentage': percentage,
+        }
 

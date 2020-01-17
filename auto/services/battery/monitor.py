@@ -50,7 +50,7 @@ async def _check_shutdown_forever(battery):
             output = _shutdown(reboot=False)
             log.info('Shutdown command output: {}'.format(output))
             break
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(1)
 
 
 async def run_forever():
