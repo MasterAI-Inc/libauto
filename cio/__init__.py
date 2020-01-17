@@ -190,6 +190,19 @@ class BatteryVoltageReaderIface(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
+    async def should_shut_down(self):
+        """
+        Return True if the host device should shut down. The host
+        can poll this function (suggest once per 200-500ms) to know
+        when it needs to shut down. Two reasons for shutting down:
+         1. The power switch was triggered so the whole device will
+            soon loose power.
+         2. The battery is dangerously low and will drop out soon,
+            so the host should shut down immediately to be safe.
+        """
+        pass
+
 
 class BuzzerIface(abc.ABC):
     """

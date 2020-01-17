@@ -81,3 +81,6 @@ class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
         mins_estimate  = pct_estimate * 3.5 * 60.0   # assume a full battery lasts 3.5 hours
         return int(round(mins_estimate)), int(round(pct_estimate * 100))
 
+    async def should_shut_down(self):
+        return False
+
