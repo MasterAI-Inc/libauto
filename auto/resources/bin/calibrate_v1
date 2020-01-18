@@ -1,0 +1,258 @@
+#!/usr/bin/env python3
+
+###############################################################################
+#
+# Copyright (c) 2017-2020 Master AI, Inc.
+# ALL RIGHTS RESERVED
+#
+# Use of this library, in source or binary form, is prohibited without written
+# approval from Master AI, Inc.
+#
+###############################################################################
+
+import sys
+import asyncio
+import logging
+
+from auto.services.controller.client import CioRoot as CioRootVx
+
+from cio.aa_controller_v1 import CioRoot as CioRootV1
+
+
+def _clear():
+    # https://stackoverflow.com/a/2084560
+    print("\x1b[2J\x1b[H")
+
+
+async def _wait_enter():
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(
+            None,
+            input,
+            ''
+    )
+
+
+async def _input(prompt):
+    loop = asyncio.get_running_loop()
+    answer = await loop.run_in_executor(
+            None,
+            input,
+            prompt
+    )
+    return answer
+
+
+async def _check_version():
+    c = CioRootVx()
+    caps = await c.init()
+
+    v = await c.acquire('VersionInfo')
+    major, minor = await v.version()
+
+    okay = (major == 1)
+
+    await c.release(v)
+    await c.close()
+
+    return okay
+
+
+async def _calibrate_gyro_accel(calibrator, buzzer):
+    await calibrator.start()
+
+    print('Started gyro & accelerometer calibration...')
+
+    while True:
+        status = await calibrator.status()
+        if status == -1:
+            # Indicates we are done calibrating.
+            break
+        print('.', end='', flush=True)
+        await asyncio.sleep(1)
+
+    await buzzer.play("!T95 V9 O4 G#4")
+
+    print('DONE!\n')
+
+
+async def _calibrate_car_motors(car, buzzer, buttons, leds):
+    params = {
+            'top':              40000,
+            'steering_left':     3000,
+            'steering_mid':      3000,
+            'steering_right':    3000,
+            'steering_millis':  30000,  # 30 seconds
+            'throttle_forward':  4000,
+            'throttle_mid':      3000,
+            'throttle_reverse':  2000,
+            'throttle_millis':  30000,  # 30 seconds
+    }
+
+    await car.on()
+
+    await car.set_params(**params)
+
+    _clear()
+    print('Use button 1 and 3 to MOVE the steering.\nUse button 2 to SAVE the position.\n')
+    print('Set the steering all the way **LEFT** and then save the position.\n')
+
+    while True:
+        await car.set_steering(45.0)
+        b = await buttons.wait_for_action()
+        b = b[0] + 1
+        if b == 1:
+            params['steering_left'] += 100
+        elif b == 3:
+            params['steering_left'] -= 100
+        else:
+            break
+        await car.set_params(**params)
+
+    await car.set_steering(0.0)
+
+    _clear()
+    print("DONE! Press any button to continue...")
+    await buttons.wait_for_action()
+
+    _clear()
+    print('Use button 1 and 3 to MOVE the steering.\nUse button 2 to SAVE the position.\n')
+    print('Set the steering all the way **RIGHT** and then save the position.\n')
+
+    while True:
+        await car.set_steering(-45.0)
+        b = await buttons.wait_for_action()
+        b = b[0] + 1
+        if b == 1:
+            params['steering_right'] += 100
+        elif b == 3:
+            params['steering_right'] -= 100
+        else:
+            break
+        await car.set_params(**params)
+
+    params['steering_mid'] = (params['steering_left'] + params['steering_right']) // 2
+    await car.set_params(**params)
+
+    await car.set_steering(0.0)
+
+    _clear()
+    print("DONE! Press any button to continue...")
+    await buttons.wait_for_action()
+
+    _clear()
+    done = False
+    while not done:
+        print('Will check forward and reverse directions.\n')
+        print('Car will drive **FORWARD** and then **REVERSE**.\n')
+        print('** Please hold the car carefully in both hands,\n   with the wheels off the ground.')
+        print('** Be sure the wheels can spin freely and safely\n   before proceeding.\n')
+        print('Press button 2 when you are ready.')
+        while True:
+            b = await buttons.wait_for_action()
+            b = b[0] + 1
+            if b == 2:
+                break
+        await car.set_throttle(23)
+        await asyncio.sleep(1)
+        await car.set_throttle(-23)
+        await asyncio.sleep(1)
+        await car.set_throttle(0)
+        print('\n\n\nDid the car move **FORWARD** then **REVERSE**?\n\nPress 1 for "yes", press 3 for "no".')
+        while True:
+            b = await buttons.wait_for_action()
+            b = b[0] + 1
+            if b == 1:
+                done = True
+                break
+            elif b == 3:
+                _clear()
+                print('\n\n\nWill swap directions and try again...\n\n\n')
+                await asyncio.sleep(1)
+                params['throttle_forward'], params['throttle_reverse'] = params['throttle_reverse'], params['throttle_forward']
+                await car.set_params(**params)
+                break
+
+    _clear()
+    print("DONE! Press any button to continue...")
+    await buttons.wait_for_action()
+
+    _clear()
+    left_dir = 1 if params['steering_mid'] < params['steering_left'] else -1
+    left_dir *= 50  # <-- step size
+    while True:
+        await car.set_steering(0.0)
+        print('Will check the steering direction for moving **STRAIGHT**.\n')
+        print('Car will drive **FORWARD** and then **REVERSE**.\n')
+        print('** Place car on the ground with an open area in front of it.')
+        print('** Be sure the car can safely move forward for one second\n   without hitting anything.\n')
+        print('Press button 2 when you are ready.')
+        while True:
+            b = await buttons.wait_for_action()
+            b = b[0] + 1
+            if b == 2:
+                break
+        await car.set_steering(0.0)
+        await car.set_throttle(23)
+        await asyncio.sleep(1)
+        await car.set_throttle(-23)
+        await asyncio.sleep(1)
+        await car.set_throttle(0)
+        print('\n\n\nDid the car drive roughly straight?\n\nPress 1 to correct a hair to the **LEFT**\nPress 3 to correct a hair to the **RIGHT**.\nPress 2 if it looked okay.')
+        b = await buttons.wait_for_action()
+        b = b[0] + 1
+        if b == 1:
+            params['steering_mid'] += left_dir
+        elif b == 2:
+            break
+        elif b == 3:
+            params['steering_mid'] -= left_dir
+        await car.set_params(**params)
+
+    _clear()
+    print("DONE! Press any button to continue...")
+    await buttons.wait_for_action()
+
+    params['steering_millis'] = 1000
+    params['throttle_millis'] = 1000
+    await car.set_params(**params)
+    await car.save_params()
+
+    await car.off()
+
+
+async def run():
+    if not await _check_version():
+        print('This script is only used for AutoAuto v1 controllers. Exiting...')
+        sys.exit(1)
+
+    c = CioRootV1()
+    caps = await c.init()
+
+    calibrator = await c.acquire('Calibrator')
+    buzzer = await c.acquire('Buzzer')
+    buttons = await c.acquire('PushButtons')
+    leds = await c.acquire('LEDs')
+    car = await c.acquire('CarMotors')
+
+    answer = await _input("Calibrate gyro & accelerometer? [y/N] ")
+    if answer.lower() == 'y':
+        await _calibrate_gyro_accel(calibrator, buzzer)
+
+    answer = await _input("Calibrate servo range? [y/N] ")
+    if answer.lower() == 'y':
+        await _calibrate_car_motors(car, buzzer, buttons, leds)
+
+    await c.release(calibrator)
+    await c.release(buzzer)
+    await c.release(buttons)
+    await c.release(leds)
+    await c.release(car)
+
+    await c.close()
+
+
+if __name__ == '__main__':
+    logging.getLogger().setLevel(logging.WARNING)
+    asyncio.run(run())
+
