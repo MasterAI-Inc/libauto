@@ -30,7 +30,7 @@ def serialize_interface(thing, name='root', whitelist_method_names=()):
     become part of the RPC system, and we avoid accidental exposure of hidden/
     private/vulnerable methods.
     """
-    iface = _serialize_interface(thing, name, whitelist_method_names)
+    iface = _serialize_interface(thing, name, set(whitelist_method_names))
     impl = _separate_implementation(iface)
     return iface, impl
 
@@ -51,9 +51,10 @@ def _serialize_interface(thing, name, whitelist_method_names):
         # For these generic objects, we'll only expose
         # methods/functions which have 'export_' in the
         # name (for security reasons!).
+        extra_export_names = (_get_extra_export_names(thing) | whitelist_method_names)
         exported = []
         for attr_name in dir(thing):
-            if attr_name.startswith(EXPORT_PREFIX) or attr_name in whitelist_method_names:
+            if attr_name.startswith(EXPORT_PREFIX) or attr_name in extra_export_names:
                 if attr_name.startswith(EXPORT_PREFIX):
                     cropped_name = attr_name[len(EXPORT_PREFIX):]
                 else:
@@ -141,4 +142,11 @@ def _build_path(prefix, name):
         return name
     else:
         return prefix + '.' + name
+
+
+def _get_extra_export_names(thing):
+    m = getattr(thing, 'rpc_extra_exports', None)
+    if m is None:
+        return set()
+    return set(m())
 

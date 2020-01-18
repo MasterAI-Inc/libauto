@@ -705,7 +705,7 @@ class PidIface(abc.ABC):
 
 class PidSteeringIface(PidIface):
     """
-    Control the Car's Steering with a PID Loop
+    Control the Device's Steering with a PID Loop
 
     Required: False
 

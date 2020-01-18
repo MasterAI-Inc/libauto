@@ -557,6 +557,9 @@ class CarMotors(cio.CarMotorsIface):
         await save()
         await i2c_poll_until(is_saved, True, timeout_ms=1000)
 
+    def rpc_extra_exports(self):
+        return ['set_params', 'save_params']
+
 
 class PWMs(cio.PWMsIface):
     def __init__(self, fd, reg_num):
