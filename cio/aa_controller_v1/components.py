@@ -662,9 +662,15 @@ class Calibrator(cio.CalibratorIface):
         # TODO: Also prompt for safe throttle speeds, servo range, and PID values.
 
     @i2c_retry(N_I2C_TRIES)
-    async def check(self):
+    async def status(self):
         status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 1], 1)
-        return status == 1   # 1 means currently calibrating, 2 means done calibrating
+        # Status 0 means not started, 1 means currently calibrating, 2 means done calibrating
+        if status == 0 or status == 1:
+            return status
+        elif status == 2:
+            return -1  # <-- conform to CIO interface
+        else:
+            raise Exception("Unknown calibration status")
 
 
 class PidSteering(cio.PidSteeringIface):
@@ -686,7 +692,7 @@ class PidSteering(cio.PidSteeringIface):
         await set_val(0x04, error_accum_max)
 
         if save:
-            await save_pid()
+            await self.save_pid()
 
     @i2c_retry(N_I2C_TRIES)
     async def set_point(self, point):

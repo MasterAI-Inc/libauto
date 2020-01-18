@@ -26,7 +26,11 @@ async def run():
     await calibrator.start()
     print('Started calibration...')
 
-    while await calibrator.check():
+    while True:
+        status = await calibrator.status()
+        if status == -1:
+            # Indicates we are done calibrating.
+            break
         print('.', end='', flush=True)
         await asyncio.sleep(1)
 

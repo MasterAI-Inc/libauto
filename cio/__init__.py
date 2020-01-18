@@ -631,11 +631,21 @@ class CalibratorIface(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def check(self):
+    async def status(self):
         """
-        Check if the calibration process is running.
-        Returns True if the controller is currently
-        running its calibration, False otherwise.
+        Check the status of the calibration process.
+        Returns the identifier of the current step.
+        Status identifiers may be integers or strings.
+        Each controller has its own identifiers and
+        its own meaning for each identifier. You must
+        refer to the specific controller's documentation
+        to understand what each status identifier means.
+        The only common identifiers between all controllers
+        are the following:
+         - The integer 0 means the calibration process
+           has not started.
+         - The integer -1 means the calibration process
+           was started and has now finished.
         """
         pass
 
