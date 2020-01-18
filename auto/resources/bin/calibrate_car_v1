@@ -14,9 +14,40 @@ import sys
 import asyncio
 import logging
 
-from auto.services.controller.client import CioRoot as CioRootVx
+from auto.services.console.client import CuiRoot
+from auto.services.controller.client import CioRoot
 
-from cio.aa_controller_v1 import CioRoot as CioRootV1
+
+START_PROMPT = """
+** YOU ARE ABOUT TO CALIBRATE THIS CAR. **
+
+If you do not have proper authority to preform
+this calibration, **PLEASE EXIT THIS SCRIPT**.
+
+The entire calibration process uses the three
+push-buttons on the car's internal PCB.
+
+Press button 1 to BEGIN.
+Press button 3 to EXIT.
+"""
+
+
+GYRO_ACCELL_PROMPT = """
+Would you like to calibrate the
+gyroscope and accelerometer?
+
+Press button 1 for 'yes'.
+Press button 3 for 'no'.
+"""
+
+
+CAR_MOTORS_PROMPT = """
+Would you like to calibrate the car's
+steering and drive-chain motors?
+
+Press button 1 for 'yes'.
+Press button 3 for 'no'.
+"""
 
 
 def _clear():
@@ -24,44 +55,20 @@ def _clear():
     print("\x1b[2J\x1b[H")
 
 
-async def _wait_enter():
-    loop = asyncio.get_running_loop()
-    await loop.run_in_executor(
-            None,
-            input,
-            ''
-    )
-
-
-async def _input(prompt):
-    loop = asyncio.get_running_loop()
-    answer = await loop.run_in_executor(
-            None,
-            input,
-            prompt
-    )
-    return answer
-
-
-async def _check_version():
-    c = CioRootVx()
-    caps = await c.init()
-
-    v = await c.acquire('VersionInfo')
-    major, minor = await v.version()
-
-    okay = (major == 1)
-
-    await c.release(v)
-    await c.close()
-
-    return okay
+async def _prompt(buttons, options, prompt_text):
+    _clear()
+    print(prompt_text)
+    while True:
+        b = await buttons.wait_for_action()
+        b = b[0] + 1
+        if b in options:
+            return b
 
 
 async def _calibrate_gyro_accel(calibrator, buzzer):
     await calibrator.start()
 
-    print('Started gyro & accelerometer calibration...')
+    print('\n\nStarted gyro & accelerometer calibration...')
 
     while True:
         status = await calibrator.status()
@@ -71,7 +78,7 @@ async def _calibrate_gyro_accel(calibrator, buzzer):
         print('.', end='', flush=True)
         await asyncio.sleep(1)
 
-    await buzzer.play("!T95 V9 O4 G#4")
+    await buzzer.play("G#4")
 
     print('DONE!\n')
 
@@ -221,35 +228,56 @@ async def _calibrate_car_motors(car, buzzer, buttons, leds):
     await car.off()
 
 
-async def run():
-    if not await _check_version():
-        print('This script is only used for AutoAuto v1 controllers. Exiting...')
-        sys.exit(1)
+async def _calibrate(calibrator, buzzer, buttons, leds, car):
+    answer = await _prompt(buttons, [1, 3], START_PROMPT)
+    if answer == 3:
+        return
 
-    c = CioRootV1()
-    caps = await c.init()
+    await buzzer.play("!T95 V9 O4")  # set tempo, volume, and octave
 
-    calibrator = await c.acquire('Calibrator')
-    buzzer = await c.acquire('Buzzer')
-    buttons = await c.acquire('PushButtons')
-    leds = await c.acquire('LEDs')
-    car = await c.acquire('CarMotors')
-
-    answer = await _input("Calibrate gyro & accelerometer? [y/N] ")
-    if answer.lower() == 'y':
+    answer = await _prompt(buttons, [1, 3], GYRO_ACCELL_PROMPT)
+    if answer == 1:
         await _calibrate_gyro_accel(calibrator, buzzer)
 
-    answer = await _input("Calibrate servo range? [y/N] ")
-    if answer.lower() == 'y':
+    answer = await _prompt(buttons, [1, 3], CAR_MOTORS_PROMPT)
+    if answer == 1:
         await _calibrate_car_motors(car, buzzer, buttons, leds)
 
-    await c.release(calibrator)
-    await c.release(buzzer)
-    await c.release(buttons)
-    await c.release(leds)
-    await c.release(car)
 
-    await c.close()
+async def run():
+    console = CuiRoot()
+    controller = CioRoot()
+
+    await console.init()
+    caps = await controller.init()
+
+    v = await controller.acquire('VersionInfo')
+    major, minor = await v.version()
+    await controller.release(v)
+
+    if major != 1:
+        await print_all(console, 'This script is only used for AutoAuto v1 car controllers. Exiting...')
+        await console.close()
+        await controller.close()
+        sys.exit(1)
+
+    calibrator = await controller.acquire('Calibrator')
+    buzzer = await controller.acquire('Buzzer')
+    buttons = await controller.acquire('PushButtons')
+    leds = await controller.acquire('LEDs')
+    car = await controller.acquire('CarMotors')
+
+    try:
+        await _calibrate(calibrator, buzzer, buttons, leds, car)
+
+    finally:
+        await controller.release(calibrator)
+        await controller.release(buzzer)
+        await controller.release(buttons)
+        await controller.release(leds)
+        await controller.release(car)
+
+        await controller.close()
 
 
 if __name__ == '__main__':
