@@ -12,7 +12,7 @@
 This module provides easy helper functions which abstract the behavior of
 the car to a very high level. These functions are intended to be used by
 beginners. All of the functionality in these helper functions can be
-recreated using lower-level abstractions exposed by the other modules of
+recreated using lower-level abstractions provided by the other modules of
 libauto.
 
 These helper functions, when invoked, each print info about what they are

@@ -23,7 +23,7 @@ from auto.rpc.serialize_interface import serialize_interface
 
 class SerializeIface(Exception):
     """
-    Raise this exception from your exposed service to cause a sub-interface
+    Raise this exception from your exported service to cause a sub-interface
     to be serialized and sent to the client. This is useful when you cannot
     serialize the full interface from the beginning, and you must instead
     serialize part of the interface at runtime.

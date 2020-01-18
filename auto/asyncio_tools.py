@@ -109,11 +109,11 @@ def wrap_async_to_sync(obj, loop=None):
     methods into "normal" synchronous methods.
 
     **Note:** Only _methods_ are wrapped, so if `obj` has _attributes_ which it
-              exposes, those will _not_ be accessible through the wrapped object.
+              exports, those will _not_ be accessible through the wrapped object.
               This is a known limitation which will not be addressed (it is
-              too complex to expose wrapped attributes in such a way that
+              too complex to export wrapped attributes in such a way that
               preserves their mutability or lack thereof; thus only methods
-              will be exposed by the wrapper). Also, magic methods are _not_
+              will be exported by the wrapper). Also, magic methods are _not_
               wrapped; this is a limitation we may fix in the future.
     """
     if loop is None:

@@ -48,7 +48,7 @@ def _serialize_interface(thing, name, whitelist_method_names):
     else:
         # We have some other type of object... maybe
         # a custom object, maybe a module, we don't know.
-        # For these generic objects, we'll only expose
+        # For these generic objects, we'll only export
         # methods/functions which have 'export_' in the
         # name (for security reasons!).
         extra_export_names = (_get_extra_export_names(thing) | whitelist_method_names)

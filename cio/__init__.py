@@ -21,7 +21,7 @@ class CioRoot(abc.ABC):
     """
     This is the front-door interface of the Controller IO ("cio"). You begin
     by `init()`ing the controller, and if successful, you may then `acquire()`
-    and `release()` components which are exposed by the controller.
+    and `release()` components which are provided by the controller.
     """
 
     @abc.abstractmethod

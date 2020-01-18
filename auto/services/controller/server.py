@@ -9,7 +9,7 @@
 ###############################################################################
 
 """
-This RPC server exposes the standard CIO interface, allowing multiple
+This RPC server provides the standard CIO interface, allowing multiple
 processes to share the CIO resources.
 """
 
