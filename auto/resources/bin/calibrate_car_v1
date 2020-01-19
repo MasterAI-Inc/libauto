@@ -19,11 +19,10 @@ from auto.services.controller.client import CioRoot
 
 
 START_PROMPT = """
-**YOU ARE ABOUT TO CALIBRATE THIS CAR.**
+*YOU ARE ABOUT TO CALIBRATE THIS CAR.*
 
-If you do not have proper authority to
-preform this calibration, **PLEASE EXIT
-THIS SCRIPT**.
+If you do not want to calibrate this
+car, please EXIT by pressing button 3.
 
 Press button 1 to BEGIN.
 Press button 3 to EXIT.
@@ -31,8 +30,10 @@ Press button 3 to EXIT.
 
 
 GYRO_ACCELL_PROMPT = """
-Would you like to calibrate the
-gyroscope and accelerometer?
+Would you like to calibrate the car's
+ gyroscope and accelerometer?
+
+e.g. if car is wobbly
 
 Press button 1 for 'yes'.
 Press button 3 for 'no'.
@@ -60,7 +61,9 @@ Started gyro & accel. calibration...
 
 CAR_MOTORS_PROMPT = """
 Would you like to calibrate the car's
-steering and drive-chain motors?
+ ** STEERING **?
+
+e.g. if car is not turning sharply
 
 Press button 1 for 'yes'.
 Press button 3 for 'no'.
@@ -69,8 +72,9 @@ Press button 3 for 'no'.
 
 CAR_SPEED_PROMPT = """
 Would you like to calibrate the car's
-safe forward and reverse throttle
-values?
+ ** SPEED **?
+
+e.g. if car is too fast
 
 Press button 1 for 'yes'.
 Press button 3 for 'no'.

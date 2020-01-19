@@ -662,7 +662,6 @@ class Calibrator(cio.CalibratorIface):
         status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0], 1)
         if status != 7:
             raise Exception("Failed to start calibration process.")
-        # TODO: Also prompt for safe throttle speeds, servo range, and PID values.
 
     @i2c_retry(N_I2C_TRIES)
     async def status(self):
