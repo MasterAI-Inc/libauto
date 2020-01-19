@@ -31,7 +31,6 @@ import asyncio
 import inspect
 from threading import Thread
 
-import auto
 from auto.rpc.serialize_interface import serialize_interface
 from auto.rpc.build_interface import build_interface
 
@@ -39,7 +38,7 @@ from auto.rpc.build_interface import build_interface
 DEBUG_ASYNCIO = False
 
 
-def get_loop(verbose=False):
+def get_loop():
     """
     Obtain the Python asyncio event loop which is running in a background thread.
     The loop (and its background thread) are not created until you invoke this
@@ -55,8 +54,6 @@ def get_loop(verbose=False):
         thread.daemon = True  # <-- thread will exit when main thread exists
         thread.start()
         _setup_cleanup(_BG_LOOP, thread)
-        if verbose:
-            auto.print_all("Instantiated an event loop in a background thread!")
         return _BG_LOOP
 
 

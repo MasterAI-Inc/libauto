@@ -109,7 +109,7 @@ class CredentialsIface(abc.ABC):
         """
         Return the stored authentication code.
         This authentication code is used to authenticate
-        with the AutoAuto servers.
+        with the Labs servers.
         """
         pass
 

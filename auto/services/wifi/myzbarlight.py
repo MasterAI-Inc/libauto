@@ -9,7 +9,7 @@
 ###############################################################################
 
 """
-Zbarlight wants you to give it a PIL image, but here at AutoAuto we
+Zbarlight wants you to give it a PIL image, but here at Master AI we
 are cooler and we deal with straight-up numpy arrays! So, the function
 below reaches further into Zbarlight to use a lower-level interface
 so that we can process raw numpy arrays.
