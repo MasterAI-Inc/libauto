@@ -336,7 +336,7 @@ async def _drive_demo(console, controller, car, buttons):
     await car.off()
 
 
-async def _calibrate_car_speed(console, car, buzzer, buttons, leds):
+async def _calibrate_car_speed(console, car, buttons):
     min_throttle, max_throttle = await car.get_safe_throttle()
 
     _ = await _prompt(console, buttons, [1], CAR_SPEED_FORWARD)
@@ -376,7 +376,7 @@ async def _calibrate_car_speed(console, car, buzzer, buttons, leds):
         await car.set_safe_throttle(min_throttle, max_throttle)
 
 
-async def _calibrate_car_motors(console, car, buzzer, buttons, leds):
+async def _calibrate_car_motors(console, car, buttons):
     params = {
             'top':              40000,
             'steering_left':     3000,
@@ -471,7 +471,7 @@ async def _calibrate_car_motors(console, car, buzzer, buttons, leds):
     await car.off()
 
 
-async def _calibrate_gyro_accel(console, calibrator, buttons, buzzer):
+async def _calibrate_gyro_accel(console, calibrator, buttons):
     _ = await _prompt(console, buttons, [1], GYRO_ACCELL_INSTRUCTIONS)
 
     # Wait for user to release the button and put the car down.
@@ -489,10 +489,8 @@ async def _calibrate_gyro_accel(console, calibrator, buttons, buzzer):
         await _print_all(console, '.', end='', flush=True)
         await asyncio.sleep(1)
 
-    await buzzer.play("G#4")
 
-
-async def _calibrate(console, controller, calibrator, buzzer, buttons, leds, car):
+async def _calibrate(console, controller, calibrator, buzzer, buttons, car):
     answer = await _prompt(console, buttons, [1, 3], START_PROMPT)
     if answer == 3:
         return
@@ -501,19 +499,23 @@ async def _calibrate(console, controller, calibrator, buzzer, buttons, leds, car
 
     answer = await _prompt(console, buttons, [1, 3], GYRO_ACCELL_PROMPT)
     if answer == 1:
-        await _calibrate_gyro_accel(console, calibrator, buttons, buzzer)
+        await _calibrate_gyro_accel(console, calibrator, buttons)
+        await buzzer.play("G#4")
 
     answer = await _prompt(console, buttons, [1, 3], CAR_MOTORS_PROMPT)
     if answer == 1:
-        await _calibrate_car_motors(console, car, buzzer, buttons, leds)
+        await _calibrate_car_motors(console, car, buttons)
+        await buzzer.play("G#4")
 
     answer = await _prompt(console, buttons, [1, 3], CAR_SPEED_PROMPT)
     if answer == 1:
-        await _calibrate_car_speed(console, car, buzzer, buttons, leds)
+        await _calibrate_car_speed(console, car, buttons)
+        await buzzer.play("G#4")
 
     answer = await _prompt(console, buttons, [1, 3], DRIVE_DEMO_PROMPT)
     if answer == 1:
         await _drive_demo(console, controller, car, buttons)
+        await buzzer.play("G#4")
 
 
 async def run():
@@ -523,7 +525,7 @@ async def run():
     await console.init()
     caps = await controller.init()
 
-    required_caps = ['Calibrator', 'Buzzer', 'PushButtons', 'LEDs', 'CarMotors']
+    required_caps = ['Calibrator', 'Buzzer', 'PushButtons', 'CarMotors']
     has_all_required = all([rc in caps for rc in required_caps])
 
     v = await controller.acquire('VersionInfo')
@@ -540,11 +542,10 @@ async def run():
     calibrator = await controller.acquire('Calibrator')
     buzzer = await controller.acquire('Buzzer')
     buttons = await controller.acquire('PushButtons')
-    leds = await controller.acquire('LEDs')
     car = await controller.acquire('CarMotors')
 
     try:
-        await _calibrate(console, controller, calibrator, buzzer, buttons, leds, car)
+        await _calibrate(console, controller, calibrator, buzzer, buttons, car)
 
     finally:
         await _clear(console)
@@ -553,7 +554,6 @@ async def run():
         await controller.release(calibrator)
         await controller.release(buzzer)
         await controller.release(buttons)
-        await controller.release(leds)
         await controller.release(car)
 
         await console.close()
