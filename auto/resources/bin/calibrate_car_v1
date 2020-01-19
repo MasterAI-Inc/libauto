@@ -11,6 +11,7 @@
 ###############################################################################
 
 import sys
+import time
 import asyncio
 import logging
 
@@ -204,6 +205,23 @@ Press 3 to **INCREASE** speed.
 """
 
 
+DRIVE_DEMO_PROMPT = """
+Would you like your car to do
+a final **DRIVING DEMO**?
+
+Press button 1 for 'yes'.
+Press button 3 for 'no'.
+"""
+
+
+DRIVE_DEMO_AGAIN = """
+Demo again?
+
+Press button 1 for 'yes'.
+Press button 3 for 'no'.
+"""
+
+
 async def _clear(console):
     print("\x1b[2J\x1b[H")  # https://stackoverflow.com/a/2084560
     await console.clear_text()
@@ -232,6 +250,90 @@ async def _prompt_continuous(console, buttons, options, prompt_text):
         b = b[0] + 1
         if b in options:
             yield b
+
+
+def _run_for_second(seconds):
+    start = time.time()
+    while True:
+        curr = time.time()
+        if curr - start < seconds:
+            yield curr
+        else:
+            break
+
+
+async def _drive_demo(console, controller, car, buttons):
+    min_throttle, max_throttle = await car.get_safe_throttle()
+
+    await car.on()
+
+    while True:
+        for i in reversed(range(3)):
+            await _print_all(console, "Driving in {}...".format(i+1))
+            await asyncio.sleep(0.9)
+
+        gyro = await controller.acquire('Gyroscope_accum')
+        pid = await controller.acquire('PID_steering')
+
+        _, _, z_start = await gyro.read()
+
+        await pid.set_point(z_start)
+        await pid.enable(invert_output=False)
+
+        for t in _run_for_second(2.0):
+            await car.set_throttle(max_throttle)
+
+        await pid.disable()
+        await pid.enable(invert_output=True)
+
+        for t in _run_for_second(1.5):
+            await car.set_throttle(min_throttle)
+
+        await pid.disable()
+
+        target = z_start - 90
+        _, _, z = await gyro.read()
+
+        while z > target:
+            await car.set_steering(45.0)
+            await car.set_throttle(min_throttle)
+            _, _, z = await gyro.read()
+
+        target = z_start + 90
+        _, _, z = await gyro.read()
+
+        while z < target:
+            await car.set_steering(45.0)
+            await car.set_throttle(max_throttle)
+            _, _, z = await gyro.read()
+
+        target = z_start - 180
+        _, _, z = await gyro.read()
+
+        while z > target:
+            await car.set_steering(-45.0)
+            await car.set_throttle(max_throttle)
+            _, _, z = await gyro.read()
+
+        await pid.set_point(target)
+        await pid.enable(invert_output=False)
+
+        for t in _run_for_second(1.0):
+            await car.set_throttle(max_throttle)
+
+        await pid.disable()
+
+        await car.set_throttle(0.0)
+        await car.set_steering(0.0)
+
+        await controller.release(gyro)
+        await controller.release(pid)
+
+        answer = await _prompt(console, buttons, [1, 3], DRIVE_DEMO_AGAIN)
+        if answer == 3:
+            break
+
+    await car.off()
 
 
 async def _calibrate_car_speed(console, car, buzzer, buttons, leds):
@@ -390,7 +492,7 @@ async def _calibrate_gyro_accel(console, calibrator, buttons, buzzer):
     await buzzer.play("G#4")
 
 
-async def _calibrate(console, calibrator, buzzer, buttons, leds, car):
+async def _calibrate(console, controller, calibrator, buzzer, buttons, leds, car):
     answer = await _prompt(console, buttons, [1, 3], START_PROMPT)
     if answer == 3:
         return
@@ -408,6 +510,10 @@ async def _calibrate(console, calibrator, buzzer, buttons, leds, car):
     answer = await _prompt(console, buttons, [1, 3], CAR_SPEED_PROMPT)
     if answer == 1:
         await _calibrate_car_speed(console, car, buzzer, buttons, leds)
+
+    answer = await _prompt(console, buttons, [1, 3], DRIVE_DEMO_PROMPT)
+    if answer == 1:
+        await _drive_demo(console, controller, car, buttons)
 
 
 async def run():
@@ -438,7 +544,7 @@ async def run():
     car = await controller.acquire('CarMotors')
 
     try:
-        await _calibrate(console, calibrator, buzzer, buttons, leds, car)
+        await _calibrate(console, controller, calibrator, buzzer, buttons, leds, car)
 
     finally:
         await _clear(console)
