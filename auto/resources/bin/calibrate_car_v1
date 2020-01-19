@@ -67,6 +67,139 @@ Press button 3 for 'no'.
 """
 
 
+CAR_SPEED_PROMPT = """
+Would you like to calibrate the car's
+safe forward and reverse throttle
+values?
+
+Press button 1 for 'yes'.
+Press button 3 for 'no'.
+"""
+
+
+CAR_MOTORS_LEFT_STEERING = """
+Set the **LEFT** steering direction.
+
+Use button 1 and 3 to **MOVE**
+the steering.
+
+Press button 2 to **STORE**
+the position.
+"""
+
+
+CAR_MOTORS_RIGHT_STEERING = """
+Set the **RIGHT** steering direction.
+
+Use button 1 and 3 to **MOVE**
+the steering.
+
+Press button 2 to **STORE**
+the position.
+"""
+
+
+CAR_MOTORS_FORWARD_REVERSE_DIRS = """
+Car will drive **FORWARD** and then
+in **REVERSE**.
+
+** Please HOLD the car carefully with
+   both hands, with wheels off the
+   ground. Be sure wheels can spin
+   freely, clear of all obstacles. **
+
+Press button 1 when you are ready.
+"""
+
+
+CAR_MOTORS_DIRECTIONS_CORRECT = """
+Did the car drive forward **THEN**
+in reverse?
+
+Press button 1 if 'yes'.
+Press button 3 if 'no'.
+"""
+
+
+CAR_MOTORS_DIRECTIONS_SWAP = """
+Will swap directions and try again...
+"""
+
+
+CAR_MOTORS_MID_STEERING = """
+Will check the steering direction
+for moving **STRAIGHT**.
+
+Car will drive **FORWARD** and
+then in **REVERSE**.
+
+** Place car on the ground with a
+   SAFE and OPEN area in front of it.
+
+Press button 1 when you are ready."""
+
+
+CAR_MOTORS_MID_STEERING_CHECK = """
+Did the car drive roughly straight?
+
+Press 1 to correct to the **LEFT**
+Press 2 if it looked okay.
+Press 3 to correct to the **RIGHT**.
+
+** CAR WILL DRIVE AGAIN AFTER YOU
+   MAKE YOUR SELECTION.
+   BE SURE AREA IS CLEAR AND SAFE.
+**"""
+
+
+CAR_SPEED_FORWARD = """
+Will demo current **FORWARD**
+speed.
+
+** Place car on the ground with a
+   SAFE and OPEN area in front of it.
+
+Press button 1 when you are ready.
+"""
+
+
+CAR_SPEED_FORWARD_CHECK = """
+Is the **FORWARD** speed okay?
+
+Press 1 to **DECREASE** speed.
+Press 2 if okay.
+Press 3 to **INCREASE** speed.
+
+** CAR WILL DRIVE AGAIN AFTER YOU
+   MAKE YOUR SELECTION.
+   BE SURE AREA IS CLEAR AND SAFE.
+"""
+
+
+CAR_SPEED_REVERSE = """
+Will demo current **REVERSE**
+speed.
+
+** Place car on the ground with a
+   SAFE and OPEN area in front of it.
+
+Press button 1 when you are ready.
+"""
+
+
+CAR_SPEED_REVERSE_CHECK = """
+Is the **REVERSE** speed okay?
+
+Press 1 to **DECREASE** speed.
+Press 2 if okay.
+Press 3 to **INCREASE** speed.
+
+** CAR WILL DRIVE AGAIN AFTER YOU
+   MAKE YOUR SELECTION.
+   BE SURE AREA IS CLEAR AND SAFE.
+"""
+
+
 async def _clear(console):
     print("\x1b[2J\x1b[H")  # https://stackoverflow.com/a/2084560
     await console.clear_text()
@@ -87,7 +220,57 @@ async def _prompt(console, buttons, options, prompt_text):
             return b
 
 
-async def _calibrate_car_motors(car, buzzer, buttons, leds):
+async def _prompt_continuous(console, buttons, options, prompt_text):
+    await _clear(console)
+    await _print_all(console, prompt_text)
+    while True:
+        b = await buttons.wait_for_action()
+        b = b[0] + 1
+        if b in options:
+            yield b
+
+
+async def _calibrate_car_speed(console, car, buzzer, buttons, leds):
+    min_throttle, max_throttle = await car.get_safe_throttle()
+
+    _ = await _prompt(console, buttons, [1], CAR_SPEED_FORWARD)
+
+    while True:
+        await car.set_steering(0.0)
+        await car.set_throttle(max_throttle)
+        await asyncio.sleep(1)
+        await car.set_throttle(min_throttle)
+        await asyncio.sleep(1)
+        await car.set_throttle(0)
+        answer = await _prompt(console, buttons, [1, 2, 3], CAR_SPEED_FORWARD_CHECK)
+        if answer == 1:
+            max_throttle -= 1
+        elif answer == 2:
+            break
+        elif answer == 3:
+            max_throttle += 1
+        await car.set_safe_throttle(min_throttle, max_throttle)
+
+    _ = await _prompt(console, buttons, [1], CAR_SPEED_REVERSE)
+
+    while True:
+        await car.set_steering(0.0)
+        await car.set_throttle(max_throttle)
+        await asyncio.sleep(1)
+        await car.set_throttle(min_throttle)
+        await asyncio.sleep(1)
+        await car.set_throttle(0)
+        answer = await _prompt(console, buttons, [1, 2, 3], CAR_SPEED_REVERSE_CHECK)
+        if answer == 1:
+            min_throttle += 1
+        elif answer == 2:
+            break
+        elif answer == 3:
+            min_throttle -= 1
+        await car.set_safe_throttle(min_throttle, max_throttle)
+
+
+async def _calibrate_car_motors(console, car, buzzer, buttons, leds):
     params = {
             'top':              40000,
             'steering_left':     3000,
@@ -100,129 +283,79 @@ async def _calibrate_car_motors(car, buzzer, buttons, leds):
             'throttle_millis':  30000,  # 30 seconds
     }
 
+    min_throttle, max_throttle = await car.get_safe_throttle()
+
     await car.on()
 
     await car.set_params(**params)
 
-    _clear()
-    print('Use button 1 and 3 to MOVE the steering.\nUse button 2 to SAVE the position.\n')
-    print('Set the steering all the way **LEFT** and then save the position.\n')
+    await car.set_steering(45.0)
 
-    while True:
-        await car.set_steering(45.0)
-        b = await buttons.wait_for_action()
-        b = b[0] + 1
-        if b == 1:
+    async for answer in _prompt_continuous(console, buttons, [1, 2, 3], CAR_MOTORS_LEFT_STEERING):
+        if answer == 1:
             params['steering_left'] += 100
-        elif b == 3:
+        elif answer == 3:
             params['steering_left'] -= 100
         else:
             break
         await car.set_params(**params)
+        await car.set_steering(45.0)
 
-    await car.set_steering(0.0)
+    await car.set_steering(-45.0)
 
-    _clear()
-    print("DONE! Press any button to continue...")
-    await buttons.wait_for_action()
-
-    _clear()
-    print('Use button 1 and 3 to MOVE the steering.\nUse button 2 to SAVE the position.\n')
-    print('Set the steering all the way **RIGHT** and then save the position.\n')
-
-    while True:
-        await car.set_steering(-45.0)
-        b = await buttons.wait_for_action()
-        b = b[0] + 1
-        if b == 1:
+    async for answer in _prompt_continuous(console, buttons, [1, 2, 3], CAR_MOTORS_RIGHT_STEERING):
+        if answer == 1:
             params['steering_right'] += 100
-        elif b == 3:
+        elif answer == 3:
             params['steering_right'] -= 100
         else:
             break
         await car.set_params(**params)
+        await car.set_steering(-45.0)
 
     params['steering_mid'] = (params['steering_left'] + params['steering_right']) // 2
     await car.set_params(**params)
 
     await car.set_steering(0.0)
 
-    _clear()
-    print("DONE! Press any button to continue...")
-    await buttons.wait_for_action()
-
-    _clear()
-    done = False
-    while not done:
-        print('Will check forward and reverse directions.\n')
-        print('Car will drive **FORWARD** and then **REVERSE**.\n')
-        print('** Please hold the car carefully in both hands,\n   with the wheels off the ground.')
-        print('** Be sure the wheels can spin freely and safely\n   before proceeding.\n')
-        print('Press button 2 when you are ready.')
-        while True:
-            b = await buttons.wait_for_action()
-            b = b[0] + 1
-            if b == 2:
-                break
-        await car.set_throttle(23)
-        await asyncio.sleep(1)
-        await car.set_throttle(-23)
-        await asyncio.sleep(1)
-        await car.set_throttle(0)
-        print('\n\n\nDid the car move **FORWARD** then **REVERSE**?\n\nPress 1 for "yes", press 3 for "no".')
-        while True:
-            b = await buttons.wait_for_action()
-            b = b[0] + 1
-            if b == 1:
-                done = True
-                break
-            elif b == 3:
-                _clear()
-                print('\n\n\nWill swap directions and try again...\n\n\n')
-                await asyncio.sleep(1)
-                params['throttle_forward'], params['throttle_reverse'] = params['throttle_reverse'], params['throttle_forward']
-                await car.set_params(**params)
-                break
-
-    _clear()
-    print("DONE! Press any button to continue...")
-    await buttons.wait_for_action()
-
-    _clear()
-    left_dir = 1 if params['steering_mid'] < params['steering_left'] else -1
-    left_dir *= 50  # <-- step size
     while True:
         await car.set_steering(0.0)
-        print('Will check the steering direction for moving **STRAIGHT**.\n')
-        print('Car will drive **FORWARD** and then **REVERSE**.\n')
-        print('** Place car on the ground with an open area in front of it.')
-        print('** Be sure the car can safely move forward for one second\n   without hitting anything.\n')
-        print('Press button 2 when you are ready.')
-        while True:
-            b = await buttons.wait_for_action()
-            b = b[0] + 1
-            if b == 2:
-                break
+        _ = await _prompt(console, buttons, [1], CAR_MOTORS_FORWARD_REVERSE_DIRS)
         await car.set_steering(0.0)
-        await car.set_throttle(23)
+        await car.set_throttle(max_throttle)
         await asyncio.sleep(1)
-        await car.set_throttle(-23)
+        await car.set_throttle(min_throttle)
         await asyncio.sleep(1)
         await car.set_throttle(0)
-        print('\n\n\nDid the car drive roughly straight?\n\nPress 1 to correct a hair to the **LEFT**\nPress 3 to correct a hair to the **RIGHT**.\nPress 2 if it looked okay.')
-        b = await buttons.wait_for_action()
-        b = b[0] + 1
-        if b == 1:
-            params['steering_mid'] += left_dir
-        elif b == 2:
+        answer = await _prompt(console, buttons, [1, 3], CAR_MOTORS_DIRECTIONS_CORRECT)
+        if answer == 1:
             break
-        elif b == 3:
+        else:
+            await _print_all(console, CAR_MOTORS_DIRECTIONS_SWAP)
+            await asyncio.sleep(1)
+            params['throttle_forward'], params['throttle_reverse'] = params['throttle_reverse'], params['throttle_forward']
+            await car.set_params(**params)
+
+    left_dir = 1 if params['steering_mid'] < params['steering_left'] else -1
+    left_dir *= 50  # <-- step size
+    await car.set_steering(0.0)
+    _ = await _prompt(console, buttons, [1], CAR_MOTORS_MID_STEERING)
+
+    while True:
+        await car.set_steering(0.0)
+        await car.set_throttle(max_throttle)
+        await asyncio.sleep(1)
+        await car.set_throttle(min_throttle)
+        await asyncio.sleep(1)
+        await car.set_throttle(0)
+        answer = await _prompt(console, buttons, [1, 2, 3], CAR_MOTORS_MID_STEERING_CHECK)
+        if answer == 1:
+            params['steering_mid'] += left_dir
+        elif answer == 2:
+            break
+        elif answer == 3:
             params['steering_mid'] -= left_dir
         await car.set_params(**params)
-
-    _clear()
-    print("DONE! Press any button to continue...")
-    await buttons.wait_for_action()
 
     params['steering_millis'] = 1000
     params['throttle_millis'] = 1000
@@ -266,7 +399,11 @@ async def _calibrate(console, calibrator, buzzer, buttons, leds, car):
 
     answer = await _prompt(console, buttons, [1, 3], CAR_MOTORS_PROMPT)
     if answer == 1:
-        await _calibrate_car_motors(car, buzzer, buttons, leds)
+        await _calibrate_car_motors(console, car, buzzer, buttons, leds)
+
+    answer = await _prompt(console, buttons, [1, 3], CAR_SPEED_PROMPT)
+    if answer == 1:
+        await _calibrate_car_speed(console, car, buzzer, buttons, leds)
 
 
 async def run():
