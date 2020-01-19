@@ -19,6 +19,11 @@ from auto.services.console.client import CuiRoot
 from auto.services.controller.client import CioRoot
 
 
+PID_DEFAULT_P = 1.0
+PID_DEFAULT_I = 0.2
+PID_DEFAULT_D = 0.2
+
+
 START_PROMPT = """
 *YOU ARE ABOUT TO CALIBRATE THIS CAR.*
 
@@ -233,13 +238,8 @@ async def _print_all(console, text, end='\n', **kwargs):
 
 
 async def _prompt(console, buttons, options, prompt_text):
-    await _clear(console)
-    await _print_all(console, prompt_text)
-    while True:
-        b = await buttons.wait_for_action()
-        b = b[0] + 1
-        if b in options:
-            return b
+    async for b in _prompt_continuous(console, buttons, options, prompt_text):
+        return b
 
 
 async def _prompt_continuous(console, buttons, options, prompt_text):
@@ -250,6 +250,12 @@ async def _prompt_continuous(console, buttons, options, prompt_text):
         b = b[0] + 1
         if b in options:
             yield b
+
+
+async def _reset_pid_to_defaults(controller):
+    pid = await controller.acquire('PID_steering')
+    await pid.set_pid(p=PID_DEFAULT_P, i=PID_DEFAULT_I, d=PID_DEFAULT_D, save=True)
+    await controller.release(pid)
 
 
 def _run_for_second(seconds):
@@ -511,6 +517,8 @@ async def _calibrate(console, controller, calibrator, buzzer, buttons, car):
     if answer == 1:
         await _calibrate_car_speed(console, car, buttons)
         await buzzer.play("G#4")
+
+    await _reset_pid_to_defaults(controller)
 
     answer = await _prompt(console, buttons, [1, 3], DRIVE_DEMO_PROMPT)
     if answer == 1:
