@@ -674,6 +674,9 @@ class Calibrator(cio.CalibratorIface):
         else:
             raise Exception("Unknown calibration status")
 
+    async def script_name(self):
+        return "calibrate_car_v1"
+
 
 class PidSteering(cio.PidSteeringIface):
     def __init__(self, fd, reg_num):

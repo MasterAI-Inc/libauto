@@ -649,6 +649,17 @@ class CalibratorIface(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
+    async def script_name(self):
+        """
+        Return the name of the script used
+        for calibrating this device. On
+        a properly configured system, this
+        script will be somewhere in the
+        user's PATH.
+        """
+        pass
+
 
 class PidIface(abc.ABC):
     """

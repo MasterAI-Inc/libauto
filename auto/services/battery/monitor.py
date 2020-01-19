@@ -89,7 +89,7 @@ async def run_forever():
         if 'Buzzer' in capabilities:
             buzzer = await controller.acquire('Buzzer')
         else:
-            pass  # We can tolerate not buzzer.
+            pass  # We can tolerate no buzzer.
 
         log.info('RUNNING!')
 
