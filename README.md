@@ -90,26 +90,26 @@ car.stream(frame, to_console=True, to_labs=True)
 **Note:** The `car.capture()` and `car.stream()` functions are convenience functions. They use the `auto` package internally. E.g. The following code uses the next-layer-down interfaces to capture frames continuously.
 
 ```python
-from auto.camera_rpc_client import CameraRGB
-from auto import frame_streamer
+from auto.camera import global_camera
+from auto.frame_streamer import stream
 
-camera = CameraRGB()
+camera = global_camera()
 
 for frame in camera.stream():
     # <process frame here>
-    frame_streamer.stream(frame, to_console=True, to_labs=True)
+    stream(frame, to_console=True, to_labs=True)
 ```
 
 You can clear the frame from the AutoAuto Console like this:
 
 ```python
 import car
-car.stream(None)
+car.stream(None, to_console=True, to_labs=True)
 
 # --or--
 
-from auto import frame_streamer
-frame_streamer.stream(None, to_console=True)
+from auto.frame_streamer import stream
+stream(None, to_console=True, to_labs=True)
 ```
 
 **Advanced Usage:** The most optimized way to access camera frames is to bypass the camera RPC server and get access to the camera directly. You can do this by using the `auto.camera_pi.CameraRGB` class. Two things must happen for this to work: (1) you must be running your process under a privileged account (`root` or `hacker`), and (2) no other process may be using the camera (e.g. you might have to kill the camera RPC server or at least wait for it to time-out and release the camera).
@@ -122,10 +122,10 @@ import car
 while True:
     frame = car.capture()
     car.detect_faces(frame)
-    car.stream(frame)
+    car.stream(frame, to_labs=True)
 ```
 
-The lower-level class-based interface for the face detector can be found in `auto.models.FaceDetector`. The face detector uses OpenCV under the hood (pun _always_ intended!).
+The lower-level class-based interface for the face detector can be found in `auto.models.FaceDetector`. The face detector uses OpenCV under the hood.
 
 ### Detect people
 
@@ -137,7 +137,7 @@ import car
 while True:
     frame = car.capture()
     car.detect_pedestrians(frame)
-    car.stream(frame)
+    car.stream(frame, to_labs=True)
 ```
 
 The lower-level class-based interface for the people detector can be found in `auto.models.PedestrianDetector`. The people detector uses OpenCV under the hood.
@@ -150,7 +150,7 @@ import car
 while True:
     frame = car.capture()
     car.detect_stop_signs(frame)
-    car.stream(frame)
+    car.stream(frame, to_labs=True)
 ```
 
 The lower-level class-based interface for the stop sign detector can be found in `auto.models.StopSignDetector`. The stop sign detector uses OpenCV under the hood.
@@ -167,7 +167,7 @@ import car
 
 frame = car.capture()
 rectangles = car.detect_faces(frame)
-car.stream(frame)
+car.stream(frame, to_labs=True)
 
 location = car.object_location(rectangles, frame.shape)
 size = car.object_size(rectangles, frame.shape)
