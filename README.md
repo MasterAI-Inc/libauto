@@ -1,13 +1,5 @@
 # The AutoAuto Device Library
 
-Desktop environment:
-
-```bash
-conda create -n libauto python=3.7
-conda activate libauto
-pip install -r requirements.txt
-```
-
 ## Introduction
 
 Use Python & A.I. to program a self-driving car. AutoAuto is a fun way to learn bleeding-edge skills, intended for beginner and advanced engineers alike. Drive your wonder with AutoAuto.
@@ -24,21 +16,19 @@ If you are an advanced programmer, you are welcome to dive right into using this
 
 ## Library Overview
 
-The library is segmented into three packages:
+The library is segmented into four packages:
 
 - [auto](./auto/): The "core" package. Contains the critical components for _every_ AutoAuto device, such as the camera interface and ML models.
 
 - [cio](./cio/): A package whose only job is to talk to the on-board microcontroller. The name `cio` is short for "controller input/output".
 
-- [cui](./cui/): ......
+- [cui](./cui/): A package whose only job is to run the AutoAuto console on the LCD screen. The name `cui` is short for "console UI".
 
-- [car](./car/): The `car` package contains helper functions that are only useful for AutoAuto _cars_. E.g. `car.forward()`, `car.left()`, `car.right()`, `car.reverse()`. If you look at the implementations of these helper functions, you'll find they use the `auto` and `cio` packages under the hood (pun intended). Overall the `car` package makes doing common operations take less code.
-
-To really grasp this library's internals, you'll also want to understand how/where/why Remote Procedure Calls (PRCs) are used. See the section [RPC Everywhere](#rpc-everywhere).
+- [car](./car/): The `car` package contains helper functions that are only useful for AutoAuto _cars_. E.g. `car.forward()`, `car.left()`, `car.right()`, `car.reverse()`. If you look at the implementations of these helper functions, you'll find they use the `auto` and `cio` packages under the hood (pun intended).
 
 ## Connecting to Your Device
 
-This library is of little use unless you can actually put a program onto your device! Here are the ways you can connect to your device:
+Here are the ways you can connect to your device:
 
 - **SSH:** SSH'ing into your device is the quickest way to gain privileged access (i.e. to get `sudo` powers; remember Uncle Ben's words: with great power comes great responsibility). You can log in to the device under the username `hacker` (in this context, "hacker" denotes a skilled computer expert!). You must obtain your device's default password from [AutoAuto Labs](https://labs.autoauto.ai/autopair/) (from the "My Devices" page, you can view your device's "Info for Advanced Users"). Every device has a different default system password. You are encouraged to change your device's system password (using the usual `passwd` command).
 
@@ -67,7 +57,7 @@ car.forward(2.5)
 
 ### Print to the AutoAuto Console
 
-AutoAuto devices are equipped with an LCD screen which displays the "AutoAuto Console". You can print your own text to the console, example below:
+Many AutoAuto devices are equipped with an LCD screen which displays the "AutoAuto Console". You can print your own text to the console, example below:
 
 ```python
 from auto import console
@@ -94,7 +84,7 @@ Capture a single frame:
 import car
 
 frame = car.capture()
-car.stream(frame)
+car.stream(frame, to_console=True, to_labs=True)
 ```
 
 **Note:** The `car.capture()` and `car.stream()` functions are convenience functions. They use the `auto` package internally. E.g. The following code uses the next-layer-down interfaces to capture frames continuously.
@@ -107,7 +97,7 @@ camera = CameraRGB()
 
 for frame in camera.stream():
     # <process frame here>
-    frame_streamer.stream(frame, to_console=True)
+    frame_streamer.stream(frame, to_console=True, to_labs=True)
 ```
 
 You can clear the frame from the AutoAuto Console like this:
