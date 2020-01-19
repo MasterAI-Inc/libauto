@@ -32,7 +32,7 @@ class CameraRGB:
         """
         self.camera = PiCamera(resolution=(width, height), framerate=fps)
         self.array = PiRGBArray(self.camera, size=(width, height))
-        time.sleep(0.5)
+        time.sleep(1.0)
 
     def capture(self):
         """
