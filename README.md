@@ -190,10 +190,8 @@ while True:
     frame = car.capture(verbose=False)
     frame_gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
     frame_edges = cv2.Canny(frame_gray, 100, 200)
-    car.stream(frame_edges, verbose=False)
+    car.stream(frame_edges, to_labs=True, verbose=False)
 ```
-
-To remove the frame index from the frame, you can use the underlying `auto.camera_rpc_client.CameraRGB` interface instead of `car.capture()`.
 
 ### Classify frame's center color
 
@@ -202,11 +200,11 @@ import car
 
 frame = car.capture()
 color = car.classify_color(frame)
-car.stream(frame)
+car.stream(frame, to_labs=True)
 car.print("The detected color is", color)
 ```
 
-The lower-level class-based interface for the color classifier can be found in `auto.models.ColorClassifier`. Contributions for making it work better are very welcome.
+The lower-level class-based interface for the color classifier can be found in `auto.models.ColorClassifier`.
 
 ### Precise steering
 
@@ -229,13 +227,13 @@ set_steering(0.0)  # STRAIGHT
 time.sleep(1.0)
 ```
 
-**Important Note:** The call to `set_steering()` is asynchronous; that is, the function returns immediately, very likely _before_ the wheels have actually had a change to fully turn to the desired angle! Furthermore, the call only "lasts" for 1 second, then the angle will automatically revert back to "straight". As a result you must call `set_steering()` in a loop to keep it "active". (This is a safety feature, allowing the car to revert to going straight if your program crashes or if the Pi loses communication with the microcontroller.)
+**Important Note:** The call to `set_steering()` is asynchronous; that is, the function returns immediately, very likely _before_ the wheels have actually had a chance to fully turn to the desired angle! Furthermore, the call only "lasts" for 1 second, then the angle will automatically revert back to _straight_. As a result you must call `set_steering()` in a loop to keep it "active". (This is a safety feature, allowing the car to revert to going straight if your program crashes or if the Pi loses communication with the microcontroller.)
 
 ### Precise throttle
 
 **Note:** Only applicable to AutoAuto _cars_, not other devices.
 
-**WARNING:** You can easily injure the car by setting the throttle too high. Use this interface with great caution. These cars are wicked fast.
+**WARNING:** You can easily injure the car, yourself, or others by setting the throttle too high. Use this interface with extreme caution. These cars are VERY powerful and very fast.
 
 ```python
 from car.motors import set_throttle
