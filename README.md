@@ -254,19 +254,6 @@ time.sleep(1.0)
 
 **Important Note:** The call to `set_throttle()` is asynchronous; that is, the function returns immediately, very likely _before_ the car's speed actually changes! Furthermore, the call only "lasts" for 1 second, then the car will revert back to a throttle of zero. As a result you must call `set_throttle()` in a loop to keep it "active". (This is a safety feature, allowing the car to automatically **STOP** if your program crashes or if the Pi loses communication with the microcontroller.)
 
-### Stream frames to AutoAuto Labs
-
-... and we'll detect faces as well to make the demo cooler.
-
-```python
-import car
-
-while True:
-    frame = car.capture()
-    car.detect_faces(frame)
-    car.stream(frame, to_labs=True)   # <-- Note the new param `to_labs=True`
-```
-
 ### Plot frames in Jupyter
 
 The helper function `car.plot()` will both stream a single frame to your AutoAuto Labs account _and_ it returns a `PIL.Image` object, so you can conveniently use it from Jupyter. See the screenshot below:
@@ -344,7 +331,7 @@ The `car` package has two helper functions:
 ```python
 import car
 
-car.buzz('!O4 L16 c e g >c8')
+car.buzz('!V10 O4 L16 c e g >c8')
 
 car.honk()
 ```
@@ -356,7 +343,7 @@ from auto.capabilities import list_caps, acquire, release
 
 buzzer = acquire("Buzzer")
 
-buzzer.play('!O4 L16 c e g >c8')  # <-- asynchronous call
+buzzer.play('!V10 O4 L16 c e g >c8')  # <-- asynchronous call
 
 buzzer.wait()   # <-- block the program until the buzzer finishes playing
 
@@ -383,25 +370,22 @@ for i in range(100):
 release(photoresistor)
 ```
 
-The program above prints the resistance of the photoresistor (in Ohms). You can play around with where a good threshold is for your application, and you can quickly see the value change by simply covering the light with your hand (you'll see the resistance rise) or by shining a flashlight at the photoresistor (you'll see the resistance decrease).
-
-**Advanced Usage:** If you would like to repurpose the photoresistor pin, you can remove the jumper cap from J23 to install your own sensor (any sensor which output a voltage in the range 0-5V can be plugged in to J23). If you do this, you can still use the Photoresistor interface above but simply use the `millivolts` value for your own purpose.
+The program above prints the resistance of the photoresistor (in Ohms). You can play around with where a good threshold is for your application, and you can quickly see the value change by simply covering the light with your hand or by shining a flashlight at the photoresistor.
 
 ### Push Buttons
 
 ```python
 from auto.capabilities import list_caps, acquire, release
-import time
 
 buttons = acquire('PushButtons')
 
 print("Press the buttons, and you'll see the events being printed below:")
 
-for i in range(100):
-    events = buttons.get_events()
-    for e in events:
-        print(e)
-    time.sleep(0.05)
+while True:
+    button, action = buttons.wait_for_action('any')
+    print("The {}th button was {}.".format(button, action))
+    if button == 2:
+        break
 
 release(buttons)
 ```
@@ -410,20 +394,23 @@ release(buttons)
 
 ```python
 from auto.capabilities import list_caps, acquire, release
-import time
 
 battery = acquire('BatteryVoltageReader')
 
-print(battery.millivolts())
+millivolts = battery.millivolts()
+percentage, minutes = battery.estimate_remaining(millivolts)
+
+print('The battery voltage is {} millivolts.'.format(millivolts))
+print('It is at ~{}% and will last for ~{} more minutes.'.format(minutes, percentage))
 
 release(battery)
 ```
 
-**Note:** There's a background task that will monitor the battery voltage for you and will buzz the buzzer when the batter gets lower than 10%. See [this script](./startup/battery_monitor/battery_monitor.py) which is started for you on-boot. You are welcome to modify or disable this script as you prefer.
+**Note:** There's a background task that will monitor the battery voltage for you and will buzz the buzzer when the batter gets to 5% or lower.
 
 ### LEDs
 
-The main PCB has three on-board LEDs that you can turn on/off programmatically. You can also plug in two external LEDs that can be driven using the same interface. (This, for example, could be used to install headlight or taillight (or both) onto an AutoAuto _car_ that can be programmatically controlled.)
+The main PCB has three on-board LEDs that you can turn on/off programmatically.
 
 ```python
 from auto.capabilities import list_caps, acquire, release
@@ -432,57 +419,32 @@ import time
 buttons = acquire('PushButtons')
 leds = acquire('LEDs')
 
+led_ordering = ['red', 'green', 'blue']
+
 print("Press the buttons to turn on/off the on-board LEDs:")
 
-led_state = [False, False, False]   # all LEDs start off
-
 while True:
-    events = buttons.get_events()
+    button_index, action = buttons.wait_for_action('any')
 
-    for e in events:
-        # The first button is index of 1; the first LED is index of 0.
-        # Therefore to map from button index to led index, we'll subtract 1.
-        led_index = e['button'] - 1
+    # We use the button
+    led_identifier = led_ordering[button_index]
 
-        # If the action is "pressed", we'll turn the LED on. Else we'll turn it off.
-        led_state[led_index] = (e['action'] == 'pressed')
+    # Turn on the LED when the button is pressed, and off
+    # whent he button is released.
+    led_value = (action == 'pressed')
 
-        # We set the state of every led below:
-        leds.set_values(*led_state)
-
-    time.sleep(0.1)
+    # We set the state of every led below:
+    leds.set_led(led_identifier, led_value)
 
 release(buttons)
 release(leds)
 ```
 
-LED index 0 also drives the external LED on J21. LED index 2 also drives the external LED on J16.
-
 ### Calibration
 
-If you are running as a privileged user (`root` or `hacker`, via `ssh` most likely), you can calibrate your device (a car, in the example below).
+Depending on the device you have, you can run the appropriate calibration script.
 
-```python
-import car
-
-car.calibrate()
-```
-
-## RPC Everywhere
-
-RPC = Remote Procedure Call
-
-If you look under the hood of this library, you'll quickly notice that we do a lot of RPCs. The nature of the beast is that we have limited, shared resources (there is only one microcontroller, only one camera, only one connection to AutoAuto Labs, only one LCD screen). But, we have many processes that need to access these resources (e.g. one process wants to talk to the microcontroller to monitor the battery level continually and another process wants to talk to the microcontroller to drive the device (i.e. run the motors); or maybe two processes both need to read frames from the camera to do unrelated computer vision things, or maybe two processes would like to write information to the LCD screen (to the _console_) and have it be interlaced for the user to see; and the list goes on).
-
-Currently, there are four RPC servers:
-
-- [The CIO RPC server](./startup/cio_rpc_server/cio_rpc_server.py): The single process that may access the microcontroller; if _your program_ wants access to the microcontroller, it must ask this server. The corresponding client is [here](./cio/rpc_client.py).
-
-- [The camera RPC server](./startup/camera_rpc_server/camera_rpc_server.py): Same story, if you want frame(s) from the camera, talk to this server. (Note: This server will keep the camera "open" for 60 seconds after the last RCP client disconnects, because a common usage-pattern while developing your program is to immediately re-run your code, and having the camera stay open speeds up the second run tremendously). The corresponding client is [here](./auto/camera_rpc_client.py).
-
-- [The Console UI RPC server](./startup/console_ui/console_ui.py): Same story, if you want to display something on the LCD screen, you know who to ask. The corresponding client is [here](./auto/console.py).
-
-- [The CDP RPC server](startup/cdp_connector/cdp_connector.py): If you want to send data to your AutoAuto Labs account, you go through this server. The interface for this will change soon, btw.
+...
 
 ## Buzzer Language
 
