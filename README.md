@@ -444,13 +444,15 @@ release(leds)
 
 Depending on the device you have, you can run the appropriate calibration script.
 
-...
+| Device Name                     | Calibration Script Name |
+|---------------------------------|-------------------------|
+| AutoAuto Car with v1 Controller | `calibrate_car_v1`      |
 
 ## Buzzer Language
 
 The Buzzer Language<sup>[1](#buzzer-language-copyright)</sup> works as follows:
 
-The notes are specified by the characters C, D, E, F, G, A, and B, and they are played by default as "quarter notes" with a length of 500 ms. This corresponds to a tempo of 120 beats/min. Other durations can be specified by putting a number immediately after the note. For example, C8 specifies C played as an eighth note, with half the duration of a quarter note. The special note R plays a rest (no sound). The sequence parser is case-insensitive and ignores spaces, which may be used to format your music nicely.
+The notes are specified by the characters C, D, E, F, G, A, and B, and they are played by default as _quarter notes_ with a length of 500 ms. This corresponds to a tempo of 120 beats/min. Other durations can be specified by putting a number immediately after the note. For example, C8 specifies C played as an eighth note (i.e. having half the duration of the default quarter note). The special note R plays a rest (no sound). The sequence parser is case-insensitive and ignores spaces, although spaces are encouraged to help with human readability.
 
 Various control characters alter the sound:
 
@@ -477,22 +479,3 @@ Examples:
  - The first few measures of Bach's fugue in D-minor: "!T240 L8 agafaea dac+adaea fa&lt;aa&lt;bac#a dac#adaea f4"
 
 <a name="buzzer-language-copyright">1</a>: Pololu Corporation developed and holds the copyright for the Buzzer Language and its documentation. Further information about the Buzzer Language's license and copyright can be found in the [LICENSE](./LICENSE) file.
-
-## Project Ideas
-
-AutoAuto Labs has many projects you can do (all fun!). Here are a few other ideas
-which haven't been built into AutoAuto Labs yet (but will be in the future).
-
-- Collision detection
-- Collaborative cars
-- Light avoider
-
-## TODO
-
-- embed demo videos
-- link to ReadTheDocs documentation
-- add contribution instructions
-- document PCB extension pins (e.g. aux PWM and encoders)
-
-Also, the [Issues](https://github.com/AutoAutoAI/libauto/issues), of course.
-
