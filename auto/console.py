@@ -116,14 +116,6 @@ def clear():
     clear_image()
 
 
-def set_battery_percent(pct):
-    """
-    Set the battery percentage that is displayed on the console UI.
-    `pct` should be an integer in [0, 100].
-    """
-    _get_console().set_battery_percent(pct)
-
-
 # We won't support closing at this level (no need?),
 # but if we did it would look like this:
 #

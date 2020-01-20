@@ -23,7 +23,7 @@ async def run():
 
     for i in range(100):
         mv = await batt.millivolts()
-        mi = await batt.minutes()
+        mi = await batt.estimate_remaining()
         print(mv, mi)
         await asyncio.sleep(0.1)
 

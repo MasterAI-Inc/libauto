@@ -16,11 +16,13 @@ from . import N_I2C_TRIES
 from .timers import Timer1PWM, Timer3PWM
 
 from .db import default_db
+from .battery_discharge_curve import battery_map_millivolts_to_percentage
 
 import cio
 
 import struct
 import asyncio
+from math import floor
 from collections import deque
 
 
@@ -102,19 +104,22 @@ class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
         lsb, msb = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 2)
         return (msb << 8) | lsb   # <-- You can also use int.from_bytes(...) but I think doing the bitwise operations explicitly is cooler.
 
-    async def millivolt_range(self):
-        batt_low = 6500
-        batt_high = 8400
-        return batt_low, batt_high
+    async def estimate_remaining(self, millivolts=None):
+        if millivolts is None:
+            millivolts = await self.millivolts()
+        percentage = battery_map_millivolts_to_percentage(millivolts)
+        minutes = 4.0 * 60.0 * (percentage / 100.0)  # Assumes the full battery lasts 4 hours.
+        return floor(minutes), floor(percentage)
 
-    async def minutes(self):
-        mv = await self.millivolts()
-        batt_low, batt_high = await self.millivolt_range()
-        # TODO: The following calculation is a very bad approximation. It should be _entirely_ redone.
-        pct_estimate = (mv - batt_low) / (batt_high - batt_low)
-        pct_estimate = max(min(pct_estimate, 1.0), 0.0)
-        mins_estimate  = pct_estimate * 3.5 * 60.0   # assume a full battery lasts 3.5 hours
-        return int(round(mins_estimate)), int(round(pct_estimate * 100))
+    async def should_shut_down(self):
+        # Notes for version 3.
+        #import RPi.GPIO as GPIO
+        #GPIO.setmode(GPIO.BCM)
+        #BCM_PIN = 26
+        #GPIO.setup(BCM_PIN, GPIO.IN, GPIO.PUD_UP)
+        #val = GPIO.input(BCM_PIN)
+        #return val == 0
+        return False
 
 
 class Buzzer(cio.BuzzerIface):
@@ -552,6 +557,9 @@ class CarMotors(cio.CarMotorsIface):
         await save()
         await i2c_poll_until(is_saved, True, timeout_ms=1000)
 
+    def rpc_extra_exports(self):
+        return ['set_params', 'save_params']
+
 
 class PWMs(cio.PWMsIface):
     def __init__(self, fd, reg_num):
@@ -654,12 +662,20 @@ class Calibrator(cio.CalibratorIface):
         status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0], 1)
         if status != 7:
             raise Exception("Failed to start calibration process.")
-        # TODO: Also prompt for safe throttle speeds, servo range, and PID values.
 
     @i2c_retry(N_I2C_TRIES)
-    async def check(self):
+    async def status(self):
         status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 1], 1)
-        return status == 1   # 1 means currently calibrating, 2 means done calibrating
+        # Status 0 means not started, 1 means currently calibrating, 2 means done calibrating
+        if status == 0 or status == 1:
+            return status
+        elif status == 2:
+            return -1  # <-- conform to CIO interface
+        else:
+            raise Exception("Unknown calibration status")
+
+    async def script_name(self):
+        return "calibrate_car_v1"
 
 
 class PidSteering(cio.PidSteeringIface):
@@ -681,7 +697,7 @@ class PidSteering(cio.PidSteeringIface):
         await set_val(0x04, error_accum_max)
 
         if save:
-            await save_pid()
+            await self.save_pid()
 
     @i2c_retry(N_I2C_TRIES)
     async def set_point(self, point):

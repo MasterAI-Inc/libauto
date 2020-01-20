@@ -276,7 +276,7 @@ async def _main_loop(wireless, console, controller, system_priv_user):
 
         else:
             # We have WiFi.
-            # After WiFi, we care that we have a Token so that we can authenticate with the CDP.
+            # After WiFi, we care that we have a Token so that we can authenticate with the Labs servers.
             if not confident_about_token:
                 await _ensure_token(console, controller, system_priv_user)
                 confident_about_token = True

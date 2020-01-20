@@ -24,7 +24,7 @@ async def client(inet_addr='localhost', inet_port=7000):
     """
     This function connects to the RPC server via websocket at the IP address
     given by `inet_addr` and on the port `inet_port`. It returns the reconstructed
-    interface which was exposed/exported by the server.
+    interface which was provided/exported by the server.
     """
 
     uri = f"ws://{inet_addr}:{inet_port}"

@@ -70,14 +70,15 @@ class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
     async def millivolts(self):
         return random.randint(7000, 8000)
 
-    async def millivolt_range(self):
-        return (6500, 8400)
-
-    async def minutes(self):
-        mv = await self.millivolts()
-        batt_low, batt_high = await self.millivolt_range()
-        pct_estimate = (mv - batt_low) / (batt_high - batt_low)
+    async def estimate_remaining(self, millivolts=None):
+        if millivolts is None:
+            millivolts = await self.millivolts()
+        batt_low, batt_high = 6500, 8400
+        pct_estimate = (millivolts - batt_low) / (batt_high - batt_low)
         pct_estimate = max(min(pct_estimate, 1.0), 0.0)
-        mins_estimate  = pct_estimate * 3.5 * 60.0   # assume a full battery lasts 3.5 hours
+        mins_estimate  = pct_estimate * 3.5 * 60.0   # assumes a full battery lasts 3.5 hours
         return int(round(mins_estimate)), int(round(pct_estimate * 100))
+
+    async def should_shut_down(self):
+        return False
 

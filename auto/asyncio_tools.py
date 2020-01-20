@@ -31,7 +31,6 @@ import asyncio
 import inspect
 from threading import Thread
 
-import auto
 from auto.rpc.serialize_interface import serialize_interface
 from auto.rpc.build_interface import build_interface
 
@@ -39,7 +38,7 @@ from auto.rpc.build_interface import build_interface
 DEBUG_ASYNCIO = False
 
 
-def get_loop(verbose=False):
+def get_loop():
     """
     Obtain the Python asyncio event loop which is running in a background thread.
     The loop (and its background thread) are not created until you invoke this
@@ -55,8 +54,6 @@ def get_loop(verbose=False):
         thread.daemon = True  # <-- thread will exit when main thread exists
         thread.start()
         _setup_cleanup(_BG_LOOP, thread)
-        if verbose:
-            auto.print_all("Instantiated an event loop in a background thread!")
         return _BG_LOOP
 
 
@@ -109,11 +106,11 @@ def wrap_async_to_sync(obj, loop=None):
     methods into "normal" synchronous methods.
 
     **Note:** Only _methods_ are wrapped, so if `obj` has _attributes_ which it
-              exposes, those will _not_ be accessible through the wrapped object.
+              exports, those will _not_ be accessible through the wrapped object.
               This is a known limitation which will not be addressed (it is
-              too complex to expose wrapped attributes in such a way that
+              too complex to export wrapped attributes in such a way that
               preserves their mutability or lack thereof; thus only methods
-              will be exposed by the wrapper). Also, magic methods are _not_
+              will be exported by the wrapper). Also, magic methods are _not_
               wrapped; this is a limitation we may fix in the future.
     """
     if loop is None:

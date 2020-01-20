@@ -9,7 +9,7 @@
 ###############################################################################
 
 """
-This RPC server exposes the standard CUI interface, allowing multiple
+This RPC server provides the standard CUI interface, allowing multiple
 processes to share the CUI resources.
 """
 

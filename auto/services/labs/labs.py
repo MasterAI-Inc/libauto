@@ -302,7 +302,7 @@ async def _get_labs_auth_code(controller, console):
     return auth_code
 
 
-async def run_forever(system_up_user):
+async def init_and_create_forever_task(system_up_user):
     controller = CioRoot()
     camera = CameraRGB()
     console = CuiRoot()
@@ -349,28 +349,36 @@ async def run_forever(system_up_user):
 
     await console.write_text('Attempting to connect...\n')
 
-    while True:
-        was_connected = False
+    async def _forever():
+        while True:
+            was_connected = False
 
-        try:
-            async with ws_connect(url) as ws:
-                log.info("Connected: {}...".format(BASE_URL + '/' + auth_code[:4]))
-                await console.write_text('Connected to Labs. Standing by...\n')
-                was_connected = True
-                await _run(ws, consumers, console, rpc_interface)
+            try:
+                async with ws_connect(url) as ws:
+                    log.info("Connected: {}...".format(BASE_URL + '/' + auth_code[:4]))
+                    await console.write_text('Connected to Labs. Standing by...\n')
+                    was_connected = True
+                    await _run(ws, consumers, console, rpc_interface)
 
-        except WebSocketException as e:
-            log.info('Connection closed: {}'.format(e))
-            if was_connected:
-                await console.write_text('Connection to Labs was lost.\nReconnecting...\n')
+            except WebSocketException as e:
+                log.info('Connection closed: {}'.format(e))
+                if was_connected:
+                    await console.write_text('Connection to Labs was lost.\nReconnecting...\n')
 
-        except Exception as e:
-            log.error('Unknown error: {}'.format(e))
+            except Exception as e:
+                log.error('Unknown error: {}'.format(e))
 
-        finally:
-            reconnect_delay_seconds = 10 + random.randint(2, 8)
-            log.info('Waiting {} seconds before reconnecting.'.format(reconnect_delay_seconds))
-            await asyncio.sleep(reconnect_delay_seconds)
+            finally:
+                reconnect_delay_seconds = 10 + random.randint(2, 8)
+                log.info('Waiting {} seconds before reconnecting.'.format(reconnect_delay_seconds))
+                await asyncio.sleep(reconnect_delay_seconds)
+
+    return asyncio.create_task(_forever())
+
+
+async def run_forever(system_up_user):
+    forever_task = await init_and_create_forever_task(system_up_user)
+    await forever_task
 
 
 if __name__ == '__main__':

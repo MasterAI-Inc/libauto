@@ -21,7 +21,7 @@ class CioRoot(abc.ABC):
     """
     This is the front-door interface of the Controller IO ("cio"). You begin
     by `init()`ing the controller, and if successful, you may then `acquire()`
-    and `release()` components which are exposed by the controller.
+    and `release()` components which are provided by the controller.
     """
 
     @abc.abstractmethod
@@ -109,7 +109,7 @@ class CredentialsIface(abc.ABC):
         """
         Return the stored authentication code.
         This authentication code is used to authenticate
-        with the AutoAuto servers.
+        with the Labs servers.
         """
         pass
 
@@ -174,19 +174,26 @@ class BatteryVoltageReaderIface(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def millivolt_range(self):
+    async def estimate_remaining(self, millivolts=None):
         """
-        Return the voltage range of this battery as a tuple as `(min, max)`
-        in millivolts.
+        Given the battery voltage of `millivolts`, estimate of run-time remaining of
+        the batter (in minutes) and the percentage remaining of the battery (an
+        integer from 0 to 100). Return a two-tuple of `(minutes, percentage)`.
+        If you pass `millivolts=None`, the battery's current millivolts reading will
+        be queried and used.
         """
         pass
 
     @abc.abstractmethod
-    async def minutes(self):
+    async def should_shut_down(self):
         """
-        Estimate of time remaining (in minutes) and the percent remaining
-        of the battery (an integer from 0 to 100).
-        Return a two-tuple of `(minutes, percent)`.
+        Return True if the host device should shut down. The host
+        can poll this function (suggest once per 200-500ms) to know
+        when it needs to shut down. Two reasons for shutting down:
+         1. The power switch was triggered so the whole device will
+            soon loose power.
+         2. The battery is dangerously low and will drop out soon,
+            so the host should shut down immediately to be safe.
         """
         pass
 
@@ -624,11 +631,32 @@ class CalibratorIface(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def check(self):
+    async def status(self):
         """
-        Check if the calibration process is running.
-        Returns True if the controller is currently
-        running its calibration, False otherwise.
+        Check the status of the calibration process.
+        Returns the identifier of the current step.
+        Status identifiers may be integers or strings.
+        Each controller has its own identifiers and
+        its own meaning for each identifier. You must
+        refer to the specific controller's documentation
+        to understand what each status identifier means.
+        The only common identifiers between all controllers
+        are the following:
+         - The integer 0 means the calibration process
+           has not started.
+         - The integer -1 means the calibration process
+           was started and has now finished.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def script_name(self):
+        """
+        Return the name of the script used
+        for calibrating this device. On
+        a properly configured system, this
+        script will be somewhere in the
+        user's PATH.
         """
         pass
 
@@ -688,7 +716,7 @@ class PidIface(abc.ABC):
 
 class PidSteeringIface(PidIface):
     """
-    Control the Car's Steering with a PID Loop
+    Control the Device's Steering with a PID Loop
 
     Required: False
 
