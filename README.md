@@ -65,7 +65,7 @@ console.print("How are you?")
 ```
 
 The `car` package also has a print function which prints to `stdout` _and_ to the
-AutoAuto console. (For those who use the `car` package, this is convenient.)
+console. (For those who use the `car` package, this is convenient.)
 
 ```python
 import car
@@ -174,7 +174,7 @@ car.print("Object size:", size)
 
 ### Raw OpenCV
 
-In the example below, we'll use OpenCV to do edge-detection using the Canny edge filter.
+In the example below, we will use OpenCV to do edge-detection using the Canny edge filter.
 
 ```python
 import cv2
@@ -256,7 +256,7 @@ The helper function `car.plot()` will both stream a single frame to your AutoAut
 
 ![](https://static.autoauto.ai/uploads/abecaaf6d4d34146bd802be839f1f993.png)
 
-### List the devices' capabilities
+### List the device's capabilities
 
 Different MasterAI devices (and different versions of the same device) may have a different set of hardware capabilities. You can ask your device to list its capabilities like this:
 
