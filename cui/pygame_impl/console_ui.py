@@ -294,9 +294,11 @@ def check_events():
             if len(mouse_up_event_times) == n_mouse_up_target:
                 delay_here = mouse_up_event_times[-1] - mouse_up_event_times[0]
                 if delay_here <= mouse_up_max_delay:
-                    write_text('\nSHUTTING DOWN\n\n')
-                    output = _shutdown(reboot=False)
-                    write_text(output + '\n')
+                    pass
+                    # The double-tap turn-off feature is disabled; See issue #36.
+                    #write_text('\nSHUTTING DOWN\n\n')
+                    #output = _shutdown(reboot=False)
+                    #write_text(output + '\n')
 
 
 log.info("RUNNING!")
