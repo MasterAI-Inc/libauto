@@ -2,37 +2,37 @@
 
 Learn and use Python and A.I. to program your own autonomous vehicles! 🚗 🚁
 
-This library is used for many MasterAI products such as the AutoAuto car.
+Many MasterAI devices use this library. For example, the AutoAuto car below:
 
 ![AutoAuto Fleet 1 Car](https://static.autoauto.ai/uploads/d452293bcac14e65a3370c54e9027e79.JPG)
 
 ## Beginner or Advanced?
 
-If you are a beginner, you will want to follow along through the lessons on [AutoAuto Labs](https://labs.autoauto.ai/). After you've leveled-up through the beginner and intermediate lessons, you can come back here and explore this library's deeper implementation details.
+If you are a beginner, you will _first_ want to follow along through the lessons on [AutoAuto Labs](https://labs.autoauto.ai/). After you leveled-up through the beginner and intermediate lessons, you can come back here to explore this library more fully.
 
-If you are an advanced programmer, you are welcome to dive right into using this library! This library is already installed on your MasterAI device. Have a look at the section [Connecting to Your Device](#connecting-to-your-device) and the section [Examples](#examples), then you will be off-to-the-races! 🏃
+If you are an advanced programmer, you are welcome to dive right in! This library is already installed on your MasterAI device. Have a look at the section [Connecting to Your Device](#connecting-to-your-device) and the section [Examples](#examples), then you will be off-to-the-races! 🏃
 
 ## Library Overview
 
 The library is segmented into four packages:
 
-- [auto](./auto/): The "core" package. Contains the critical components for _every_ MasterAI device, such as the camera interface and the Machine Learning (ML) models.
+- [auto](./auto/): The _core_ package. Contains the critical components for _every_ MasterAI device, such as the camera interface and the Machine Learning (ML) models.
 
-- [cio](./cio/): A package whose only job is to talk to the on-board microcontroller. The name `cio` is short for "controller input/output".
+- [cio](./cio/): A package whose only job is to talk to the on-board microcontroller. The name `cio` is short for "controller input/output". It is _pluggable_ and can support multiple backends.
 
-- [cui](./cui/): A package whose only job is to run the console application on the device's LCD screen. The name `cui` is short for "console UI".
+- [cui](./cui/): A package whose only job is to run the console application on the device's LCD screen. The name `cui` is short for "console UI". It is _pluggable_ and can support multiple backends.
 
-- [car](./car/): The `car` package contains helper functions that are only useful for AutoAuto _cars_. E.g. `car.forward()`, `car.left()`, `car.right()`, `car.reverse()`. If you look at the implementations of these helper functions, you'll find they use the `auto` and `cio` packages under the hood (pun intended).
+- [car](./car/): The `car` package contains helper functions for the AutoAuto _cars_. E.g. `car.forward()`, `car.left()`, `car.right()`, `car.reverse()`. If you look at the implementations of these helper functions, you find they use the `auto` package under the hood (pun intended).
 
 ## Connecting to Your Device
 
 Here are the ways you can connect to your device:
 
-- **SSH:** SSH'ing into your device is the quickest way to gain privileged access (i.e. to get `sudo` powers; remember Uncle Ben's words: with great power comes great responsibility). You can log in to the device under the username `hacker` (in this context, "hacker" denotes a skilled computer expert!). You must obtain your device's default password from [AutoAuto Labs](https://labs.autoauto.ai/autopair/) (from the "My Devices" page, you can view your device's "Info for Advanced Users"). Every device has a different default system password. You are encouraged to change your device's system password (using the usual `passwd` command).
+- **SSH:** SSH'ing into your device is the quickest way to gain privileged access (i.e. to get `sudo` powers; remember Uncle Ben's words). You can log in to the device with the username `hacker`. You must obtain your device's default password from [AutoAuto Labs](https://labs.autoauto.ai/autopair/) (from the "My Devices" page, you can view your device's "Info for Advanced Users"). Every device has a different default system password. You are encouraged to change your device's system password (using the usual `passwd` command).
 
-- **Jupyter:** Every device runs a Jupyter Notebook server on port 8888. You must obtain the password for Jupyter from [AutoAuto Labs](https://labs.autoauto.ai/autopair/) (from the "My Devices" page, you can view your device's "Info for Advanced Users"). Every device has a different Jupyter password. Note the Jupyter server does not run as a privileged user; if you need privileged access, you must log into the device as the `hacker` or as `root`.
+- **Jupyter:** Every device runs a Jupyter Notebook server on port 8888. You must obtain the password for Jupyter from [AutoAuto Labs](https://labs.autoauto.ai/autopair/) (from the "My Devices" page, you can view your device's "Info for Advanced Users"). Every device has a different Jupyter password. Note the Jupyter server does _not_ run as a privileged user; if you need privileged access, you must log into the device as the `hacker`.
 
-- **AutoAuto Labs:** AutoAuto Labs offers a simple editor where you can write and run programs. It is pleasant to use, but it is only good for small, basic programs.
+- **AutoAuto Labs:** AutoAuto Labs offers a simple editor where you can write and run programs. It is pleasant to use, but it is only good for short and simple programs.
 
 ## Examples
 
@@ -98,7 +98,7 @@ for frame in camera.stream():
     stream(frame, to_console=True, to_labs=True)
 ```
 
-You can clear the frame from the AutoAuto Console like this:
+You can clear the frame from the console like this:
 
 ```python
 import car
@@ -109,8 +109,6 @@ car.stream(None, to_console=True, to_labs=True)
 from auto.frame_streamer import stream
 stream(None, to_console=True, to_labs=True)
 ```
-
-**Advanced Usage:** The most optimized way to access camera frames is to bypass the camera RPC server and get access to the camera directly. You can do this by using the `auto.camera_pi.CameraRGB` class. Two things must happen for this to work: (1) you must be running your process under a privileged account (`root` or `hacker`), and (2) no other process may be using the camera (e.g. you might have to kill the camera RPC server or at least wait for it to time-out and release the camera).
 
 ### Detect faces
 
@@ -225,7 +223,7 @@ set_steering(0.0)  # STRAIGHT
 time.sleep(1.0)
 ```
 
-**Important Note:** The call to `set_steering()` is asynchronous; that is, the function returns immediately, very likely _before_ the wheels have actually had a chance to fully turn to the desired angle! Furthermore, the call only "lasts" for 1 second, then the angle will automatically revert back to _straight_. As a result you must call `set_steering()` in a loop to keep it "active". (This is a safety feature, allowing the car to revert to going straight if your program crashes or if the Pi loses communication with the microcontroller.)
+**Important Note:** The call to `set_steering()` is asynchronous; that is, the function returns immediately, very likely _before_ the wheels have actually had a chance to fully turn to the desired angle! Furthermore, the call only "lasts" for 1 second, then the angle will automatically revert back to _straight_. As a result you must call `set_steering()` in a loop to keep it active. (This is a safety feature, allowing the car to revert to going straight if your program crashes or if the Pi loses communication with the microcontroller.)
 
 ### Precise throttle
 
@@ -250,7 +248,7 @@ set_throttle(0.0)     # NEUTRAL
 time.sleep(1.0)
 ```
 
-**Important Note:** The call to `set_throttle()` is asynchronous; that is, the function returns immediately, very likely _before_ the car's speed actually changes! Furthermore, the call only "lasts" for 1 second, then the car will revert back to a throttle of zero. As a result you must call `set_throttle()` in a loop to keep it "active". (This is a safety feature, allowing the car to automatically **STOP** if your program crashes or if the Pi loses communication with the microcontroller.)
+**Important Note:** The call to `set_throttle()` is asynchronous; that is, the function returns immediately, very likely _before_ the car's speed actually changes! Furthermore, the call only "lasts" for 1 second, then the car will revert back to a throttle of zero. As a result you must call `set_throttle()` in a loop to keep it active. (This is a safety feature, allowing the car to automatically **STOP** if your program crashes or if the Pi loses communication with the microcontroller.)
 
 ### Plot frames in Jupyter
 
@@ -260,7 +258,7 @@ The helper function `car.plot()` will both stream a single frame to your AutoAut
 
 ### List the devices' capabilities
 
-Different AutoAuto devices (and different versions of the same device) may have a different set of hardware capabilities. You can ask your device to list its capabilities like this:
+Different MasterAI devices (and different versions of the same device) may have a different set of hardware capabilities. You can ask your device to list its capabilities like this:
 
 ```python
 from auto.capabilities import list_caps, acquire, release
@@ -352,7 +350,7 @@ See [Buzzer Language](#buzzer-language) to learn how to write notes as a string 
 
 ### Photoresistor
 
-You can use the photoresistor as a very simple ambient light detector. Keep in mind that if you have, say, an AutoAuto _car_ with the car body on, the photoresistor will be covered up so its sensitivity will be much decreased. That said, it will still work but you'll have to experiment with it to get the proper threshold values for your application.
+You can use the photoresistor as a very simple ambient light detector.
 
 ```python
 from auto.capabilities import list_caps, acquire, release
@@ -368,7 +366,7 @@ for i in range(100):
 release(photoresistor)
 ```
 
-The program above prints the resistance of the photoresistor (in Ohms). You can play around with where a good threshold is for your application, and you can quickly see the value change by simply covering the light with your hand or by shining a flashlight at the photoresistor.
+The program above prints the resistance of the photoresistor (in Ohms). You can play around with where a good threshold is for your application, and you can quickly see the value change by simply covering the light with your hand or by shining a flashlight at it.
 
 ### Push Buttons
 
@@ -404,7 +402,7 @@ print('It is at ~{}% and will last for ~{} more minutes.'.format(minutes, percen
 release(battery)
 ```
 
-**Note:** There's a background task that will monitor the battery voltage for you and will buzz the buzzer when the batter gets to 5% or lower.
+**Note:** There's a background task that will monitor the battery voltage for you and will buzz the buzzer when the battery gets to 5% or lower.
 
 ### LEDs
 
