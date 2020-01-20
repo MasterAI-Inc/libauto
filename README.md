@@ -268,11 +268,11 @@ my_capabilities = list_caps()
 print(my_capabilities)
 ```
 
-**Note:** In the program above we also imported `acquire` and `release` (although we didn't use them). Those two functions will be used in many of the examples that follow to actually _use_ the capabilites that we listed above.
+**Note:** In the program above we also imported `acquire` and `release` (although we didn't use them). Those two functions will be used in many of the examples that follow to actually _use_ the capabilities that we listed above.
 
 ### Gyroscope
 
-You can get _instantanious_ measurements from the gyroscope like this:
+You can get _instantaneous_ measurements from the gyroscope like this:
 
 ```python
 from auto.capabilities import list_caps, acquire, release
