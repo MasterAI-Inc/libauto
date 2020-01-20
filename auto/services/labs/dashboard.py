@@ -14,7 +14,7 @@ import itertools
 
 import auto
 from auto.camera import draw_frame_index, base64_encode_image
-from auto.inet import Wireless, list_wifi_ifaces, get_ip_address
+from auto.inet import Wireless, list_wifi_ifaces, get_ip_address, get_mac_address
 
 from auto import logger
 log = logger.init(__name__, terminal=True)
@@ -112,6 +112,8 @@ class Dashboard:
             return self.wireless.interface
         elif component == 'local_ip_addr':
             return await loop.run_in_executor(None, get_ip_address, self.wireless.interface)
+        elif component == 'mac_address':
+            return await loop.run_in_executor(None, get_mac_address, self.wireless.interface)
         elif component == 'battery_state':
             return await self._get_battery_state()
         elif component == 'capture_one_frame':

@@ -21,6 +21,7 @@ import fcntl
 import struct
 import time
 import requests
+import re
 
 
 class Wireless:
@@ -101,6 +102,13 @@ def get_ip_address(ifname):
     except:
         # Humm...
         return None
+
+
+def get_mac_address(ifname):
+    output = _run_cmd(['ip', 'link', 'show', 'dev', ifname])
+    match = re.search(r'ether ([^ ]+)', output)
+    if match is not None:
+        return match.group(1)
 
 
 def has_internet_access():
