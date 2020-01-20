@@ -1,28 +1,26 @@
-# The AutoAuto Device Library
+# The MasterAI Device Library
 
-## Introduction
+Learn and use Python and A.I. to program your own autonomous vehicles! 🚗 🚁
 
-Use Python & A.I. to program a self-driving car. AutoAuto is a fun way to learn bleeding-edge skills, intended for beginner and advanced engineers alike. Drive your wonder with AutoAuto.
-
-This library runs on AutoAuto devices and exposes all the functionality the device has through a layered Python interface.
+This library is used for many MasterAI products such as the AutoAuto car.
 
 ![AutoAuto Fleet 1 Car](https://static.autoauto.ai/uploads/d452293bcac14e65a3370c54e9027e79.JPG)
 
 ## Beginner or Advanced?
 
-If you are a beginner programmer ("coder") you will want to follow along through the lessons on [AutoAuto Labs](https://labs.autoauto.ai/). After you've leveled-up through the beginner and intermediate lessons, you can come back here and explore this library's deeper implementation details.
+If you are a beginner, you will want to follow along through the lessons on [AutoAuto Labs](https://labs.autoauto.ai/). After you've leveled-up through the beginner and intermediate lessons, you can come back here and explore this library's deeper implementation details.
 
-If you are an advanced programmer, you are welcome to dive right into using this library! This library is already installed on your AutoAuto device. Have a look at the section [Connecting to Your Device](#connecting-to-your-device) and the section [Examples](#examples), then you will be off-to-the-races programming your device using this library.
+If you are an advanced programmer, you are welcome to dive right into using this library! This library is already installed on your MasterAI device. Have a look at the section [Connecting to Your Device](#connecting-to-your-device) and the section [Examples](#examples), then you will be off-to-the-races! 🏃
 
 ## Library Overview
 
 The library is segmented into four packages:
 
-- [auto](./auto/): The "core" package. Contains the critical components for _every_ AutoAuto device, such as the camera interface and ML models.
+- [auto](./auto/): The "core" package. Contains the critical components for _every_ MasterAI device, such as the camera interface and the Machine Learning (ML) models.
 
 - [cio](./cio/): A package whose only job is to talk to the on-board microcontroller. The name `cio` is short for "controller input/output".
 
-- [cui](./cui/): A package whose only job is to run the AutoAuto console on the LCD screen. The name `cui` is short for "console UI".
+- [cui](./cui/): A package whose only job is to run the console application on the device's LCD screen. The name `cui` is short for "console UI".
 
 - [car](./car/): The `car` package contains helper functions that are only useful for AutoAuto _cars_. E.g. `car.forward()`, `car.left()`, `car.right()`, `car.reverse()`. If you look at the implementations of these helper functions, you'll find they use the `auto` and `cio` packages under the hood (pun intended).
 
@@ -32,7 +30,7 @@ Here are the ways you can connect to your device:
 
 - **SSH:** SSH'ing into your device is the quickest way to gain privileged access (i.e. to get `sudo` powers; remember Uncle Ben's words: with great power comes great responsibility). You can log in to the device under the username `hacker` (in this context, "hacker" denotes a skilled computer expert!). You must obtain your device's default password from [AutoAuto Labs](https://labs.autoauto.ai/autopair/) (from the "My Devices" page, you can view your device's "Info for Advanced Users"). Every device has a different default system password. You are encouraged to change your device's system password (using the usual `passwd` command).
 
-- **Jupyter:** Every device runs a Jupyter Notebook server on port 8888. You must obtain the password for Jupyter from [AutoAuto Labs](https://labs.autoauto.ai/autopair/) (from the "My Devices" page, you can view your device's "Info for Advanced Users"). Every device has a different Jupyter password. Note the Jupyter server does not run as a privileged user, although you are welcome to change the device so that it **does** run as a privileged user -- your call.
+- **Jupyter:** Every device runs a Jupyter Notebook server on port 8888. You must obtain the password for Jupyter from [AutoAuto Labs](https://labs.autoauto.ai/autopair/) (from the "My Devices" page, you can view your device's "Info for Advanced Users"). Every device has a different Jupyter password. Note the Jupyter server does not run as a privileged user; if you need privileged access, you must log into the device as the `hacker` or as `root`.
 
 - **AutoAuto Labs:** AutoAuto Labs offers a simple editor where you can write and run programs. It is pleasant to use, but it is only good for small, basic programs.
 
@@ -55,9 +53,9 @@ car.reverse()
 car.forward(2.5)
 ```
 
-### Print to the AutoAuto Console
+### Print to the Console
 
-Many AutoAuto devices are equipped with an LCD screen which displays the "AutoAuto Console". You can print your own text to the console, example below:
+Many MasterAI devices are equipped with an LCD screen which runs a console application. You can print your own text to the console, example below:
 
 ```python
 from auto import console
