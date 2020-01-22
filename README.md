@@ -232,19 +232,21 @@ time.sleep(1.0)
 **WARNING:** You can easily injure the car, yourself, or others by setting the throttle too high. Use this interface with extreme caution. These cars are VERY powerful and very fast.
 
 ```python
-from car.motors import set_throttle
+from car.motors import set_throttle, safe_forward_throttle
 import time
 
-set_throttle(0.0)     # CAR IN NEUTRAL
-time.sleep(1.0)
+throttle = safe_forward_throttle()
 
-set_throttle(20.0)   # 1/5 THROTTLE  (100 is max, don't try that though)
-time.sleep(1.0)
+set_throttle(0.0)        # Car in NEUTRAL
+time.sleep(1.5)
 
-set_throttle(50.0)    # HALF THROTTLE
+set_throttle(throttle)   # Car moves at safe forward speed
+time.sleep(1.5)
+
+set_throttle(50.0)       # HALF THROTTLE (DANGER! THIS IS VERY FAST!)
 time.sleep(0.4)
 
-set_throttle(0.0)     # NEUTRAL
+set_throttle(0.0)        # Back to NEUTRAL
 time.sleep(1.0)
 ```
 
