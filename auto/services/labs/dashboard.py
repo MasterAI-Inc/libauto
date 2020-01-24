@@ -33,7 +33,9 @@ class Dashboard:
     async def init(self):
         loop = asyncio.get_running_loop()
         wifi_ifaces = await loop.run_in_executor(None, list_wifi_ifaces)
-        self.wireless = Wireless(wifi_ifaces[0])
+        wifi_iface = wifi_ifaces[0]
+        self.wireless = Wireless(wifi_iface)
+        self.mac_address = await loop.run_in_executor(None, get_mac_address, wifi_iface)
 
     async def connected_cdp(self):
         self.known_user_sessions = set()
@@ -42,25 +44,52 @@ class Dashboard:
         self.known_user_sessions.add(user_session)
 
     async def got_message(self, msg, send_func):
-        if 'origin' in msg and msg['origin'] == 'user' and 'type' in msg:
+        if 'origin' in msg and 'type' in msg:
+            origin = msg['origin']
             type_ = msg['type']
 
-            if type_ == 'query':
-                components = msg['components']
-                query_id = msg['query_id']
-                user_session = msg['user_session']
-                coro = self._query(components, query_id, user_session, send_func)
+            if origin == 'user':
+                await self._handle_user_message(msg, send_func, type_)
+            elif origin == 'server':
+                await self._handle_server_message(msg, send_func, type_)
 
-            elif type_ == 'command':
-                command = msg['command']
-                command_id = msg['command_id']
-                user_session = msg['user_session']
-                coro = self._command(command, command_id, user_session, send_func)
+    async def _handle_user_message(self, msg, send_func, type_):
+        if type_ == 'query':
+            components = msg['components']
+            query_id = msg['query_id']
+            user_session = msg['user_session']
+            coro = self._query(components, query_id, user_session, send_func)
 
-            else:
-                return
+        elif type_ == 'command':
+            command = msg['command']
+            command_id = msg['command_id']
+            user_session = msg['user_session']
+            coro = self._command(command, command_id, user_session, send_func)
 
-            asyncio.create_task(coro)
+        else:
+            return
+
+        asyncio.create_task(coro)
+
+    async def _handle_server_message(self, msg, send_func, type_):
+        if type_ == 'query_device_info':
+            coro = self._send_device_info_to_server(send_func)
+
+        else:
+            return
+
+        asyncio.create_task(coro)
+
+    async def _send_device_info_to_server(self, send_func):
+        await send_func({
+            'type': 'device_info_response',
+            'response': {
+                'version': auto.__version__,
+                'version_controller': await self._get_cio_version(),
+                'mac_address': self.mac_address,
+            },
+            'target': 'server',
+        })
 
     async def end_user_session(self, username, user_session):
         self.known_user_sessions.remove(user_session)
@@ -113,7 +142,7 @@ class Dashboard:
         elif component == 'local_ip_addr':
             return await loop.run_in_executor(None, get_ip_address, self.wireless.interface)
         elif component == 'mac_address':
-            return await loop.run_in_executor(None, get_mac_address, self.wireless.interface)
+            return self.mac_address
         elif component == 'battery_state':
             return await self._get_battery_state()
         elif component == 'capture_one_frame':
