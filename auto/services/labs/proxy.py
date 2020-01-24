@@ -88,6 +88,7 @@ async def _manage_connection(channel, queue, send_func):
                         'type': 'proxy_send',
                         'channel': channel,
                         'data_b85': base64.b85encode(b'==local-connection-success==').decode('ascii'),
+                        'target': 'server',
                     })
                 except (asyncio.TimeoutError, ConnectionRefusedError, OSError) as e:
                     await send_func({
@@ -95,6 +96,7 @@ async def _manage_connection(channel, queue, send_func):
                         'channel': channel,
                         'data_b85': base64.b85encode(b'==local-connection-failed==').decode('ascii'),
                         'close': True,
+                        'target': 'server',
                     })
                     log.info('{}: Connection to port {} failed with error: {}'.format(channel, port, str(e)))
                     return
@@ -150,6 +152,7 @@ async def _read(channel, reader, send_func):
                 'type': 'proxy_send',
                 'channel': channel,
                 'data_b85': base64.b85encode(buf).decode('ascii'),
+                'target': 'server',
                 **extra
             })
             if buf == b'':

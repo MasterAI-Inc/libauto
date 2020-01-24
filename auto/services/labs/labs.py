@@ -200,11 +200,10 @@ def _build_send_function(ws, connected_user_sessions):
                     # We don't send to a user who has zero user sessions.
                     return False
 
-            elif 'type' in msg and msg['type'] == 'proxy_send':
-                # Special case. The proxy should still work if there are no
-                # user sessions (because a user can use the proxy without the
-                # normal "session" existing).
-                pass
+            elif 'target' in msg and msg['target'] == 'server':
+                # Let this message pass through since it is destined for the server.
+                # But remove this flag since it is just for internal libauto usage.
+                del msg['target']
 
             else:
                 if not connected_user_sessions.has_any_sessions():
