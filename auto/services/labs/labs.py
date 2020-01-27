@@ -330,10 +330,6 @@ async def init_and_create_forever_task(system_up_user):
     await console.write_text("Controller version: {}\n".format(cio_version))
     await console.write_text("Controller name: {}\n".format(cio_name))
 
-    auth_code = await _get_labs_auth_code(controller, console)
-
-    url = BASE_URL + '/' + auth_code
-
     rpc_server, rpc_interface = await init_rpc_server()
 
     consumers = [
@@ -352,6 +348,10 @@ async def init_and_create_forever_task(system_up_user):
     await console.write_text('Attempting to connect...\n')
 
     async def _forever():
+        auth_code = await _get_labs_auth_code(controller, console)
+
+        url = BASE_URL + '/' + auth_code
+
         while True:
             was_connected = False
 
