@@ -19,4 +19,3 @@ def print_all(*args, **kwargs):
     from auto.console import print as aa_console_print
     aa_console_print(*args, **kwargs)
     print(*args, **kwargs)
-
