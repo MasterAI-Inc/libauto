@@ -57,9 +57,23 @@ class CameraRGB:
             frame = self.capture()
             yield frame
 
+    def release(self):
+        """
+        Instruct the underlying camera driver to be release the camera
+        resource. This is *not* permanent. You may still call capture
+        after this, and the camera will be re-acquired at that time.
+
+        This is a non-standard part of the camera interface. It is
+        only used in this RPC setting.
+        """
+        future = asyncio.run_coroutine_threadsafe(self.camera.release(), self.loop)
+        return future.result()
+
     def close(self):
         """
         Close the connection to the camera RPC server.
+        This is permanent; you must obtain a new connection
+        to regain access to the camera.
         """
         future = asyncio.run_coroutine_threadsafe(self.camera.close(), self.loop)
         return future.result()

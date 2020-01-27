@@ -51,6 +51,9 @@ class Wireless:
             self.delete_connection(ssid)
 
         time.sleep(2)    # Allow connection (and DHCP) to settle.
+
+        _ = _run_cmd(["sync"])
+
         return did_connect
 
     def current(self):

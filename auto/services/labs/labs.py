@@ -217,6 +217,9 @@ def _build_send_function(ws, connected_user_sessions):
 
         except Exception as e:
             log.error('Exception in `smart_send`: {}'.format(e))
+            output = io.StringIO()
+            traceback.print_exc(file=output)
+            log.error(output.getvalue())
             return False
 
     return smart_send

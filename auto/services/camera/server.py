@@ -112,6 +112,12 @@ def _init_interface(loop, outer_frame_callback):
                 frame_here = frame
             return frame_here
 
+        async def export_release(self):
+            nonlocal camera_on
+            if camera_on:
+                camera_on = False
+                ctl_queue.put('stop')
+
     async def subscribe(channel):
         nonlocal n_subscribers, camera_on
         n_subscribers += 1

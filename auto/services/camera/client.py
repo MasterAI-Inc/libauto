@@ -78,9 +78,24 @@ class CameraRGB:
         finally:
             await unsubscribe_func()
 
+    async def release(self):
+        """
+        Instruct the underlying camera driver to be release the camera
+        resource. This is *not* permanent. You may still call capture
+        after this, and the camera will be re-acquired at that time.
+
+        This is a non-standard part of the camera interface. It is
+        only used in this RPC setting.
+        """
+        if not self.is_connected:
+            raise Exception("You must first call `connect()` before you can call `release()`.")
+        return await self._proxy_interface.release()
+
     async def close(self):
         """
         Close the connection to the camera RPC server.
+        This is permanent; you must obtain a new connection
+        to regain access to the camera.
         """
         if self.is_connected:
             self.is_connected = False

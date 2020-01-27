@@ -100,6 +100,7 @@ async def _get_wifi_info_from_user(wireless, console):
                 break
 
     await console.clear_image()
+    await camera.release()        # [1]
     await camera.close()
 
     return ssid, password
@@ -250,6 +251,7 @@ async def _main_loop(wireless, console, controller, system_priv_user):
                     log.info("Will try to connect to SSID: {}".format(ssid))
                     await console.big_image('wifi_pending')
                     await console.big_status('Trying to connect...')
+                    await asyncio.sleep(3)   # [1]
                     did_connect = await loop.run_in_executor(None, wireless.connect, ssid, password)
                     has_internet = (await _has_internet_access_multi_try()) if did_connect else False
                     if not did_connect or not has_internet:
@@ -359,3 +361,12 @@ if __name__ == '__main__':
     #asyncio.run(_mock_wifi_run_forever(system_priv_user))
     asyncio.run(run_forever(system_priv_user))
 
+
+"""
+[1] There's a subtle bug with the PiCamera library (see https://github.com/waveform80/picamera/issues/527).
+    Basically, when you connect to WiFi, it can set the system time, and setting the system time to a
+    point in the future will cause the PiCamera library to blow up. We can work around this by closing
+    PiCamera's connection to the camera before connecting to WiFi (via the `release` method on the camera)
+    and by sleeping for an extra few seconds before attempting to connect to WiFi (to allow the camera time
+    to fully release itself).
+"""
