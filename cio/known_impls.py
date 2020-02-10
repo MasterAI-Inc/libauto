@@ -16,6 +16,7 @@ This module provides a list of known implementations of the cio interface.
 
 known_impls = [
     'cio.aa_controller_v1',
+    'cio.aa_controller_v2',
     'cio.mock_impl',
 ]
 
