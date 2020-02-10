@@ -101,7 +101,7 @@ class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
 
     @i2c_retry(N_I2C_TRIES)
     async def millivolts(self):
-        lsb, msb = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 2)
+        lsb, msb = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x00], 2)
         return (msb << 8) | lsb   # <-- You can also use int.from_bytes(...) but I think doing the bitwise operations explicitly is cooler.
 
     async def estimate_remaining(self, millivolts=None):
@@ -112,14 +112,8 @@ class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
         return floor(minutes), floor(percentage)
 
     async def should_shut_down(self):
-        # Notes for version 3.
-        #import RPi.GPIO as GPIO
-        #GPIO.setmode(GPIO.BCM)
-        #BCM_PIN = 26
-        #GPIO.setup(BCM_PIN, GPIO.IN, GPIO.PUD_UP)
-        #val = GPIO.input(BCM_PIN)
-        #return val == 0
-        return False
+        on_flag, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01], 1)
+        return not on_flag
 
 
 class Buzzer(cio.BuzzerIface):
