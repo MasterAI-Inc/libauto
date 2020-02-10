@@ -136,6 +136,8 @@ async def _ensure_token(console, controller, system_priv_user):
         # We have an auth code which means this device was set with a token already. All is well.
         return
 
+    await asyncio.sleep(10)  # [1]
+
     await console.big_image('token_error')
     await console.big_status('Ready to receive login token.')
 
