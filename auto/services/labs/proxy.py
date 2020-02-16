@@ -28,6 +28,9 @@ class Proxy:
     async def connected_cdp(self):
         self.connections = {}   # maps channel to task
 
+    async def new_device_session(self, vin):
+        pass
+
     async def new_user_session(self, username, user_session):
         pass
 
@@ -58,6 +61,9 @@ class Proxy:
                     return
                 task, queue = self.connections[channel]
                 queue.put_nowait(msg)
+
+    async def end_device_session(self, vin):
+        pass
 
     async def end_user_session(self, username, user_session):
         pass

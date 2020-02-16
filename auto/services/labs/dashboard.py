@@ -40,6 +40,9 @@ class Dashboard:
     async def connected_cdp(self):
         self.known_user_sessions = set()
 
+    async def new_device_session(self, vin):
+        pass
+
     async def new_user_session(self, username, user_session):
         self.known_user_sessions.add(user_session)
 
@@ -90,6 +93,9 @@ class Dashboard:
             },
             'target': 'server',
         })
+
+    async def end_device_session(self, vin):
+        pass
 
     async def end_user_session(self, username, user_session):
         self.known_user_sessions.remove(user_session)

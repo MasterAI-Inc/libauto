@@ -15,7 +15,6 @@ This is a **synchronous** interface.
 """
 
 import os
-import time
 
 from auto.asyncio_tools import get_loop
 from auto.services.labs.rpc.client_sync import LabsService
@@ -27,14 +26,14 @@ def send_message_to_labs(msg):
     Return True if the message was sent, else return False.
     """
     client = _global_client()
-    to_user_session = os.environ.get('TO_USER_SESSION', None)
-    to_username     = os.environ.get('TO_USERNAME', None)
-    if to_user_session:
-        msg['to_user_session'] = to_user_session
-    elif to_username:
-        msg['to_username'] = to_username
+    if 'to_vin' not in msg:
+        to_user_session = os.environ.get('TO_USER_SESSION', None)
+        to_username     = os.environ.get('TO_USERNAME', None)
+        if to_user_session:
+            msg['to_user_session'] = to_user_session
+        elif to_username:
+            msg['to_username'] = to_username
     did_send = client.send(msg)
-    time.sleep(0.1)  # Throttle messages to the Labs servers. Please be nice to our servers, else your account will be suspended.
     return did_send
 
 

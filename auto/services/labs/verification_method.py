@@ -23,6 +23,9 @@ class Verification:
     async def connected_cdp(self):
         pass
 
+    async def new_device_session(self, vin):
+        pass
+
     async def new_user_session(self, username, user_session):
         pass
 
@@ -47,6 +50,9 @@ class Verification:
                 return
 
             asyncio.create_task(coro)
+
+    async def end_device_session(self, vin):
+        pass
 
     async def end_user_session(self, username, user_session):
         pass

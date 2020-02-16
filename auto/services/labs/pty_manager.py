@@ -42,6 +42,9 @@ class PtyManager:
     async def connected_cdp(self):
         self.xterm_lookup = {}    # map xterm_guid to (task, queue, start_time, user_session)
 
+    async def new_device_session(self, vin):
+        pass
+
     async def new_user_session(self, username, user_session):
         pass
 
@@ -90,6 +93,9 @@ class PtyManager:
             elif type_ == 'clear_screen':
                 coro = _clear_console(self.console)
                 asyncio.create_task(coro)
+
+    async def end_device_session(self, vin):
+        pass
 
     async def end_user_session(self, username, user_session):
         """

@@ -52,6 +52,22 @@ def _log_consumer_error(c):
     log.error(output.getvalue())
 
 
+def _is_new_device_session(msg):
+    if 'origin' in msg and msg['origin'] == 'server':
+        if 'connect' in msg and msg['connect'] == 'device':
+            vin = msg['vin']
+            return vin
+    return None
+
+
+def _is_departed_device_session(msg):
+    if 'origin' in msg and msg['origin'] == 'server':
+        if 'disconnect' in msg and msg['disconnect'] == 'device':
+            vin = msg['vin']
+            return vin
+    return None
+
+
 def _is_new_user_session(msg):
     if 'origin' in msg and msg['origin'] == 'server':
         if 'connect' in msg and msg['connect'] == 'user':
@@ -78,42 +94,73 @@ def _is_hello(msg):
     return None
 
 
-class ConnectedUserSessions:
+class ConnectedSessions:
     def __init__(self, consumers):
         self.consumers = consumers
+        self.known_device_sessions = set()
         self.known_usernames = defaultdict(set)
         self.known_user_sessions = set()
 
-    async def add_user_session(self, username, user_session):
-        did_add = False
+    async def add_device_session(self, vin):
+        if vin not in self.known_device_sessions:
+            self.known_device_sessions.add(vin)
 
+            for c in self.consumers:
+                try:
+                    await c.new_device_session(vin)
+                except:
+                    _log_consumer_error(c)
+
+            log.info('Connected device session: {}'.format(vin))
+
+    async def remove_device_session(self, vin):
+        if vin in self.known_device_sessions:
+            self.known_device_sessions.remove(vin)
+
+            for c in self.consumers:
+                try:
+                    await c.end_device_session(vin)
+                except:
+                    _log_consumer_error(c)
+
+            log.info('Departed device session: {}'.format(vin))
+
+    async def close_all_device_sessions(self):
+        needs_remove = list(self.known_device_sessions)  # copy
+
+        for vin in needs_remove:
+            await self.remove_device_session(vin)
+
+    def has_specific_device_session(self, vin):
+        return (vin in self.known_device_sessions)
+
+    def has_any_device_sessions(self):
+        return len(self.known_device_sessions) > 0
+
+    async def add_user_session(self, username, user_session):
         if user_session not in self.known_user_sessions:
             self.known_user_sessions.add(user_session)
             self.known_usernames[username].add(user_session)
-            did_add = True
 
-        if did_add:
             for c in self.consumers:
                 try:
                     await c.new_user_session(username, user_session)
                 except:
                     _log_consumer_error(c)
+
             log.info('Connected user session: {}: {}'.format(username, user_session))
 
     async def remove_user_session(self, username, user_session):
-        did_remove = False
-
         if user_session in self.known_user_sessions:
             self.known_user_sessions.remove(user_session)
             self.known_usernames[username].remove(user_session)
-            did_remove = True
 
-        if did_remove:
             for c in self.consumers:
                 try:
                     await c.end_user_session(username, user_session)
                 except:
                     _log_consumer_error(c)
+
             log.info('Departed user session: {}: {}'.format(username, user_session))
 
     async def close_all_user_sessions(self):
@@ -129,11 +176,11 @@ class ConnectedUserSessions:
     def has_specific_user_session(self, user_session):
         return user_session in self.known_user_sessions
 
-    def has_any_user_sessions(self, username):
-        return len(self.known_usernames[username]) > 0
-
-    def has_any_sessions(self):
-        return len(self.known_user_sessions) > 0
+    def has_any_user_sessions(self, username=None):
+        if username is not None:
+            return len(self.known_usernames[username]) > 0
+        else:
+            return len(self.known_user_sessions) > 0
 
 
 async def _set_hostname(name):
@@ -141,16 +188,24 @@ async def _set_hostname(name):
     log.info("Set hostname, output is: {}".format(output.strip()))
 
 
-async def _handle_message(ws, msg, consumers, console, connected_user_sessions, send_func):
+async def _handle_message(ws, msg, consumers, console, connected_sessions, send_func):
+    new_device_vin = _is_new_device_session(msg)
+    departed_device_vin = _is_departed_device_session(msg)
     new_user_info = _is_new_user_session(msg)
     departed_user_info = _is_departed_user_session(msg)
     hello_info = _is_hello(msg)
 
-    if new_user_info is not None:
-        await connected_user_sessions.add_user_session(*new_user_info)
+    if new_device_vin is not None:
+        await connected_sessions.add_device_session(new_device_vin)
+
+    elif departed_device_vin is not None:
+        await connected_sessions.remove_device_session(departed_device_vin)
+
+    elif new_user_info is not None:
+        await connected_sessions.add_user_session(*new_user_info)
 
     elif departed_user_info is not None:
-        await connected_user_sessions.remove_user_session(*departed_user_info)
+        await connected_sessions.remove_user_session(*departed_user_info)
 
     elif hello_info is not None:
         vin = hello_info['vin']
@@ -181,22 +236,34 @@ async def _ping_with_interval(ws):
         log.info('Ping task is terminating.')
 
 
-def _build_send_function(ws, connected_user_sessions):
+def _build_send_function(ws, connected_sessions):
     async def smart_send(msg):
         try:
             if isinstance(msg, str):
                 msg = json.loads(msg)
 
-            if 'to_user_session' in msg:
+            if 'to_vin' in msg:
+                # This is a message intended for a peer device.
+                to_vin = msg['to_vin']
+                if to_vin == 'all':
+                    if not connected_sessions.has_any_device_sessions():
+                        # No devices are listening.
+                        return False
+                else:
+                    if not connected_sessions.has_specific_device_session(to_vin):
+                        # This peer device is not connected right now.
+                        return False
+
+            elif 'to_user_session' in msg:
                 user_session = msg['to_user_session']
-                if not connected_user_sessions.has_specific_user_session(user_session):
+                if not connected_sessions.has_specific_user_session(user_session):
                     # We do not send messages that are destined for a
                     # user session that no longer exists!
                     return False
 
             elif 'to_username' in msg:
                 username = msg['to_username']
-                if not connected_user_sessions.has_any_user_sessions(username):
+                if not connected_sessions.has_any_user_sessions(username):
                     # We don't send to a user who has zero user sessions.
                     return False
 
@@ -206,7 +273,7 @@ def _build_send_function(ws, connected_user_sessions):
                 del msg['target']
 
             else:
-                if not connected_user_sessions.has_any_sessions():
+                if not connected_sessions.has_any_user_sessions():
                     # Literally no one is listening, so sending this generic
                     # broadcast message is pointless.
                     return False
@@ -228,9 +295,9 @@ def _build_send_function(ws, connected_user_sessions):
 async def _run(ws, consumers, console, rpc_interface, publish_func):
     ping_task = asyncio.create_task(_ping_with_interval(ws))
 
-    connected_user_sessions = ConnectedUserSessions(consumers)
+    connected_sessions = ConnectedSessions(consumers)
 
-    send_func = _build_send_function(ws, connected_user_sessions)
+    send_func = _build_send_function(ws, connected_sessions)
 
     loop = asyncio.get_running_loop()
 
@@ -264,7 +331,7 @@ async def _run(ws, consumers, console, rpc_interface, publish_func):
             await publish_func('messages', msg)
 
             start = loop.time()
-            await _handle_message(ws, msg, consumers, console, connected_user_sessions, send_func)
+            await _handle_message(ws, msg, consumers, console, connected_sessions, send_func)
             end = loop.time()
 
             if end - start > 0.01:
@@ -274,7 +341,8 @@ async def _run(ws, consumers, console, rpc_interface, publish_func):
     finally:
         rpc_interface.send_func = None
 
-        await connected_user_sessions.close_all_user_sessions()
+        await connected_sessions.close_all_device_sessions()
+        await connected_sessions.close_all_user_sessions()
 
         for c in consumers:
             try:
