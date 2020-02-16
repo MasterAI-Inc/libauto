@@ -25,8 +25,7 @@ class LabsService(LabsServiceIface):
         self.inet_addr = inet_addr
         self.inet_port = inet_port
         self.is_connected = False
-        self.is_subscribed_all = False
-        self.is_subscribed_peer = False
+        self.is_subscribed = False
 
     async def connect(self):
         if not self.is_connected:
@@ -39,34 +38,22 @@ class LabsService(LabsServiceIface):
             raise Exception("You must first call `connect()` before you can call `send()`.")
         return await self._proxy_interface.send(msg)
 
-    async def receive(self, peer_only=True):
-        if not peer_only:
-            return await self._receive_all()
-        else:
-            return await self._receive_peer()
+    async def receive(self):
+        if not self.is_connected:
+            raise Exception("You must first call `connect()` before you can call `receive()`.")
+        if not self.is_subscribed:
+            self.is_subscribed = True
+            self.inbound_message_queue = asyncio.Queue()
+            _ = await self._subscribe_func('messages', self._new_message_callback)
+        return await self.inbound_message_queue.get()
 
     async def close(self):
         if self.is_connected:
             self.is_connected = False
             await self._close()
 
-    async def _receive_all(self):
-        if not self.is_subscribed_all:
-            self._unsubscribe_peer = await self._subscribe_func('all_packets', self._all_packet_callback)
-            self.is_subscribed_all = True
-            print('SUBSCRIBING FOR ALL PACKETS')
-
-    async def _receive_peer(self):
-        if not self.is_subscribed_peer:
-            self._unsubscribe_peer = await self._subscribe_func('peer_packets', self._peer_packet_callback)
-            self.is_subscribed_peer = True
-            print('SUBSCRIBING FOR PEER PACKETS')
-
-    async def _all_packet_callback(self, channel, msg):
-        print('GOT ALL MESSAGE', msg)
-
-    async def _peer_packet_callback(self, channel, msg):
-        print('GOT PEER MESSAGE', msg)
+    async def _new_message_callback(self, channel, msg):
+        await self.inbound_message_queue.put(msg)
 
 
 async def _demo():
