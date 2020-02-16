@@ -38,15 +38,12 @@ def send_message_to_labs(msg):
     return did_send
 
 
-def receive_message_from_labs(peer_only=True):
+def receive_message_from_labs():
     """
     Wait for the next message from the Labs server, then return it.
-    If `peer_only` is True, then only messages received from a
-    peer devices are returned; else, any next message from the
-    server is returned.
     """
     client = _global_client()
-    return client.receive(peer_only)
+    return client.receive()
 
 
 # Alias

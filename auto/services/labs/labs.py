@@ -261,10 +261,7 @@ async def _run(ws, consumers, console, rpc_interface, publish_func):
                 log.info('Got pong from server!')
                 continue
 
-            await publish_func('all_packets', msg)
-
-            if 'origin' in msg and msg['origin'] == 'device':
-                await publish_func('peer_packets', msg)
+            await publish_func('messages', msg)
 
             start = loop.time()
             await _handle_message(ws, msg, consumers, console, connected_user_sessions, send_func)
@@ -336,8 +333,7 @@ async def init_and_create_forever_task(system_up_user):
     await console.write_text("Controller name: {}\n".format(cio_name))
 
     pubsub_channels = [
-        'all_packets',
-        'peer_packets',
+        'messages',
     ]
 
     rpc_server, rpc_interface, publish_func = await init_rpc_server(pubsub_channels)

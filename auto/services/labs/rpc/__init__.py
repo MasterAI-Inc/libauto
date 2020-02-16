@@ -40,12 +40,9 @@ class LabsServiceIface(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def receive(self, peer_only=True):
+    async def receive(self):
         """
         Wait for the next message from the Labs server, then return it.
-        If `peer_only` is True, then only messages received from a
-        peer devices are returned; else, any next message from the
-        server is returned.
         """
         pass
 
