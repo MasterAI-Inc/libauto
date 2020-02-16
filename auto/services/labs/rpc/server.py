@@ -28,12 +28,18 @@ class LabsService:
             return False
 
 
-async def init():
+async def init(pubsub_channels):
     interface = LabsService()
 
     interface_factory = lambda: interface    # we want to always return the same instance
 
-    server, _ = await serve(interface_factory, None, 'localhost', 7004)
+    pubsub = {
+        'channels': pubsub_channels,
+        'subscribe': None,
+        'unsubscribe': None,
+    }
 
-    return server, interface
+    server, publish_func = await serve(interface_factory, pubsub, 'localhost', 7004)
+
+    return server, interface, publish_func
 

@@ -158,7 +158,7 @@ async def init():
     loop = asyncio.get_running_loop()
 
     async def frame_callback(frame):
-        await publish_func('stream', frame)
+        await publish_func('stream', frame, wait=True)
 
     root_factory, pubsub = _init_interface(loop, frame_callback)
 

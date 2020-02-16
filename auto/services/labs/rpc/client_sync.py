@@ -33,6 +33,10 @@ class LabsService(LabsServiceIface):
         future = asyncio.run_coroutine_threadsafe(self.labs.send(msg), self.loop)
         return future.result()
 
+    def receive(self, peer_only=True):
+        future = asyncio.run_coroutine_threadsafe(self.labs.receive(peer_only), self.loop)
+        return future.result()
+
     def close(self):
         future = asyncio.run_coroutine_threadsafe(self.labs.close(), self.loop)
         return future.result()

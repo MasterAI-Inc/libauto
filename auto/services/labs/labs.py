@@ -225,7 +225,7 @@ def _build_send_function(ws, connected_user_sessions):
     return smart_send
 
 
-async def _run(ws, consumers, console, rpc_interface):
+async def _run(ws, consumers, console, rpc_interface, publish_func):
     ping_task = asyncio.create_task(_ping_with_interval(ws))
 
     connected_user_sessions = ConnectedUserSessions(consumers)
@@ -260,6 +260,11 @@ async def _run(ws, consumers, console, rpc_interface):
             if 'pong' in msg:
                 log.info('Got pong from server!')
                 continue
+
+            publish_func('all_packets', msg)
+
+            if 'origin' in msg and msg['origin'] == 'device':
+                publish_func('peer_packets', msg)
 
             start = loop.time()
             await _handle_message(ws, msg, consumers, console, connected_user_sessions, send_func)
@@ -330,7 +335,12 @@ async def init_and_create_forever_task(system_up_user):
     await console.write_text("Controller version: {}\n".format(cio_version))
     await console.write_text("Controller name: {}\n".format(cio_name))
 
-    rpc_server, rpc_interface = await init_rpc_server()
+    pubsub_channels = [
+        'all_packets',
+        'peer_packets',
+    ]
+
+    rpc_server, rpc_interface, publish_func = await init_rpc_server(pubsub_channels)
 
     consumers = [
         PtyManager(system_up_user, console),
@@ -360,7 +370,7 @@ async def init_and_create_forever_task(system_up_user):
                     log.info("Connected: {}...".format(BASE_URL + '/' + auth_code[:4]))
                     await console.write_text('Connected to Labs. Standing by...\n')
                     was_connected = True
-                    await _run(ws, consumers, console, rpc_interface)
+                    await _run(ws, consumers, console, rpc_interface, publish_func)
 
             except WebSocketException as e:
                 log.info('Connection closed: {}'.format(e))

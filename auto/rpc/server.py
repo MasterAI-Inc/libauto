@@ -53,7 +53,7 @@ async def serve(root_factory, pubsub=None, inet_addr='localhost', inet_port=7000
 
     server = await start_server
 
-    async def publish_func(channel, payload):
+    async def publish_func(channel, payload, wait=False):
         client_list = subscribers.get(channel, [])
         if client_list:
             message = {
@@ -66,7 +66,8 @@ async def serve(root_factory, pubsub=None, inet_addr='localhost', inet_port=7000
             for client in client_list:
                 task = asyncio.create_task(client.send(message_buf))
                 tasks.append(task)
-            await asyncio.wait(tasks)
+            if wait:
+                await asyncio.wait(tasks)
 
     return server, publish_func
 
