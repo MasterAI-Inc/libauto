@@ -62,10 +62,10 @@ class LabsService(LabsServiceIface):
             self.is_subscribed_peer = True
             print('SUBSCRIBING FOR PEER PACKETS')
 
-    async def _all_packet_callback(self, msg):
+    async def _all_packet_callback(self, channel, msg):
         print('GOT ALL MESSAGE', msg)
 
-    async def _peer_packet_callback(self, msg):
+    async def _peer_packet_callback(self, channel, msg):
         print('GOT PEER MESSAGE', msg)
 
 

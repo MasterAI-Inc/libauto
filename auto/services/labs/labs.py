@@ -261,10 +261,10 @@ async def _run(ws, consumers, console, rpc_interface, publish_func):
                 log.info('Got pong from server!')
                 continue
 
-            publish_func('all_packets', msg)
+            await publish_func('all_packets', msg)
 
             if 'origin' in msg and msg['origin'] == 'device':
-                publish_func('peer_packets', msg)
+                await publish_func('peer_packets', msg)
 
             start = loop.time()
             await _handle_message(ws, msg, consumers, console, connected_user_sessions, send_func)
