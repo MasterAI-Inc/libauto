@@ -1,0 +1,46 @@
+#!/bin/bash
+
+#=================================
+# This is a migration script!
+# It will be run as root upon
+# startup.
+#=================================
+
+
+#---------------------------------
+# This section is just to
+# prevent running the migration
+# more than once.
+#---------------------------------
+
+myself="$(basename "$0")"
+
+flag_dir="/var/lib/libauto"
+flag_file="$flag_dir/$myself.done"
+
+if [ -f "$flag_file" ]
+then
+    echo "Migration not needed: $myself"
+    exit
+fi
+
+echo "Will run migration: $myself"
+
+touch "$flag_file"
+
+
+#---------------------------------
+# This is the _actual_ migration
+# code.
+#---------------------------------
+
+# Adding the user 'student' to the
+# group 'input' allows our students
+# to use input devices like keyboards,
+# mice, and joysticks.
+usermod -a -G input student
+
+# The python library named 'inputs'
+# makes it easy to use input devices.
+pip3 install inputs==0.5
+

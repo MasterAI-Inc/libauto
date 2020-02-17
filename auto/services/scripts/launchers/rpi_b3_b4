@@ -9,7 +9,8 @@ fi
 sync
 
 # Change to the `libauto` directory.
-cd "$(dirname "$0")"/../../../..
+scriptdir="$(dirname $(realpath "$0"))"
+cd "$scriptdir"/../../../..
 echo 'Starting in directory' $(pwd) 'as user' $(whoami)
 
 # Make sure X is running.
@@ -32,6 +33,12 @@ omxplayer -b auto/resources/videos/boot_up_video.mp4
 kill $FBCP_PID
 wait $FBCP_PID || true
 wait $DEMO_PID
+
+# Run all migrations.
+for migration in "$scriptdir"/rpi_b3_b4_migrations/*
+do
+    "$migration"
+done
 
 # Run all the services.
 exec python3 auto/services/run_all.py "$@"
