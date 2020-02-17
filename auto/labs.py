@@ -15,6 +15,7 @@ This is a **synchronous** interface.
 """
 
 import os
+from threading import Lock
 
 from auto.asyncio_tools import get_loop
 from auto.services.labs.rpc.client_sync import LabsService
@@ -50,12 +51,16 @@ send = send_message_to_labs
 receive = receive_message_from_labs
 
 
+_GLOBAL_LOCK = Lock()
+
+
 def _global_client():
     global _CLIENT
-    try:
-        _CLIENT
-    except NameError:
-        _CLIENT = LabsService(get_loop())
-        _CLIENT.connect()
-    return _CLIENT
+    with _GLOBAL_LOCK:
+        try:
+            _CLIENT
+        except NameError:
+            _CLIENT = LabsService(get_loop())
+            _CLIENT.connect()
+        return _CLIENT
 
