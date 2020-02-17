@@ -37,7 +37,12 @@ class PtyManager:
         log.info("Will run the PTY manager using the unprivileged user: {}".format(system_up_user))
 
     async def init(self):
-        pass
+        cmds = [
+            "tmux new-session -d -s bootup_session".split(),
+            "tmux send-keys -t bootup_session python3 SPACE boot.py ENTER".split(),
+        ]
+        for cmd in cmds:
+            await _run_subprocess(cmd, self.system_up_user)
 
     async def connected_cdp(self):
         self.xterm_lookup = {}    # map xterm_guid to (task, queue, start_time, user_session)
@@ -369,7 +374,7 @@ async def _run_pty_cmd_background(cmd, system_user, env_override=None, start_dir
 async def _new_session(xterm_guid, user_session, send_func, settings, system_user):
     session_name = await _next_tmux_session_name(system_user)
     start_dir = '~' if 'start_dir' not in settings else settings['start_dir']
-    cmd = ['tmux', 'new', '-c', start_dir, '-s', session_name]
+    cmd = ['tmux', 'new-session', '-c', start_dir, '-s', session_name]
     if 'cmd' in settings:
         cmd.extend(settings['cmd'])  # <-- becomes the shell argument to tmux
     size = settings.get('size', None)
