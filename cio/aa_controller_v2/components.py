@@ -111,6 +111,7 @@ class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
         minutes = 4.0 * 60.0 * (percentage / 100.0)  # Assumes the full battery lasts 4 hours.
         return floor(minutes), floor(percentage)
 
+    @i2c_retry(N_I2C_TRIES)
     async def should_shut_down(self):
         on_flag, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01], 1)
         return not on_flag
