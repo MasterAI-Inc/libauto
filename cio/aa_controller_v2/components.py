@@ -166,7 +166,7 @@ class Buzzer(cio.BuzzerIface):
         await start_playback()
 
 
-class Gyroscope(cio.GyroscopeIface):
+class Gyroscope(cio.GyroscopeIface):  # TODO
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
@@ -179,7 +179,7 @@ class Gyroscope(cio.GyroscopeIface):
         return x, y, z
 
 
-class GyroscopeAccum(cio.GyroscopeAccumIface):
+class GyroscopeAccum(cio.GyroscopeAccumIface):  # TODO
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
@@ -205,7 +205,7 @@ class GyroscopeAccum(cio.GyroscopeAccumIface):
         return x, y, z
 
 
-class Accelerometer(cio.AccelerometerIface):
+class Accelerometer(cio.AccelerometerIface):  # TODO
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
@@ -453,6 +453,7 @@ class CarMotors(cio.CarMotorsIface):
         self.reg_num = reg_num
         self.db = None
         self.loop = asyncio.get_running_loop()
+        self.safe_throttle_cache = None
 
     @i2c_retry(N_I2C_TRIES)
     async def on(self):
@@ -491,9 +492,12 @@ class CarMotors(cio.CarMotorsIface):
         db.put('CAR_THROTTLE_REVERSE_SAFE_SPEED', max_throttle)
 
     async def get_safe_throttle(self):
-        return await self.loop.run_in_executor(None, self._get_safe_throttle)
+        if self.safe_throttle_cache is None:
+            self.safe_throttle_cache = await self.loop.run_in_executor(None, self._get_safe_throttle)
+        return self.safe_throttle_cache
 
     async def set_safe_throttle(self, min_throttle, max_throttle):
+        self.safe_throttle_cache = (min_throttle, max_throttle)
         return await self.loop.run_in_executor(None, self._set_safe_throttle, min_throttle, max_throttle)
 
     @i2c_retry(N_I2C_TRIES)
@@ -647,7 +651,7 @@ class PWMs(cio.PWMsIface):
         del self.enabled[pin_index]
 
 
-class Calibrator(cio.CalibratorIface):
+class Calibrator(cio.CalibratorIface):  # TODO
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
@@ -673,7 +677,7 @@ class Calibrator(cio.CalibratorIface):
         return "calibrate_car_v2"
 
 
-class PidSteering(cio.PidSteeringIface):
+class PidSteering(cio.PidSteeringIface):  # TODO
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
