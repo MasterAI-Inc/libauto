@@ -17,6 +17,8 @@ from .components import KNOWN_COMPONENTS
 from auto import logger
 log = logger.init(__name__, terminal=True)
 
+import struct
+
 
 CAPABILITIES_REG_NUM = 0x01
 MAX_COMPONENT_NAME_LEN = 25
@@ -139,6 +141,61 @@ async def get_component_status(fd, register_number):
     if indicator == 2: return 'ENABLED'
     if indicator == 3: return 'DISABLE_PENDING'
     raise Exception("unknown return value: {}".format(indicator))
+
+
+@i2c_retry(N_I2C_TRIES)
+async def _eeprom_store(fd, addr, buf):
+    if not isinstance(buf, bytes):
+        raise Exception('`buf` should be `bytes`')
+    if len(buf) > 4:
+        raise Exception('you may only store 4 bytes at a time')
+    if addr < 0 or addr + len(buf) > 1024:
+        raise Exception('invalid `addr`: EEPROM size is 1024 bytes')
+    payload = list(struct.pack('1H', addr)) + [len(buf)] + list(buf)
+    await write_read_i2c_with_integrity(fd, [CAPABILITIES_REG_NUM, 0x08] + payload, 0)
+
+
+@i2c_retry(N_I2C_TRIES)
+async def _is_eeprom_store_finished(fd):
+    status, = await write_read_i2c_with_integrity(fd, [CAPABILITIES_REG_NUM, 0x09], 1)
+    return status == 0
+
+
+@i2c_retry(N_I2C_TRIES)
+async def _eeprom_query(fd, addr, length):
+    if length > 4:
+        raise Exception('you may only retrieve 4 bytes at a time')
+    if addr < 0 or addr + length > 1024:
+        raise Exception('invalid `addr`: EEPROM size is 1024 bytes')
+    payload = list(struct.pack('1H', addr)) + [length]
+    await write_read_i2c_with_integrity(fd, [CAPABILITIES_REG_NUM, 0x0A] + payload, 0)
+
+
+@i2c_retry(N_I2C_TRIES)
+async def _is_eeprom_query_finished(fd):
+    status, = await write_read_i2c_with_integrity(fd, [CAPABILITIES_REG_NUM, 0x0B], 1)
+    return status == 0
+
+
+@i2c_retry(N_I2C_TRIES)
+async def _retrieve_eeprom_query_buf(fd, length):
+    buf = await write_read_i2c_with_integrity(fd, [CAPABILITIES_REG_NUM, 0x0C], length)
+    return buf
+
+
+async def eeprom_store(fd, addr, buf):
+    await _eeprom_store(fd, addr, buf)
+    async def is_eeprom_store_finished():
+        return await _is_eeprom_store_finished(fd)
+    await i2c_poll_until(is_eeprom_store_finished, True, timeout_ms=1000)
+
+
+async def eeprom_query(fd, addr, length):
+    await _eeprom_query(fd, addr, length)
+    async def is_eeprom_query_finished():
+        return await _is_eeprom_query_finished(fd)
+    await i2c_poll_until(is_eeprom_query_finished, True, timeout_ms=1000)
+    return await _retrieve_eeprom_query_buf(fd, length)
 
 
 async def get_capabilities(fd, soft_reset_first=False, only_enabled=False):
