@@ -638,60 +638,33 @@ class PWMs(cio.PWMsIface):
 
 class PidSteering(cio.PidSteeringIface):
     def __init__(self, fd, reg_num):
-        pass
+        self.fd = fd
+        self.p = None
+        self.i = None
+        self.d = None
+        self.error_accum_max = None
+        self.point = None
 
     async def set_pid(self, p, i, d, error_accum_max=0.0, save=False):
-        @i2c_retry(N_I2C_TRIES)
-        async def set_val(instruction, val):
-            payload = list(struct.pack("1f", val))
-            status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, instruction] + payload, 1)
-            if status != 52:
-                raise Exception("failed to set PID value for instruction {}".format(instruction))
-
-        await set_val(0x01, p)
-        await set_val(0x02, i)
-        await set_val(0x03, d)
-        await set_val(0x04, error_accum_max)
+        self.p = p
+        self.i = i
+        self.d = d
+        self.error_accum_max = error_accum_max
 
         if save:
-            await self.save_pid()
+            await capabilities.eeprom_store(self.fd, 0xB0, struct.pack('1f', self.p))
+            await capabilities.eeprom_store(self.fd, 0xB4, struct.pack('1f', self.i))
+            await capabilities.eeprom_store(self.fd, 0xB8, struct.pack('1f', self.d))
+            await capabilities.eeprom_store(self.fd, 0xBC, struct.pack('1f', self.error_accum_max))
 
-    @i2c_retry(N_I2C_TRIES)
     async def set_point(self, point):
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x07] + list(struct.pack("1f", point)), 1)
-        if status != 52:
-            raise Exception("failed to set the PID \"set point\"")
+        self.point = point
 
-    @i2c_retry(N_I2C_TRIES)
     async def enable(self, invert_output=False):
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x08, (0x01 if invert_output else 0x00)], 1)
-        if status != 52:
-            raise Exception("failed to enable PID loop")
+        pass
 
-    @i2c_retry(N_I2C_TRIES)
     async def disable(self):
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x00], 1)
-        if status != 52:
-            raise Exception("failed to disable PID loop")
-
-    async def save_pid(self):
-        """
-        Save P, I, D (and `error_accum_max`) to the EEPROM.
-        This is a non-standard method which is not part of the PID interface.
-        """
-        @i2c_retry(N_I2C_TRIES)
-        async def save():
-            status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x05], 1)
-            if status != 52:
-                raise Exception("failed to save PID params")
-
-        @i2c_retry(N_I2C_TRIES)
-        async def is_saved():
-            status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x06], 1)
-            return status == 0
-
-        await save()
-        await i2c_poll_until(is_saved, True, timeout_ms=1000)
+        pass
 
 
 KNOWN_COMPONENTS = {
@@ -711,4 +684,7 @@ KNOWN_COMPONENTS = {
     'PWMs':                  PWMs,
     'PID_steering':          PidSteering,
 }
+
+
+from . import capabilities
 

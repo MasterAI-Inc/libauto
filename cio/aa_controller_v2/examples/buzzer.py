@@ -28,7 +28,13 @@ async def run():
     #await b.play('v10>>g16>>>c16')   # the soft reset sound
     #await b.play('>E>E>E R >C>E>G')
     #await b.play('!L16 V12 cdefgab>cbagfedc')   # C-major scale up and down
+
+    print(await b.is_currently_playing())
+
     await b.play('!T240 L8 agafaea dac+adaea fa<aa<bac#a dac#adaea f4')   # "Bach's fugue in D-minor"
+
+    print(await b.is_currently_playing())
+
     await b.wait()
 
     await asyncio.sleep(2)

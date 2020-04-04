@@ -25,25 +25,6 @@ async def run():
         print(await loop.read())
         await asyncio.sleep(0.05)
 
-    gyro = await c.acquire('Gyroscope')
-
-    for i in range(50):
-        print(await loop.read())
-        await asyncio.sleep(0.05)
-
-    accel = await c.acquire('Accelerometer')
-
-    for i in range(50):
-        print(await loop.read())
-        await asyncio.sleep(0.05)
-
-    await c.release(gyro)
-    await c.release(accel)
-
-    for i in range(50):
-        print(await loop.read())
-        await asyncio.sleep(0.05)
-
     await c.release(loop)
 
     await c.close()

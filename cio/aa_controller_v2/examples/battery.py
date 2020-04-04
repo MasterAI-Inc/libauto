@@ -21,10 +21,11 @@ async def run():
 
     batt = await c.acquire('BatteryVoltageReader')
 
-    for i in range(100):
+    for i in range(1000):
         mv = await batt.millivolts()
         mi = await batt.estimate_remaining()
-        print(mv, mi)
+        sd = await batt.should_shut_down()
+        print(mv, mi, sd)
         await asyncio.sleep(0.1)
 
     await c.release(batt)
