@@ -441,8 +441,6 @@ class CarMotors(cio.CarMotorsIface):
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
-        self.db = None
-        self.loop = asyncio.get_running_loop()
 
     @i2c_retry(N_I2C_TRIES)
     async def on(self):
@@ -464,30 +462,28 @@ class CarMotors(cio.CarMotorsIface):
         if status != 104:
             raise Exception("failed to set throttle")
 
-    def _get_db(self):
-        if self.db is None:
-            self.db = default_db()
-        return self.db
-
-    def _get_safe_throttle(self):
-        db = self._get_db()
-        min_throttle = db.get('CAR_THROTTLE_FORWARD_SAFE_SPEED', -22)
-        max_throttle = db.get('CAR_THROTTLE_REVERSE_SAFE_SPEED', 23)
+    @i2c_retry(N_I2C_TRIES)
+    async def _get_safe_throttle(self):
+        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x09], 4)
+        min_throttle, max_throttle = struct.unpack('2h', buf)
         return min_throttle, max_throttle
 
-    def _set_safe_throttle(self, min_throttle, max_throttle):
-        db = self._get_db()
-        db.put('CAR_THROTTLE_FORWARD_SAFE_SPEED', min_throttle)
-        db.put('CAR_THROTTLE_REVERSE_SAFE_SPEED', max_throttle)
+    @i2c_retry(N_I2C_TRIES)
+    async def _set_safe_throttle(self, min_throttle, max_throttle):
+        payload = list(struct.pack('2h', min_throttle, max_throttle))
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x0A] + payload, 1)
+        if status != 104:
+            raise Exception('failed to set params: min_throttle and max_throttle')
+        await self.save_params()
 
     async def get_safe_throttle(self):
         if CarMotors.safe_throttle_cache is None:
-            CarMotors.safe_throttle_cache = await self.loop.run_in_executor(None, self._get_safe_throttle)
+            CarMotors.safe_throttle_cache = await self._get_safe_throttle()
         return CarMotors.safe_throttle_cache
 
     async def set_safe_throttle(self, min_throttle, max_throttle):
         CarMotors.safe_throttle_cache = (min_throttle, max_throttle)
-        return await self.loop.run_in_executor(None, self._set_safe_throttle, min_throttle, max_throttle)
+        return await self._set_safe_throttle(min_throttle, max_throttle)
 
     @i2c_retry(N_I2C_TRIES)
     async def off(self):

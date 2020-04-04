@@ -93,7 +93,7 @@ class CioRoot(cio.CioRoot):
                 if rtimulib.IS_WORKING:
                     while rtimulib.DATA is None:
                         await asyncio.sleep(0.1)
-                    for c in ['Gyroscope', 'Gyroscope_accum', 'Accelerometer']:
+                    for c in ['Gyroscope', 'Gyroscope_accum', 'Accelerometer', 'PID_steering']:
                         self.caps[c] = {
                                 'register_number': None,
                                 'is_enabled': False

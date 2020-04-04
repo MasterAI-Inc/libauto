@@ -24,7 +24,7 @@ import time
 
 
 def demo_steering():
-    time.sleep(3.5)
+    time.sleep(1.5)
 
     set_steering(-45.0)
     time.sleep(1.0)
