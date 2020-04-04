@@ -14,6 +14,10 @@ from pprint import pprint
 import cio.aa_controller_v2 as controller
 
 
+def fmt(vals):
+    print(''.join(f'{v:10.2f}' for v in vals))
+
+
 async def run():
     c = controller.CioRoot()
     caps = await c.init()
@@ -21,8 +25,8 @@ async def run():
 
     accel = await c.acquire('Accelerometer')
 
-    for i in range(100):
-        print(await accel.read())
+    for i in range(1000):
+        fmt(await accel.read())
         await asyncio.sleep(0.05)
 
     await c.release(accel)

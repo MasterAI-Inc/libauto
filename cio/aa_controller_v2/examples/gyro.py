@@ -14,6 +14,10 @@ from pprint import pprint
 import cio.aa_controller_v2 as controller
 
 
+def fmt(vals):
+    print(''.join(f'{v:10.2f}' for v in vals))
+
+
 async def run():
     c = controller.CioRoot()
     caps = await c.init()
@@ -23,8 +27,8 @@ async def run():
     gyro_accum = await c.acquire('Gyroscope_accum')
 
     for i in range(500):
-        print(await gyro.read())
-        print(await gyro_accum.read())
+        fmt(await gyro.read())
+        fmt(await gyro_accum.read())
         print()
         if i % 50 == 0:
             await gyro_accum.reset()

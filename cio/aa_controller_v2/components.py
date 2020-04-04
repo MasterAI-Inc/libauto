@@ -18,11 +18,13 @@ from .timers import Timer1PWM, Timer3PWM
 from .db import default_db
 from .battery_discharge_curve import battery_map_millivolts_to_percentage
 
+from . import rtimulib
+
 import cio
 
 import struct
 import asyncio
-from math import floor
+from math import floor, degrees
 from collections import deque
 
 
@@ -42,8 +44,6 @@ class VersionInfo(cio.VersionInfoIface):
 
 class Credentials(cio.CredentialsIface):
     def __init__(self, fd, reg_num):
-        self.fd = fd
-        self.reg_num = reg_num
         self.db = None
         self.loop = asyncio.get_running_loop()
 
@@ -166,55 +166,43 @@ class Buzzer(cio.BuzzerIface):
         await start_playback()
 
 
-class Gyroscope(cio.GyroscopeIface):  # TODO
+class Gyroscope(cio.GyroscopeIface):
     def __init__(self, fd, reg_num):
-        self.fd = fd
-        self.reg_num = reg_num
+        pass
 
-    @i2c_retry(N_I2C_TRIES)
     async def read(self):
-        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 3*4)
-        x, y, z = struct.unpack('3f', buf)
-        x, y = -x, -y    # rotate 180 degrees around z
+        with rtimulib.LOCK:
+            x, y, z = [degrees(val) for val in rtimulib.DATA['gyro']]
         return x, y, z
 
 
-class GyroscopeAccum(cio.GyroscopeAccumIface):  # TODO
+class GyroscopeAccum(cio.GyroscopeAccumIface):
     def __init__(self, fd, reg_num):
-        self.fd = fd
-        self.reg_num = reg_num
-        self.x_off = 0.0
-        self.y_off = 0.0
-        self.z_off = 0.0
+        self._reset()
+
+    def _reset(self):
+        self.offsets = self._read_raw()
+
+    def _read_raw(self):
+        with rtimulib.LOCK:
+            x, y, z = rtimulib.DATA['gyro_accum']
+        return x, y, z
 
     async def reset(self):
-        x, y, z = await self._read_raw()
-        self.x_off = x
-        self.y_off = y
-        self.z_off = z
+        self._reset()
 
     async def read(self):
-        x, y, z = await self._read_raw()
-        return (x - self.x_off), (y - self.y_off), (z - self.z_off)
-
-    @i2c_retry(N_I2C_TRIES)
-    async def _read_raw(self):
-        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 3*4)
-        x, y, z = struct.unpack('3f', buf)
-        x, y = -x, -y    # rotate 180 degrees around z
-        return x, y, z
+        vals = self._read_raw()
+        return tuple([degrees(rtimulib.canonical_radians(val - offset)) for val, offset in zip(vals, self.offsets)])
 
 
-class Accelerometer(cio.AccelerometerIface):  # TODO
+class Accelerometer(cio.AccelerometerIface):
     def __init__(self, fd, reg_num):
-        self.fd = fd
-        self.reg_num = reg_num
+        pass
 
-    @i2c_retry(N_I2C_TRIES)
     async def read(self):
-        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 3*4)
-        x, y, z = struct.unpack('3f', buf)
-        x, y = -x, -y    # rotate 180 degrees around z
+        with rtimulib.LOCK:
+            x, y, z = rtimulib.DATA['accel']
         return x, y, z
 
 
@@ -651,32 +639,6 @@ class PWMs(cio.PWMsIface):
         del self.enabled[pin_index]
 
 
-class Calibrator(cio.CalibratorIface):  # TODO
-    def __init__(self, fd, reg_num):
-        self.fd = fd
-        self.reg_num = reg_num
-
-    @i2c_retry(N_I2C_TRIES)
-    async def start(self):
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0], 1)
-        if status != 7:
-            raise Exception("Failed to start calibration process.")
-
-    @i2c_retry(N_I2C_TRIES)
-    async def status(self):
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 1], 1)
-        # Status 0 means not started, 1 means currently calibrating, 2 means done calibrating
-        if status == 0 or status == 1:
-            return status
-        elif status == 2:
-            return -1  # <-- conform to CIO interface
-        else:
-            raise Exception("Unknown calibration status")
-
-    async def script_name(self):
-        return "calibrate_car_v2"
-
-
 class PidSteering(cio.PidSteeringIface):  # TODO
     def __init__(self, fd, reg_num):
         self.fd = fd
@@ -751,7 +713,6 @@ KNOWN_COMPONENTS = {
     'Encoders':              Encoders,
     'CarMotors':             CarMotors,
     'PWMs':                  PWMs,
-    'Calibrator':            Calibrator,
     'PID_steering':          PidSteering,
 }
 

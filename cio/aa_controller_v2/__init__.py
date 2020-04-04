@@ -40,6 +40,7 @@ import asyncio
 from . import capabilities
 from . import easyi2c
 from . import reset
+from . import rtimulib
 
 import cio
 
@@ -84,6 +85,19 @@ class CioRoot(cio.CioRoot):
 
                 if major != 2:
                     raise Exception('Controller is not version 2, thus this interface will not work.')
+
+                rtimulib.start_thread()
+                while rtimulib.IS_WORKING is None:
+                    await asyncio.sleep(0.1)
+
+                if rtimulib.IS_WORKING:
+                    while rtimulib.DATA is None:
+                        await asyncio.sleep(0.1)
+                    for c in ['Gyroscope', 'Gyroscope_accum', 'Accelerometer']:
+                        self.caps[c] = {
+                                'register_number': None,
+                                'is_enabled': False
+                        }
 
             except:
                 if self.fd is not None:
