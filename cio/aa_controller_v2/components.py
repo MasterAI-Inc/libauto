@@ -436,12 +436,13 @@ class Encoders(cio.EncodersIface):
 
 
 class CarMotors(cio.CarMotorsIface):
+    safe_throttle_cache = None
+
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
         self.db = None
         self.loop = asyncio.get_running_loop()
-        self.safe_throttle_cache = None
 
     @i2c_retry(N_I2C_TRIES)
     async def on(self):
@@ -480,12 +481,12 @@ class CarMotors(cio.CarMotorsIface):
         db.put('CAR_THROTTLE_REVERSE_SAFE_SPEED', max_throttle)
 
     async def get_safe_throttle(self):
-        if self.safe_throttle_cache is None:
-            self.safe_throttle_cache = await self.loop.run_in_executor(None, self._get_safe_throttle)
-        return self.safe_throttle_cache
+        if CarMotors.safe_throttle_cache is None:
+            CarMotors.safe_throttle_cache = await self.loop.run_in_executor(None, self._get_safe_throttle)
+        return CarMotors.safe_throttle_cache
 
     async def set_safe_throttle(self, min_throttle, max_throttle):
-        self.safe_throttle_cache = (min_throttle, max_throttle)
+        CarMotors.safe_throttle_cache = (min_throttle, max_throttle)
         return await self.loop.run_in_executor(None, self._set_safe_throttle, min_throttle, max_throttle)
 
     @i2c_retry(N_I2C_TRIES)
@@ -639,10 +640,9 @@ class PWMs(cio.PWMsIface):
         del self.enabled[pin_index]
 
 
-class PidSteering(cio.PidSteeringIface):  # TODO
+class PidSteering(cio.PidSteeringIface):
     def __init__(self, fd, reg_num):
-        self.fd = fd
-        self.reg_num = reg_num
+        pass
 
     async def set_pid(self, p, i, d, error_accum_max=0.0, save=False):
         @i2c_retry(N_I2C_TRIES)
