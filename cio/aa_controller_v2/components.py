@@ -168,42 +168,54 @@ class Buzzer(cio.BuzzerIface):
 
 class Gyroscope(cio.GyroscopeIface):
     def __init__(self, fd, reg_num):
-        pass
+        self.loop = asyncio.get_running_loop()
 
-    async def read(self):
-        with rtimulib.LOCK:
+    def _read(self):
+        with rtimulib.COND:
+            rtimulib.COND.wait()
             x, y, z = [degrees(val) for val in rtimulib.DATA['gyro']]
         return x, y, z
+
+    async def read(self):
+        return await self.loop.run_in_executor(None, self._read)
 
 
 class GyroscopeAccum(cio.GyroscopeAccumIface):
     def __init__(self, fd, reg_num):
-        self._reset()
+        self.loop = asyncio.get_running_loop()
+        self.offsets = None
 
     def _reset(self):
         self.offsets = self._read_raw()
 
     def _read_raw(self):
-        with rtimulib.LOCK:
+        with rtimulib.COND:
+            rtimulib.COND.wait()
             x, y, z = rtimulib.DATA['gyro_accum']
         return x, y, z
 
     async def reset(self):
-        self._reset()
+        await self.loop.run_in_executor(None, self._reset)
 
     async def read(self):
-        vals = self._read_raw()
+        vals = await self.loop.run_in_executor(None, self._read_raw)
+        if self.offsets is None:
+            self.offsets = vals
         return tuple([degrees(rtimulib.canonical_radians(val - offset)) for val, offset in zip(vals, self.offsets)])
 
 
 class Accelerometer(cio.AccelerometerIface):
     def __init__(self, fd, reg_num):
-        pass
+        self.loop = asyncio.get_running_loop()
 
-    async def read(self):
-        with rtimulib.LOCK:
+    def _read(self):
+        with rtimulib.COND:
+            rtimulib.COND.wait()
             x, y, z = rtimulib.DATA['accel']
         return x, y, z
+
+    async def read(self):
+        return await self.loop.run_in_executor(None, self._read)
 
 
 class PushButtons(cio.PushButtonsIface):

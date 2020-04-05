@@ -4,7 +4,7 @@ import shutil
 import math
 import time
 
-from threading import Thread, Lock
+from threading import Thread, Condition
 
 from auto import logger
 log = logger.init(__name__, terminal=True)
@@ -12,7 +12,7 @@ log = logger.init(__name__, terminal=True)
 
 CURR_DIR = os.path.dirname(os.path.realpath(__file__))
 RTIMULIB_SETTINGS = os.environ.get('LIBAUTO_RTIMULIB_SETTINGS', '/var/lib/libauto/RTIMULib.ini')
-LOCK = Lock()
+COND = Condition()
 DATA = None
 IS_WORKING = None
 
@@ -100,10 +100,11 @@ def read():
 
 
 def _thread_main():
-    global LOCK, DATA
+    global COND, DATA
     for data in read():
-        with LOCK:
+        with COND:
             DATA = data.copy()
+            COND.notify_all()
 
 
 def start_thread():
