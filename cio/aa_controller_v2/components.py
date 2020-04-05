@@ -670,6 +670,20 @@ class PWMs(cio.PWMsIface):
         del self.enabled[pin_index]
 
 
+class Calibrator(cio.CalibratorIface):
+    def __init__(self, fd, reg_num):
+        pass
+
+    async def start(self):
+        pass  # no-op
+
+    async def status(self):
+        pass  # no-op
+
+    async def script_name(self):
+        return "calibrate_car_v2"
+
+
 class PidSteering(cio.PidSteeringIface):
     pid_cache = None
 
@@ -784,6 +798,7 @@ KNOWN_COMPONENTS = {
     'Encoders':              Encoders,
     'CarMotors':             CarMotors,
     'PWMs':                  PWMs,
+    'Calibrator':            Calibrator,
     'PID_steering':          PidSteering,
 }
 

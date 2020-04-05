@@ -230,10 +230,11 @@ async def get_capabilities(fd, soft_reset_first=False, only_enabled=False):
         del caps['Timer1PWM']
         del caps['Timer3PWM']
 
-    caps['Credentials'] = {
-            'register_number': None,  # <-- this is a virtual component; it is implemented on the Python side, not the controller side
-            'is_enabled': False
-    }
+    for c in ['Credentials', 'Calibrator']:
+        caps[c] = {
+                'register_number': None,  # <-- this is a virtual component; it is implemented on the Python side, not the controller side
+                'is_enabled': False
+        }
 
     return caps
 

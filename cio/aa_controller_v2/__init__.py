@@ -101,7 +101,7 @@ class CioRoot(cio.CioRoot):
                         await asyncio.sleep(0.1)
                     for c in ['Gyroscope', 'Gyroscope_accum', 'Accelerometer']:
                         self.caps[c] = {
-                                'register_number': None,
+                                'register_number': None,   # <-- this is a virtual component; it is implemented on the Python side, not the controller side
                                 'is_enabled': False
                         }
                     if 'CarMotors' in self.caps:
