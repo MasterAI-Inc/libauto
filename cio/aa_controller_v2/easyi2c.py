@@ -38,7 +38,7 @@ from . import integrity
 # worry about that because the primary use-case will be that we have only
 # one fd open to this I2C bus. Having this global lock below makes it easier
 # because we don't have to pass it around everywhere the fd goes.
-LOCK = asyncio.Lock()
+LOCK = None
 
 
 async def open_i2c(device_index, slave_address):
@@ -47,6 +47,9 @@ async def open_i2c(device_index, slave_address):
     slave (`slave_address`) over the given Linux device
     interface index (`device_index`).
     """
+    global LOCK
+    if LOCK is None:
+        LOCK = asyncio.Lock()
     loop = asyncio.get_running_loop()
     path = "/dev/i2c-{}".format(device_index)
     flags = os.O_RDWR
