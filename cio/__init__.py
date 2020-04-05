@@ -292,6 +292,41 @@ class AccelerometerIface(abc.ABC):
         pass
 
 
+class MagnetometerIface(abc.ABC):
+    """
+    Query the Magnetometer Sensor
+
+    Required: False
+
+    Capability Identifier: 'Magnetometer'
+    """
+
+    @abc.abstractmethod
+    async def read(self):
+        """
+        Read an (x, y, z) tuple-of-floats from the Magnetometer.
+        """
+        pass
+
+
+class AhrsIface(abc.ABC):
+    """
+    Query the computed AHRS ("Attitude and Header Reference System").
+    https://en.wikipedia.org/wiki/Attitude_and_heading_reference_system
+
+    Required: False
+
+    Capability Identifier: 'AHRS'
+    """
+
+    @abc.abstractmethod
+    async def read(self):
+        """
+        Get the current (roll, pitch, yaw) tuple-of-floats of the device.
+        """
+        pass
+
+
 class PushButtonsIface(abc.ABC):
     """
     Query the Tactile Push Button(s)

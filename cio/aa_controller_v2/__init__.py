@@ -99,7 +99,7 @@ class CioRoot(cio.CioRoot):
                 if rtimulib.IS_WORKING:
                     while rtimulib.DATA is None:
                         await asyncio.sleep(0.1)
-                    for c in ['Gyroscope', 'Gyroscope_accum', 'Accelerometer']:
+                    for c in ['Gyroscope', 'Gyroscope_accum', 'Accelerometer', 'AHRS']:
                         self.caps[c] = {
                                 'register_number': None,   # <-- this is a virtual component; it is implemented on the Python side, not the controller side
                                 'is_enabled': False

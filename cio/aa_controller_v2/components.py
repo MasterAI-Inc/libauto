@@ -240,6 +240,27 @@ class Accelerometer(cio.AccelerometerIface):
         return vals
 
 
+class Ahrs(cio.AhrsIface):
+    def __init__(self, fd, reg_num):
+        self.loop = asyncio.get_running_loop()
+
+    def _read(self):
+        with rtimulib.COND:
+            rtimulib.COND.wait()
+            t = rtimulib.DATA['timestamp']
+            roll, pitch, yaw = [degrees(val) for val in rtimulib.DATA['fusionPose']]
+        return t, roll, pitch, yaw
+
+    async def read(self):
+        vals = await self.loop.run_in_executor(None, self._read)
+        return vals[1:]
+
+    async def read_t(self):
+        """This is a non-standard method."""
+        vals = await self.loop.run_in_executor(None, self._read)
+        return vals
+
+
 class PushButtons(cio.PushButtonsIface):
     def __init__(self, fd, reg_num):
         self.fd = fd
@@ -792,6 +813,7 @@ KNOWN_COMPONENTS = {
     'Gyroscope':             Gyroscope,
     'Gyroscope_accum':       GyroscopeAccum,
     'Accelerometer':         Accelerometer,
+    'AHRS':                  Ahrs,
     'PushButtons':           PushButtons,
     'LEDs':                  LEDs,
     'Photoresistor':         Photoresistor,

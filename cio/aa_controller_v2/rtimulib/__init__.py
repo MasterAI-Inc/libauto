@@ -45,6 +45,8 @@ def _fix(data):
     data['gyro'] = x, -y, -z
     x, y, z = data['accel']
     data['accel'] = -x, y, z
+    roll, pitch, yaw = data['fusionPose']
+    data['fusionPose'] = -pitch, roll, yaw
     for v in data['gyro']:
         if abs(v) > 600:
             return False  # bad data
