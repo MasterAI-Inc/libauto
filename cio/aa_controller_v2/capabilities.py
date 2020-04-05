@@ -254,13 +254,19 @@ async def acquire_component_interface(fd, caps, ref_count, component_name):
     interface.__reg__ = register_number
     interface.__component_name__ = component_name
 
-    if component_name not in ref_count:
-        # It must not be enabled and the ref count must currently be zero.
-        ref_count[component_name] = 1
+    if not isinstance(register_number, (tuple, list)):
+        register_number = [register_number]
 
-    else:
-        # The component is already enabled, we just need to inc the ref count.
-        ref_count[component_name] += 1
+    for n in register_number:
+        if n is None:
+            continue
+        if n not in ref_count:
+            # It must not be enabled and the ref count must currently be zero.
+            ref_count[n] = 1
+        else:
+            # The component is already enabled, we just need to inc the ref count.
+            ref_count[n] += 1
+        log.info('Acquired {}, register number {}, now having ref count {}.'.format(component_name, n, ref_count[n]))
 
     # ALWAYS ENABLE THE COMPONENT AND WAIT FOR IT.
     # We must have a bug in the controller code... because for some reason
@@ -273,10 +279,7 @@ async def acquire_component_interface(fd, caps, ref_count, component_name):
     # `status`. It's still a wild guess, really, so who knows.
     #   https://github.com/acu192/autoauto-controller/blob/0c234f3e8abfdc34a5011481e140998560097cbc/libraries/aa_controller/Capabilities.cpp#L526
     # Anyway, if that bug were fixed, then the whole next bock would be moved
-    # such that it would only run `if component_name not in ref_count` above.
-    orig_register_number = register_number
-    if not isinstance(register_number, (tuple, list)):
-        register_number = [register_number]
+    # such that it would only run `if n not in ref_count` above.
     for n in register_number:
         if n is None:
             continue
@@ -284,8 +287,6 @@ async def acquire_component_interface(fd, caps, ref_count, component_name):
         async def _get_component_status():
             return await get_component_status(fd, n)
         await i2c_poll_until(_get_component_status, 'ENABLED', timeout_ms=1000)
-
-    log.info('Acquired {}, register number {}, now having ref count {}.'.format(component_name, orig_register_number, ref_count[component_name]))
 
     return interface
 
@@ -299,28 +300,22 @@ async def release_component_interface(ref_count, interface):
     register_number = interface.__reg__
     component_name = interface.__component_name__
 
-    orig_register_number = register_number
+    if not isinstance(register_number, (tuple, list)):
+        register_number = [register_number]
 
-    if component_name not in ref_count:
-        # Weird... just bail.
-        return
-
-    # Dec the ref count.
-    ref_count[component_name] -= 1
-    ref_count_here = ref_count[component_name]
-
-    if ref_count[component_name] == 0:
-        # This is the last remaining reference, so we'll disable the component.
-        if not isinstance(register_number, (tuple, list)):
-            register_number = [register_number]
-        for n in register_number:
-            if n is None:
-                continue
+    for n in register_number:
+        if n is None:
+            continue
+        if n not in ref_count:
+            # Weird... just bail.
+            continue
+        ref_count[n] -= 1
+        log.info('Released {}, register number {}, now having ref count {}.'.format(component_name, n, ref_count[n]))
+        if ref_count[n] == 0:
+            # This is the last remaining reference, so we'll disable the component.
             await disable_component(fd, n)
             async def _get_component_status():
                 return await get_component_status(fd, n)
             await i2c_poll_until(_get_component_status, 'DISABLED', timeout_ms=1000)
-        del ref_count[component_name]
-
-    log.info('Released {}, register number {}, now having ref count {}.'.format(component_name, orig_register_number, ref_count_here))
+            del ref_count[n]
 

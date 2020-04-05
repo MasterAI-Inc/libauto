@@ -651,13 +651,16 @@ class PWMs(cio.PWMsIface):
 class PidSteering(cio.PidSteeringIface):
     pid_cache = None
 
-    def __init__(self, fd, reg_num):
+    def __init__(self, fd, reg_nums):
         self.fd = fd
         self.p = None
         self.i = None
         self.d = None
         self.error_accum_max = None
         self.point = 0.0
+        carmotors_regnum, gyroaccum_regnum = reg_nums
+        self.carmotors = CarMotors(fd, carmotors_regnum)
+        self.gyroaccum = GyroscopeAccum(fd, gyroaccum_regnum)
 
     async def set_pid(self, p, i, d, error_accum_max=0.0, save=False):
         self.p = p

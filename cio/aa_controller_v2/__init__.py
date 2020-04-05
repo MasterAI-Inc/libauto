@@ -74,7 +74,13 @@ class CioRoot(cio.CioRoot):
                         # This component is enabled by default, so make sure it stays enabled!
                         # We'll do this by starting its ref count at 1, so it will never go
                         # to zero -- it's as if the controller itself holds one reference.
-                        self.capability_ref_count[component_name] = 1
+                        register_number = config['register_number']
+                        if not isinstance(register_number, (tuple, list)):
+                            register_number = [register_number]
+                        for n in register_number:
+                            if n is None:
+                                continue
+                        self.capability_ref_count[n] = 1
 
                 if 'VersionInfo' not in self.caps:
                     raise Exception('Controller does not implement the required VersionInfo component.')
@@ -93,9 +99,16 @@ class CioRoot(cio.CioRoot):
                 if rtimulib.IS_WORKING:
                     while rtimulib.DATA is None:
                         await asyncio.sleep(0.1)
-                    for c in ['Gyroscope', 'Gyroscope_accum', 'Accelerometer', 'PID_steering']:
+                    for c in ['Gyroscope', 'Gyroscope_accum', 'Accelerometer']:
                         self.caps[c] = {
                                 'register_number': None,
+                                'is_enabled': False
+                        }
+                    if 'CarMotors' in self.caps:
+                        carmotors_regnum = self.caps['CarMotors']['register_number']
+                        gyroaccum_regnum = self.caps['Gyroscope_accum']['register_number']
+                        self.caps['PID_steering'] = {
+                                'register_number': (carmotors_regnum, gyroaccum_regnum),
                                 'is_enabled': False
                         }
 
