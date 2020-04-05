@@ -173,11 +173,18 @@ class Gyroscope(cio.GyroscopeIface):
     def _read(self):
         with rtimulib.COND:
             rtimulib.COND.wait()
+            t = rtimulib.DATA['timestamp']
             x, y, z = [degrees(val) for val in rtimulib.DATA['gyro']]
-        return x, y, z
+        return t, x, y, z
 
     async def read(self):
-        return await self.loop.run_in_executor(None, self._read)
+        vals = await self.loop.run_in_executor(None, self._read)
+        return vals[1:]
+
+    async def read_t(self):
+        """This is a non-standard method."""
+        vals = await self.loop.run_in_executor(None, self._read)
+        return vals
 
 
 class GyroscopeAccum(cio.GyroscopeAccumIface):
@@ -186,22 +193,30 @@ class GyroscopeAccum(cio.GyroscopeAccumIface):
         self.offsets = None
 
     def _reset(self):
-        self.offsets = self._read_raw()
+        self.offsets = self._read_raw()[1:]
 
     def _read_raw(self):
         with rtimulib.COND:
             rtimulib.COND.wait()
+            t = rtimulib.DATA['timestamp']
             x, y, z = rtimulib.DATA['gyro_accum']
-        return x, y, z
+        return t, x, y, z
 
     async def reset(self):
         await self.loop.run_in_executor(None, self._reset)
 
     async def read(self):
-        vals = await self.loop.run_in_executor(None, self._read_raw)
+        t, x, y, z = await self.read_t()
+        return x, y, z
+
+    async def read_t(self):
+        """This is a non-standard method."""
+        t, x, y, z = await self.loop.run_in_executor(None, self._read_raw)
+        vals = x, y, z
         if self.offsets is None:
             self.offsets = vals
-        return tuple([degrees(rtimulib.canonical_radians(val - offset)) for val, offset in zip(vals, self.offsets)])
+        new_vals = tuple([degrees(rtimulib.canonical_radians(val - offset)) for val, offset in zip(vals, self.offsets)])
+        return (t,) + new_vals
 
 
 class Accelerometer(cio.AccelerometerIface):
@@ -211,11 +226,18 @@ class Accelerometer(cio.AccelerometerIface):
     def _read(self):
         with rtimulib.COND:
             rtimulib.COND.wait()
+            t = rtimulib.DATA['timestamp']
             x, y, z = rtimulib.DATA['accel']
-        return x, y, z
+        return t, x, y, z
 
     async def read(self):
-        return await self.loop.run_in_executor(None, self._read)
+        vals = await self.loop.run_in_executor(None, self._read)
+        return vals[1:]
+
+    async def read_t(self):
+        """This is a non-standard method."""
+        vals = await self.loop.run_in_executor(None, self._read)
+        return vals
 
 
 class PushButtons(cio.PushButtonsIface):
@@ -661,6 +683,7 @@ class PidSteering(cio.PidSteeringIface):
         carmotors_regnum, gyroaccum_regnum = reg_nums
         self.carmotors = CarMotors(fd, carmotors_regnum)
         self.gyroaccum = GyroscopeAccum(fd, gyroaccum_regnum)
+        self.task = None
 
     async def set_pid(self, p, i, d, error_accum_max=0.0, save=False):
         self.p = p
@@ -698,13 +721,52 @@ class PidSteering(cio.PidSteeringIface):
         if isnan(self.error_accum_max):
             self.error_accum_max = 0.0
 
-        print(self.p)
-        print(self.i)
-        print(self.d)
-        print(self.error_accum_max)
+        await self.disable()
+        self.task = asyncio.create_task(self._task_main(invert_output))
 
     async def disable(self):
-        pass
+        if self.task is not None:
+            self.task.cancel()
+            try:
+                await self.task
+            except asyncio.CancelledError:
+                pass # this is expected
+            self.task = None
+
+    async def _task_main(self, invert_output):
+        last_t = None
+        error_accum = 0.0
+        last_error = None
+
+        while True:
+            t, _, _, z = await self.gyroaccum.read_t()
+
+            dt = ((t - last_t) if last_t is not None else 0.0) * 0.000001
+            last_t = t
+
+            curr_error = self.point - z
+
+            p_part = self.p * curr_error
+
+            error_accum += curr_error * dt
+            if self.error_accum_max > 0.0:
+                if error_accum > self.error_accum_max:
+                    error_accum = self.error_accum_max
+                elif error_accum < -self.error_accum_max:
+                    error_accum = -self.error_accum_max
+
+            i_part = self.i * error_accum
+
+            error_diff = ((curr_error - last_error) / dt) if last_error is not None else 0.0
+            last_error = curr_error
+
+            d_part = self.d * error_diff
+
+            output = p_part + i_part + d_part
+            if invert_output:
+                output = -output
+
+            await self.carmotors.set_steering(output)
 
 
 KNOWN_COMPONENTS = {

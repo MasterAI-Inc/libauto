@@ -19,8 +19,9 @@ async def run():
     caps = await c.init()
     pprint(caps)
 
-    print('Acquiring PID_steering...')
+    print('Acquiring PID_steering and CarMotors...')
     pid = await c.acquire('PID_steering')
+    motors = await c.acquire('CarMotors')
 
     p, i, d = 1.0, 0.1, 0.1
 
@@ -30,6 +31,12 @@ async def run():
     print('Enabling PID loop...')
     await pid.enable()
 
+    await asyncio.sleep(5)
+
+    print('Turning on CarMotors and setting throttle...')
+    await motors.on()
+    await motors.set_throttle(25)
+
     await asyncio.sleep(10)
 
     print('Disabling PID loop...')
@@ -37,8 +44,14 @@ async def run():
 
     await asyncio.sleep(5)
 
-    print('Releasing PID_steering...')
+    print('Turning off CarMotors...')
+    await motors.off()
+
+    await asyncio.sleep(5)
+
+    print('Releasing PID_steering and CarMotors...')
     await c.release(pid)
+    await c.release(motors)
 
     await c.close()
 
