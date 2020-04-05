@@ -45,6 +45,13 @@ def _fix(data):
     data['gyro'] = x, -y, -z
     x, y, z = data['accel']
     data['accel'] = -x, y, z
+    for v in data['gyro']:
+        if abs(v) > 600:
+            return False  # bad data
+    for v in data['accel']:
+        if abs(v) > 5:
+            return False  # bad data
+    return True
 
 
 def read():
@@ -85,7 +92,8 @@ def read():
     while True:
         if imu.IMURead():
             data = imu.getIMUData()
-            _fix(data)
+            if not _fix(data):
+                continue
             data['gyro_accum'] = gyro_accum.update(data['timestamp'], data['gyro'])
             yield data
             time.sleep(poll_interval/1000.0)

@@ -24,7 +24,7 @@ import cio
 
 import struct
 import asyncio
-from math import floor, degrees
+from math import floor, degrees, isnan
 from collections import deque
 
 
@@ -637,13 +637,15 @@ class PWMs(cio.PWMsIface):
 
 
 class PidSteering(cio.PidSteeringIface):
+    pid_cache = None
+
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.p = None
         self.i = None
         self.d = None
         self.error_accum_max = None
-        self.point = None
+        self.point = 0.0
 
     async def set_pid(self, p, i, d, error_accum_max=0.0, save=False):
         self.p = p
@@ -656,12 +658,35 @@ class PidSteering(cio.PidSteeringIface):
             await capabilities.eeprom_store(self.fd, 0xB4, struct.pack('1f', self.i))
             await capabilities.eeprom_store(self.fd, 0xB8, struct.pack('1f', self.d))
             await capabilities.eeprom_store(self.fd, 0xBC, struct.pack('1f', self.error_accum_max))
+            PidSteering.pid_cache = (self.p, self.i, self.d, self.error_accum_max)
 
     async def set_point(self, point):
         self.point = point
 
     async def enable(self, invert_output=False):
-        pass
+        if self.p is None:
+            if PidSteering.pid_cache is not None:
+                 self.p, self.i, self.d, self.error_accum_max = PidSteering.pid_cache
+            else:
+                self.p,               = struct.unpack('1f', await capabilities.eeprom_query(self.fd, 0xB0, 4))
+                self.i,               = struct.unpack('1f', await capabilities.eeprom_query(self.fd, 0xB4, 4))
+                self.d,               = struct.unpack('1f', await capabilities.eeprom_query(self.fd, 0xB8, 4))
+                self.error_accum_max, = struct.unpack('1f', await capabilities.eeprom_query(self.fd, 0xBC, 4))
+                PidSteering.pid_cache = (self.p, self.i, self.d, self.error_accum_max)
+
+        if isnan(self.p):
+            self.p = 1.0
+        if isnan(self.i):
+            self.i = 0.0
+        if isnan(self.d):
+            self.d = 0.0
+        if isnan(self.error_accum_max):
+            self.error_accum_max = 0.0
+
+        print(self.p)
+        print(self.i)
+        print(self.d)
+        print(self.error_accum_max)
 
     async def disable(self):
         pass
