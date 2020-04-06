@@ -445,6 +445,7 @@ Depending on the device you have, you can run the appropriate calibration script
 | Device Name                     | Calibration Script Name |
 |---------------------------------|-------------------------|
 | AutoAuto Car with v1 Controller | `calibrate_car_v1`      |
+| AutoAuto Car with v2 Controller | `calibrate_car_v2`      |
 
 ## Buzzer Language
 
