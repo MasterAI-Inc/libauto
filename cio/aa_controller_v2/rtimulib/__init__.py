@@ -17,14 +17,6 @@ DATA = None
 IS_WORKING = None
 
 
-def canonical_radians(val):
-    while val <= -math.pi:
-        val += 2*math.pi
-    while val > math.pi:
-        val -= 2*math.pi
-    return val
-
-
 class GyroAccumulator:
     def __init__(self):
         self.last_t = None
@@ -33,7 +25,7 @@ class GyroAccumulator:
     def update(self, t, gyro):
         dt = ((t - self.last_t) if self.last_t is not None else 0.0) * 0.000001
         self.last_t = t
-        self.gyro_accum = tuple([canonical_radians(ga + g*dt) for ga, g in zip(self.gyro_accum, gyro)])
+        self.gyro_accum = tuple([(ga + g*dt) for ga, g in zip(self.gyro_accum, gyro)])
         return self.gyro_accum
 
 

@@ -215,7 +215,7 @@ class GyroscopeAccum(cio.GyroscopeAccumIface):
         vals = x, y, z
         if self.offsets is None:
             self.offsets = vals
-        new_vals = tuple([degrees(rtimulib.canonical_radians(val - offset)) for val, offset in zip(vals, self.offsets)])
+        new_vals = tuple([degrees(val - offset) for val, offset in zip(vals, self.offsets)])
         return (t,) + new_vals
 
 
