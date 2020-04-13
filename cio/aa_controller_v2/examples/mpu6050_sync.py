@@ -11,6 +11,7 @@
 import struct
 import time
 from itertools import count
+from threading import Condition
 
 from cio.aa_controller_v2.easyi2c_sync import (
     open_i2c,
@@ -33,6 +34,10 @@ MPU6050_RA_FIFO_R_W = 0x74
 MPU6050_PACKET_SIZE = 12
 MPU6050_ACCEL_CNVT = 0.000061035
 MPU6050_GYRO_CNVT = 0.007633588
+
+
+COND = Condition()
+DATA = None
 
 
 def who_am_i(fd):
@@ -68,7 +73,9 @@ def read_fifo_packet(fd, fifo_length):
     return buf
 
 
-def run():
+def run(verbose=False):
+    global DATA
+
     fd = open_i2c(1, 0x68)
 
     if who_am_i(fd) != 0x34:
@@ -80,14 +87,22 @@ def run():
 
     for i in count():
         fifo_length = get_fifo_length(fd)
-        #print(fifo_length, sleep)
         if fifo_length > 200:
             reset_fifo_sequence(fd)
+            sleep = 0.005
         elif fifo_length >= MPU6050_PACKET_SIZE:
             buf = read_fifo_packet(fd, fifo_length)
             vals = struct.unpack('>6h', buf)
             vals = [v * MPU6050_ACCEL_CNVT for v in vals[:3]] + [v * MPU6050_GYRO_CNVT for v in vals[3:]]
-            print(fifo_length, ''.join([f'{v:10.3f}' for v in vals]))
+            if verbose:
+                print(fifo_length, sleep, ''.join([f'{v:10.3f}' for v in vals]))
+            with COND:
+                DATA = {
+                    'accel': vals[:3],
+                    'gyro': vals[3:],
+                    #'fusionPose': ...,
+                }
+                COND.notify_all()
             time.sleep(sleep)
             sleep *= 0.99
         else:
@@ -97,5 +112,5 @@ def run():
 
 
 if __name__ == '__main__':
-    run()
+    run(verbose=True)
 
