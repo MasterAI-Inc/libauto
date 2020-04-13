@@ -80,7 +80,7 @@ def run():
 
     for i in count():
         fifo_length = get_fifo_length(fd)
-        print(fifo_length, sleep)
+        #print(fifo_length, sleep)
         if fifo_length > 200:
             reset_fifo_sequence(fd)
         elif fifo_length >= MPU6050_PACKET_SIZE:

@@ -20,6 +20,8 @@ from functools import wraps
 
 from . import integrity
 
+from .easyi2c import LOCK
+
 
 def open_i2c(device_index, slave_address):
     """
@@ -73,8 +75,9 @@ def write_read_i2c(fd, write_buf, read_len):
           when you read/write to the I2C bus. See the next function
           in this module for how to do this.
     """
-    _write_i2c(fd, write_buf)
-    return _read_i2c(fd, read_len)
+    with LOCK:
+        _write_i2c(fd, write_buf)
+        return _read_i2c(fd, read_len)
 
 
 def write_read_i2c_with_integrity(fd, write_buf, read_len):
@@ -85,8 +88,9 @@ def write_read_i2c_with_integrity(fd, write_buf, read_len):
     """
     read_len = integrity.read_len_with_integrity(read_len)
     write_buf = integrity.put_integrity(write_buf)
-    _write_i2c(fd, write_buf)
-    read_buf = _read_i2c(fd, read_len)
+    with LOCK:
+        _write_i2c(fd, write_buf)
+        read_buf = _read_i2c(fd, read_len)
     read_buf = integrity.check_integrity(read_buf)
     if read_buf is None:
         raise OSError(errno.ECOMM, os.strerror(errno.ECOMM))
