@@ -11,7 +11,7 @@
 import struct
 import time
 from itertools import count
-from threading import Condition
+from threading import Thread, Condition
 
 from cio.aa_controller_v2.easyi2c_sync import (
     open_i2c,
@@ -95,7 +95,7 @@ def run(verbose=False):
             vals = struct.unpack('>6h', buf)
             vals = [v * MPU6050_ACCEL_CNVT for v in vals[:3]] + [v * MPU6050_GYRO_CNVT for v in vals[3:]]
             if verbose:
-                print(fifo_length, sleep, ''.join([f'{v:10.3f}' for v in vals]))
+                print(fifo_length, f'{sleep:.4f}', ''.join([f'{v:10.3f}' for v in vals]))
             with COND:
                 DATA = {
                     'accel': vals[:3],
@@ -109,6 +109,13 @@ def run(verbose=False):
             sleep *= 1.01
 
     close_i2c(fd)
+
+
+def start_thread():
+    thread = Thread(target=run)
+    thread.daemon = True
+    thread.start()
+    return thread
 
 
 if __name__ == '__main__':
