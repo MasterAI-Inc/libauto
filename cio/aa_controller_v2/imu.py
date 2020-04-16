@@ -32,8 +32,8 @@ MPU6050_RA_FIFO_COUNTH = 0x72
 MPU6050_RA_FIFO_R_W = 0x74
 
 MPU6050_PACKET_SIZE = 12
-MPU6050_ACCEL_CNVT = 0.000061035
-MPU6050_GYRO_CNVT = 0.007633588
+MPU6050_ACCEL_CNVT = 0.0001220740379
+MPU6050_GYRO_CNVT = 0.015259254738
 
 
 COND = Condition()
@@ -83,6 +83,12 @@ def run(verbose=False):
 
     reset_fifo_sequence(fd)
 
+    curr_time = 0       # microseconds
+    dt = 1000000 // 100  # data streams at 100Hz
+    dt_s = dt / 1000000
+
+    gyro_accum = (0.0, 0.0, 0.0)
+
     sleep = 0.005
 
     for i in count():
@@ -96,13 +102,19 @@ def run(verbose=False):
             vals = [v * MPU6050_ACCEL_CNVT for v in vals[:3]] + [v * MPU6050_GYRO_CNVT for v in vals[3:]]
             if verbose:
                 print(fifo_length, f'{sleep:.4f}', ''.join([f'{v:10.3f}' for v in vals]))
+            accel = vals[:3]
+            gyro = vals[3:]
+            gyro_accum = [(a + b*dt_s) for a, b in zip(gyro_accum, gyro)]
             with COND:
                 DATA = {
-                    'accel': vals[:3],
-                    'gyro': vals[3:],
-                    #'fusionPose': ...,
+                    'timestamp': curr_time,
+                    'accel': accel,
+                    'gyro': gyro,
+                    'gyro_accum': gyro_accum,
+                    #'fusionPose': ..., TODO
                 }
                 COND.notify_all()
+            curr_time += dt
             time.sleep(sleep)
             sleep *= 0.99
         else:

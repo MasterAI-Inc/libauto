@@ -40,7 +40,7 @@ import asyncio
 from . import capabilities
 from . import easyi2c
 from . import reset
-from . import rtimulib
+from . import imu
 
 import cio
 
@@ -92,13 +92,17 @@ class CioRoot(cio.CioRoot):
                 if major != 2:
                     raise Exception('Controller is not version 2, thus this interface will not work.')
 
-                rtimulib.start_thread()
-                while rtimulib.IS_WORKING is None:
+                imu.start_thread()
+                loop = asyncio.get_running_loop()
+                imu_start = loop.time()
+                imu_working = True
+                while imu.DATA is None:
+                    if loop.time() - imu_start > 1.0:
+                        imu_working = False
+                        break
                     await asyncio.sleep(0.1)
 
-                if rtimulib.IS_WORKING:
-                    while rtimulib.DATA is None:
-                        await asyncio.sleep(0.1)
+                if imu_working:
                     for c in ['Gyroscope', 'Gyroscope_accum', 'Accelerometer', 'AHRS']:
                         self.caps[c] = {
                                 'register_number': None,   # <-- this is a virtual component; it is implemented on the Python side, not the controller side

@@ -18,13 +18,13 @@ from .timers import Timer1PWM, Timer3PWM
 from .db import default_db
 from .battery_discharge_curve import battery_map_millivolts_to_percentage
 
-from . import rtimulib
+from . import imu
 
 import cio
 
 import struct
 import asyncio
-from math import floor, degrees, isnan
+from math import floor, isnan
 from collections import deque
 
 
@@ -171,10 +171,10 @@ class Gyroscope(cio.GyroscopeIface):
         self.loop = asyncio.get_running_loop()
 
     def _read(self):
-        with rtimulib.COND:
-            rtimulib.COND.wait()
-            t = rtimulib.DATA['timestamp']
-            x, y, z = [degrees(val) for val in rtimulib.DATA['gyro']]
+        with imu.COND:
+            imu.COND.wait()
+            t = imu.DATA['timestamp']
+            x, y, z = imu.DATA['gyro']
         return t, x, y, z
 
     async def read(self):
@@ -196,10 +196,10 @@ class GyroscopeAccum(cio.GyroscopeAccumIface):
         self.offsets = self._read_raw()[1:]
 
     def _read_raw(self):
-        with rtimulib.COND:
-            rtimulib.COND.wait()
-            t = rtimulib.DATA['timestamp']
-            x, y, z = rtimulib.DATA['gyro_accum']
+        with imu.COND:
+            imu.COND.wait()
+            t = imu.DATA['timestamp']
+            x, y, z = imu.DATA['gyro_accum']
         return t, x, y, z
 
     async def reset(self):
@@ -215,7 +215,7 @@ class GyroscopeAccum(cio.GyroscopeAccumIface):
         vals = x, y, z
         if self.offsets is None:
             self.offsets = vals
-        new_vals = tuple([degrees(val - offset) for val, offset in zip(vals, self.offsets)])
+        new_vals = tuple([(val - offset) for val, offset in zip(vals, self.offsets)])
         return (t,) + new_vals
 
 
@@ -224,10 +224,10 @@ class Accelerometer(cio.AccelerometerIface):
         self.loop = asyncio.get_running_loop()
 
     def _read(self):
-        with rtimulib.COND:
-            rtimulib.COND.wait()
-            t = rtimulib.DATA['timestamp']
-            x, y, z = rtimulib.DATA['accel']
+        with imu.COND:
+            imu.COND.wait()
+            t = imu.DATA['timestamp']
+            x, y, z = imu.DATA['accel']
         return t, x, y, z
 
     async def read(self):
@@ -245,10 +245,10 @@ class Ahrs(cio.AhrsIface):
         self.loop = asyncio.get_running_loop()
 
     def _read(self):
-        with rtimulib.COND:
-            rtimulib.COND.wait()
-            t = rtimulib.DATA['timestamp']
-            roll, pitch, yaw = [degrees(val) for val in rtimulib.DATA['fusionPose']]
+        with imu.COND:
+            imu.COND.wait()
+            t = imu.DATA['timestamp']
+            roll, pitch, yaw = imu.DATA['fusionPose']
         return t, roll, pitch, yaw
 
     async def read(self):
