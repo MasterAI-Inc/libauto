@@ -248,7 +248,7 @@ class Ahrs(cio.AhrsIface):
         with imu.COND:
             imu.COND.wait()
             t = imu.DATA['timestamp']
-            roll, pitch, yaw = imu.DATA['fusionPose']
+            roll, pitch, yaw = imu.DATA['ahrs']
         return t, roll, pitch, yaw
 
     async def read(self):

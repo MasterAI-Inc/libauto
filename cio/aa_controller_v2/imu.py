@@ -8,8 +8,19 @@
 #
 ###############################################################################
 
+"""
+This module talks to the IMU on the AutoAuto controller board.
+
+Good reference implementations:
+  - https://github.com/jrowberg/i2cdevlib/blob/master/Arduino/MPU6050/MPU6050.h
+  - https://github.com/jrowberg/i2cdevlib/blob/master/Arduino/MPU6050/MPU6050.cpp
+  - https://github.com/RPi-Distro/RTIMULib/blob/master/RTIMULib/IMUDrivers/RTIMUDefs.h
+  - https://github.com/RPi-Distro/RTIMULib/blob/master/RTIMULib/IMUDrivers/RTIMUMPU9150.cpp
+"""
+
 import struct
 import time
+from math import sqrt, atan2, asin, pi, radians, degrees
 from itertools import count
 from threading import Thread, Condition
 
@@ -73,6 +84,140 @@ def read_fifo_packet(fd, fifo_length):
     return buf
 
 
+def madgwick_update(accel, gyro, q, deltat):
+    """
+    Refs:
+     - https://courses.cs.washington.edu/courses/cse466/14au/labs/l4/l4.html
+     - https://courses.cs.washington.edu/courses/cse466/14au/labs/l4/MPU6050IMU.ino
+     - https://x-io.co.uk/open-source-imu-and-ahrs-algorithms/
+     - https://github.com/TobiasSimon/MadgwickTests
+    """
+    beta = 0.05    # free parameter that can be tuned; this one merges accelerometer data with the gyro data
+    zeta = 0.001   # free parameter that can be tuned; this one accounts to gyro bias
+
+    # short name local variable for readability
+    ax, ay, az = accel
+    gx, gy, gz = [radians(v) for v in gyro]
+    q1, q2, q3, q4 = q
+
+    #float norm;                                               // vector norm
+    #float f1, f2, f3;                                         // objetive funcyion elements
+    #float J_11or24, J_12or23, J_13or22, J_14or21, J_32, J_33; // objective function Jacobian elements
+    #float qDot1, qDot2, qDot3, qDot4;
+    #float hatDot1, hatDot2, hatDot3, hatDot4;
+    #float gerrx, gerry, gerrz, gbiasx, gbiasy, gbiasz;        // gyro bias error
+
+    # Auxiliary variables to avoid repeated arithmetic
+    _halfq1 = 0.5 * q1
+    _halfq2 = 0.5 * q2
+    _halfq3 = 0.5 * q3
+    _halfq4 = 0.5 * q4
+    _2q1 = 2.0 * q1
+    _2q2 = 2.0 * q2
+    _2q3 = 2.0 * q3
+    _2q4 = 2.0 * q4
+    _2q1q3 = 2.0 * q1 * q3
+    _2q3q4 = 2.0 * q3 * q4
+
+    # Normalise accelerometer measurement
+    norm = sqrt(ax * ax + ay * ay + az * az);
+    if norm == 0.0: return  # handle NaN
+    norm = 1.0/norm
+    ax *= norm
+    ay *= norm
+    az *= norm
+
+    # Compute the objective function and Jacobian
+    f1 = _2q2 * q4 - _2q1 * q3 - ax
+    f2 = _2q1 * q2 + _2q3 * q4 - ay
+    f3 = 1.0 - _2q2 * q2 - _2q3 * q3 - az
+    J_11or24 = _2q3
+    J_12or23 = _2q4
+    J_13or22 = _2q1
+    J_14or21 = _2q2
+    J_32 = 2.0 * J_14or21
+    J_33 = 2.0 * J_11or24
+
+    # Compute the gradient (matrix multiplication)
+    hatDot1 = J_14or21 * f2 - J_11or24 * f1
+    hatDot2 = J_12or23 * f1 + J_13or22 * f2 - J_32 * f3
+    hatDot3 = J_12or23 * f2 - J_33 *f3 - J_13or22 * f1
+    hatDot4 = J_14or21 * f1 + J_11or24 * f2
+
+    # Normalize the gradient
+    norm = sqrt(hatDot1 * hatDot1 + hatDot2 * hatDot2 + hatDot3 * hatDot3 + hatDot4 * hatDot4)
+    hatDot1 /= norm
+    hatDot2 /= norm
+    hatDot3 /= norm
+    hatDot4 /= norm
+
+    # Compute estimated gyroscope biases
+    gerrx = _2q1 * hatDot2 - _2q2 * hatDot1 - _2q3 * hatDot4 + _2q4 * hatDot3
+    gerry = _2q1 * hatDot3 + _2q2 * hatDot4 - _2q3 * hatDot1 - _2q4 * hatDot2
+    gerrz = _2q1 * hatDot4 - _2q2 * hatDot3 + _2q3 * hatDot2 - _2q4 * hatDot1
+
+    # Compute and remove gyroscope biases
+    gbiasx = gerrx * deltat * zeta
+    gbiasy = gerry * deltat * zeta
+    gbiasz = gerrz * deltat * zeta
+    gx -= gbiasx
+    gy -= gbiasy
+    gz -= gbiasz
+
+    # Compute the quaternion derivative
+    qDot1 = -_halfq2 * gx - _halfq3 * gy - _halfq4 * gz
+    qDot2 =  _halfq1 * gx + _halfq3 * gz - _halfq4 * gy
+    qDot3 =  _halfq1 * gy - _halfq2 * gz + _halfq4 * gx
+    qDot4 =  _halfq1 * gz + _halfq2 * gy - _halfq3 * gx
+
+    # Compute then integrate estimated quaternion derivative
+    q1 += (qDot1 -(beta * hatDot1)) * deltat
+    q2 += (qDot2 -(beta * hatDot2)) * deltat
+    q3 += (qDot3 -(beta * hatDot3)) * deltat
+    q4 += (qDot4 -(beta * hatDot4)) * deltat
+
+    # Normalize the quaternion
+    norm = sqrt(q1 * q1 + q2 * q2 + q3 * q3 + q4 * q4)
+    norm = 1.0/norm
+    q[0] = q1 * norm
+    q[1] = q2 * norm
+    q[2] = q3 * norm
+    q[3] = q4 * norm
+    return q
+
+
+def roll_pitch_yaw(q):
+    """
+    Refs:
+     - https://en.wikipedia.org/wiki/Euler_angles#Tait%E2%80%93Bryan_angles
+     - https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
+    """
+    qw, qx, qy, qz = q
+
+    # roll (x-axis rotation)
+    sinr_cosp = 2.0 * (qw * qx + qy * qz)
+    cosr_cosp = 1.0 - 2.0 * (qx * qx + qy * qy)
+    roll = atan2(sinr_cosp, cosr_cosp)
+
+    # pitch (y-axis rotation)
+    sinp = 2.0 * (qw * qy - qz * qx)
+    if abs(sinp) >= 1.0:
+        pitch = (pi if sinp > 0.0 else -pi) / 2.0   # use 90 degrees if out of range
+    else:
+        pitch = asin(sinp)
+
+    # yaw (z-axis rotation)
+    siny_cosp = 2.0 * (qw * qz + qx * qy)
+    cosy_cosp = 1.0 - 2.0 * (qy * qy + qz * qz)
+    yaw = atan2(siny_cosp, cosy_cosp)
+
+    # Convert to degrees:
+    roll = degrees(roll)
+    pitch = degrees(pitch)
+    yaw = degrees(yaw)
+    return roll, pitch, yaw
+
+
 def run(verbose=False):
     global DATA
 
@@ -87,15 +232,16 @@ def run(verbose=False):
     dt = 1000000 // 100  # data streams at 100Hz
     dt_s = dt / 1000000
 
-    gyro_accum = (0.0, 0.0, 0.0)
+    gyro_accum = [0.0, 0.0, 0.0]
+    quaternion = [1.0, 0.0, 0.0, 0.0]
 
-    sleep = 0.001
+    sleep = 0.005
 
     for i in count():
         fifo_length = get_fifo_length(fd)
         if fifo_length > 200:
             reset_fifo_sequence(fd)
-            sleep = 0.001
+            sleep = 0.005
         elif fifo_length >= MPU6050_PACKET_SIZE:
             buf = read_fifo_packet(fd, fifo_length)
             t = time.time()
@@ -112,7 +258,7 @@ def run(verbose=False):
                     'accel': accel,
                     'gyro': gyro,
                     'gyro_accum': gyro_accum,
-                    #'fusionPose': ..., TODO
+                    'ahrs': roll_pitch_yaw(madgwick_update(accel, gyro, quaternion, dt_s)),
                 }
                 COND.notify_all()
             curr_time += dt
