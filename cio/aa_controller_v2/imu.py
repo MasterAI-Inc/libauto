@@ -89,15 +89,16 @@ def run(verbose=False):
 
     gyro_accum = (0.0, 0.0, 0.0)
 
-    sleep = 0.005
+    sleep = 0.001
 
     for i in count():
         fifo_length = get_fifo_length(fd)
         if fifo_length > 200:
             reset_fifo_sequence(fd)
-            sleep = 0.005
+            sleep = 0.001
         elif fifo_length >= MPU6050_PACKET_SIZE:
             buf = read_fifo_packet(fd, fifo_length)
+            t = time.time()
             vals = struct.unpack('>6h', buf)
             vals = [v * MPU6050_ACCEL_CNVT for v in vals[:3]] + [v * MPU6050_GYRO_CNVT for v in vals[3:]]
             if verbose:
@@ -115,10 +116,12 @@ def run(verbose=False):
                 }
                 COND.notify_all()
             curr_time += dt
-            time.sleep(sleep)
-            sleep *= 0.99
-        else:
+            s = dt_s - (time.time() - t) - sleep
+            if s > 0.0:
+                time.sleep(s)
             sleep *= 1.01
+        else:
+            sleep *= 0.99
 
     close_i2c(fd)
 
