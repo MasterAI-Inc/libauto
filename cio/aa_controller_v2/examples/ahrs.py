@@ -26,7 +26,7 @@ async def run():
 
     ahrs = await c.acquire('AHRS')
 
-    for i in range(1000):
+    for i in range(10000):
         fmt(await ahrs.read())
         await asyncio.sleep(0.05)
 

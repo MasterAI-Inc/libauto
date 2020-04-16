@@ -218,6 +218,21 @@ def roll_pitch_yaw(q):
     return roll, pitch, yaw
 
 
+def rotate_ahrs(accel, gyro):
+    """
+    Rotate the axes so that the roll/pitch/yaw
+    calculations result in the *expected* roll/pitch/yaw
+    orientation that is common for vehicles.
+    See:
+     - https://en.wikipedia.org/wiki/Euler_angles#Tait%E2%80%93Bryan_angles
+    """
+    ax, ay, az = accel
+    gx, gy, gz = gyro
+    accel = -ay, ax, az
+    gyro  = -gy, gx, gz
+    return accel, gyro
+
+
 def run(verbose=False):
     global DATA
 
@@ -252,13 +267,14 @@ def run(verbose=False):
             accel = vals[:3]
             gyro = vals[3:]
             gyro_accum = [(a + b*dt_s) for a, b in zip(gyro_accum, gyro)]
+            ahrs = roll_pitch_yaw(madgwick_update(*rotate_ahrs(accel, gyro), quaternion, dt_s))
             with COND:
                 DATA = {
                     'timestamp': curr_time,
                     'accel': accel,
                     'gyro': gyro,
                     'gyro_accum': gyro_accum,
-                    'ahrs': roll_pitch_yaw(madgwick_update(accel, gyro, quaternion, dt_s)),
+                    'ahrs': ahrs,
                 }
                 COND.notify_all()
             curr_time += dt
