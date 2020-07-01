@@ -121,11 +121,11 @@ def madgwick_update(accel, gyro, q, deltat):
 
     # Normalise accelerometer measurement
     norm = sqrt(ax * ax + ay * ay + az * az);
-    if norm == 0.0: return  # handle NaN
-    norm = 1.0/norm
-    ax *= norm
-    ay *= norm
-    az *= norm
+    if norm > 0.0:
+        norm = 1.0/norm
+        ax *= norm
+        ay *= norm
+        az *= norm
 
     # Compute the objective function and Jacobian
     f1 = _2q2 * q4 - _2q1 * q3 - ax
