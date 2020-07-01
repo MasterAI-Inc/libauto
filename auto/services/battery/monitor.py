@@ -60,10 +60,16 @@ async def _check_shutdown_forever(battery):
     while True:
         v = await battery.should_shut_down()
         if v:
-            log.info('Off switch triggered; shutting down...')
-            output = _shutdown(reboot=False)
-            log.info('Shutdown command output: {}'.format(output))
-            break
+            for _ in range(5):
+                await asyncio.sleep(0.1)
+                v = await battery.should_shut_down()
+                if not v:
+                    break
+            else:
+                log.info('Off switch triggered; shutting down...')
+                output = _shutdown(reboot=False)
+                log.info('Shutdown command output: {}'.format(output))
+                break
         await asyncio.sleep(1)
 
 
