@@ -20,6 +20,7 @@ Good reference implementations:
 
 import struct
 import time
+import sys
 from math import sqrt, atan2, asin, pi, radians, degrees
 from itertools import count
 from threading import Thread, Condition
@@ -233,7 +234,7 @@ def rotate_ahrs(accel, gyro):
     return accel, gyro
 
 
-def run(verbose=False):
+def run(verbose=True):
     fd = open_i2c(1, 0x68)
 
     try:
@@ -248,8 +249,6 @@ def _handle_fd(fd, verbose):
     if who_am_i(fd) != 0x34:
         raise Exception("WRONG WHO_AM_I!")
 
-    reset_fifo_sequence(fd)
-
     curr_time = 0       # microseconds
     dt = 1000000 // 100  # data streams at 100Hz
     dt_s = dt / 1000000
@@ -259,18 +258,20 @@ def _handle_fd(fd, verbose):
 
     sleep = 0.005
 
+    status = 'needs_reset'   # one of: 'needs_reset', 'did_reset', 'waiting', 'data'
+
     for i in count():
-        fifo_length = get_fifo_length(fd)
-        if fifo_length > 200:
-            reset_fifo_sequence(fd)
+        status, buf = _get_buf(fd, status)
+        if status == 'did_reset':
             sleep = 0.005
-        elif fifo_length >= MPU6050_PACKET_SIZE:
-            buf = read_fifo_packet(fd, fifo_length)
+        elif status == 'waiting':
+            sleep *= 0.99
+        elif status == 'data':
             t = time.time()
             vals = struct.unpack('>6h', buf)
             vals = [v * MPU6050_ACCEL_CNVT for v in vals[:3]] + [v * MPU6050_GYRO_CNVT for v in vals[3:]]
             if verbose:
-                print(fifo_length, f'{sleep:.4f}', ''.join([f'{v:10.3f}' for v in vals]))
+                print(f'{sleep:.4f}', ''.join([f'{v:10.3f}' for v in vals]))
             accel = vals[:3]
             gyro = vals[3:]
             gyro_accum = [(a + b*dt_s) for a, b in zip(gyro_accum, gyro)]
@@ -289,8 +290,28 @@ def _handle_fd(fd, verbose):
             if s > 0.0:
                 time.sleep(s)
             sleep *= 1.01
+
+
+def _get_buf(fd, status):
+    try:
+        if status == 'needs_reset':
+            reset_fifo_sequence(fd)
+            return 'did_reset', None
+        elif status in ('did_reset', 'waiting', 'data'):
+            fifo_length = get_fifo_length(fd)
+            if fifo_length > 200:
+                reset_fifo_sequence(fd)
+                return 'did_reset', None
+            elif fifo_length >= MPU6050_PACKET_SIZE:
+                buf = read_fifo_packet(fd, fifo_length)
+                return 'data', buf
+            else:
+                return 'waiting', None
         else:
-            sleep *= 0.99
+            raise Exception('unreachable')
+    except OSError:
+        print('IMU OSError', file=sys.stderr)
+        return 'needs_reset', None
 
 
 def start_thread():
