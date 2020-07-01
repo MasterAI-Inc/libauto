@@ -315,6 +315,8 @@ async def _drive_demo(console, controller, car, buttons):
 async def _calibrate_car_speed(console, car, buttons):
     min_throttle, max_throttle = await car.get_safe_throttle()
 
+    await car.on()
+
     _ = await _prompt(console, buttons, [1], CAR_SPEED_FORWARD)
 
     while True:
@@ -350,6 +352,8 @@ async def _calibrate_car_speed(console, car, buttons):
         elif answer == 3:
             min_throttle -= 1
         await car.set_safe_throttle(min_throttle, max_throttle)
+
+    await car.off()
 
 
 async def _calibrate_car_motors(console, car, buttons):
