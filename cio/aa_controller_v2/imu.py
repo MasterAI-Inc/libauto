@@ -234,9 +234,16 @@ def rotate_ahrs(accel, gyro):
 
 
 def run(verbose=False):
-    global DATA
-
     fd = open_i2c(1, 0x68)
+
+    try:
+        _handle_fd(fd, verbose)
+    finally:
+        close_i2c(fd)
+
+
+def _handle_fd(fd, verbose):
+    global DATA
 
     if who_am_i(fd) != 0x34:
         raise Exception("WRONG WHO_AM_I!")
@@ -284,8 +291,6 @@ def run(verbose=False):
             sleep *= 1.01
         else:
             sleep *= 0.99
-
-    close_i2c(fd)
 
 
 def start_thread():
