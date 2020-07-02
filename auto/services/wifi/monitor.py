@@ -11,7 +11,6 @@
 from auto.services.camera.client import CameraRGB
 from auto.services.console.client import CuiRoot
 from auto.services.controller.client import CioRoot
-from auto.services.labs.util import update_libauto
 from auto.services.wifi import myzbarlight
 from auto.services.wifi import util
 
@@ -136,7 +135,7 @@ async def _ensure_token(console, controller, system_priv_user):
         # We have an auth code which means this device was set with a token already. All is well.
         return
 
-    await asyncio.sleep(10)  # [1]
+    await asyncio.sleep(20)  # [1]
 
     await console.big_image('token_error')
     await console.big_status('Ready to receive login token.')
@@ -200,12 +199,6 @@ async def _ensure_token(console, controller, system_priv_user):
     await asyncio.sleep(2)
 
     await console.big_clear()
-
-
-async def _update_and_reboot_if_no_token(controller):
-    if (await _get_labs_auth_code(controller)) is None:
-        log.info("We now have Wifi, but we doesn't yet have a token. Therefore we will take this opportunity to update libauto.")
-        return await update_libauto()
 
 
 async def _print_connection_info(wireless, console):
@@ -273,10 +266,6 @@ async def _main_loop(wireless, console, controller, system_priv_user):
                         await _print_connection_info(wireless, console)
                         break
                 await console.big_clear()
-
-                update_result = await _update_and_reboot_if_no_token(controller)
-                if update_result is not None:
-                    log.info('Attempted to update libauto, got response: {}'.format(update_result))
 
         else:
             # We have WiFi.
@@ -368,7 +357,8 @@ if __name__ == '__main__':
 [1] There's a subtle bug with the PiCamera library (see https://github.com/waveform80/picamera/issues/527).
     Basically, when you connect to WiFi, it can set the system time, and setting the system time to a
     point in the future will cause the PiCamera library to blow up. We can work around this by closing
-    PiCamera's connection to the camera before connecting to WiFi (via the `release` method on the camera)
+    PiCamera's connection to the camera before connecting to WiFi (via the `release` method on the camera),
     and by sleeping for an extra few seconds before attempting to connect to WiFi (to allow the camera time
-    to fully release itself).
+    to fully release itself), and by sleeping _more_ before we reengage the camera to get the token (because
+    we need to the system time to be updated _before_ turning the camera back on)..
 """
