@@ -22,6 +22,7 @@ import struct
 import time
 import requests
 import re
+import os
 
 
 class Wireless:
@@ -52,7 +53,7 @@ class Wireless:
 
         time.sleep(2)    # Allow connection (and DHCP) to settle.
 
-        _ = _run_cmd(["sync"])
+        os.sync()
 
         return did_connect
 

@@ -22,6 +22,7 @@ from . import imu
 
 import cio
 
+import os
 import struct
 import asyncio
 from math import floor, isnan
@@ -75,12 +76,14 @@ class Credentials(cio.CredentialsIface):
 
     def _set_labs_auth_code(self, auth_code):
         self._get_db().put('DEVICE_LABS_AUTH_CODE', auth_code)
+        os.sync()
 
     def _get_jupyter_password(self):
         return self._get_db().get('DEVICE_JUPYTER_PASSWORD', None)
 
     def _set_jupyter_password(self, password):
         self._get_db().put('DEVICE_JUPYTER_PASSWORD', password)
+        os.sync()
 
 
 class LoopFrequency(cio.LoopFrequencyIface):

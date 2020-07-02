@@ -20,6 +20,7 @@ from .battery_discharge_curve import battery_map_millivolts_to_percentage
 
 import cio
 
+import os
 import struct
 import asyncio
 from math import floor
@@ -75,12 +76,14 @@ class Credentials(cio.CredentialsIface):
 
     def _set_labs_auth_code(self, auth_code):
         self._get_db().put('DEVICE_LABS_AUTH_CODE', auth_code)
+        os.sync()
 
     def _get_jupyter_password(self):
         return self._get_db().get('DEVICE_JUPYTER_PASSWORD', None)
 
     def _set_jupyter_password(self, password):
         self._get_db().put('DEVICE_JUPYTER_PASSWORD', password)
+        os.sync()
 
 
 class LoopFrequency(cio.LoopFrequencyIface):
@@ -496,6 +499,7 @@ class CarMotors(cio.CarMotorsIface):
         db = self._get_db()
         db.put('CAR_THROTTLE_FORWARD_SAFE_SPEED', min_throttle)
         db.put('CAR_THROTTLE_REVERSE_SAFE_SPEED', max_throttle)
+        os.sync()
 
     async def get_safe_throttle(self):
         if CarMotors.safe_throttle_cache is None:
