@@ -234,7 +234,7 @@ def rotate_ahrs(accel, gyro):
     return accel, gyro
 
 
-def run(verbose=True):
+def run(verbose=False):
     fd = open_i2c(1, 0x68)
 
     try:
