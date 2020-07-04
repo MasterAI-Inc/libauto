@@ -8,15 +8,9 @@
 #
 ###############################################################################
 
-__version__ = '2.4.4'
-
-
-def print_all(*args, **kwargs):
-    """
-    Prints to both standard out (as the build-in `print` does by default), and
-    also prints to the AutoAuto console!
-    """
-    from auto.console import print as aa_console_print
-    aa_console_print(*args, **kwargs)
-    print(*args, **kwargs)
+"""
+This subpackage contains demos for the car. Things in this subpackage
+are just used for demos and they should *not* be imported into any other
+part of libauto.
+"""
 
