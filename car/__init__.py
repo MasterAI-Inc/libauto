@@ -24,77 +24,137 @@ do not print.
 """
 
 from auto import print_all as print  # override the build-in `print()`
-
 import time
 
 
-def forward(duration=1.0, verbose=True):
+def forward(sec=None, cm=None, verbose=True):
     """
-    Drive the car forward for `duration` seconds.
-    """
-    from car import motors
-    if duration > 5.0:
-        print("Error: The duration exceeds 5 seconds; will reset to 5 seconds.")
-        duration = 5.0
-    if verbose:
-        print("Driving forward for {} seconds.".format(duration))
-    if duration <= 0.0:
-        return
-    motors.straight(motors.safe_forward_throttle(), duration, invert_output=False)
-
-
-def reverse(duration=1.0, verbose=True):
-    """
-    Drive the car in reverse for `duration` seconds.
+    Drive the car forward for `sec` seconds or `cm` centimeters.
     """
     from car import motors
-    if duration > 5.0:
-        print("Error: The duration exceeds 5 seconds; will reset to 5 seconds.")
-        duration = 5.0
-    if verbose:
-        print("Driving in reverse for {} seconds.".format(duration))
-    if duration <= 0.0:
+
+    if sec and cm:
+        print("Error: Please specify duration (sec) OR distance (cm) - not both.")
         return
-    motors.straight(motors.safe_reverse_throttle(), duration, invert_output=True)
+    if sec is None and cm is None:
+        sec = 1.0
+
+    if sec:
+        if sec > 5.0:
+            print("Error: The duration (sec) exceeds 5 seconds; will reset to 5 seconds.")
+            sec = 5.0
+        if sec <= 0.0:
+            return
+        if sec and verbose:
+            print("Driving forward for {} seconds.".format(sec))
+
+    if cm:
+        if cm <= 0.0:
+            return
+        if cm and verbose:
+            print("Driving forward for {} centimeters.".format(cm))
+
+    motors.straight(motors.safe_forward_throttle(), sec, cm, invert_output=False)
 
 
-def left(duration=1.0, verbose=True):
+def reverse(sec=None, cm=None, verbose=True):
     """
-    Drive the car forward and left for `duration` seconds.
+    Drive the car in reverse for `sec` seconds or `cm` centimeters.
     """
     from car import motors
-    if duration > 5.0:
-        print("Error: The duration exceeds 5 seconds; will reset to 5 seconds.")
-        duration = 5.0
-    if verbose:
-        print("Driving left for {} seconds.".format(duration))
-    if duration <= 0.0:
+
+    if sec and cm:
+        print("Error: Please specify duration (sec) OR distance (cm) - not both.")
         return
-    motors.drive(45.0, motors.safe_forward_throttle(), duration)
+    if sec is None and cm is None:
+        sec = 1.0
+
+    if sec:
+        if sec > 5.0:
+            print("Error: The duration (sec) exceeds 5 seconds; will reset to 5 seconds.")
+            sec = 5.0
+        if sec <= 0.0:
+            return
+        if sec and verbose:
+            print("Driving in reverse for {} seconds.".format(sec))
+
+    if cm:
+        if cm <= 0.0:
+            return
+        if cm and verbose:
+            print("Driving in reverse for {} centimeters.".format(cm))
+        cm = -cm
+
+    motors.straight(motors.safe_reverse_throttle(), sec, cm, invert_output=True, forward=False)
 
 
-def right(duration=1.0, verbose=True):
+def left(sec=None, deg=None, verbose=True):
     """
-    Drive the car forward and right for `duration` seconds.
+    Drive the car forward and left for `sec` seconds or `deg` degrees.
     """
     from car import motors
-    if duration > 5.0:
-        print("Error: The duration exceeds 5 seconds; will reset to 5 seconds.")
-        duration = 5.0
-    if verbose:
-        print("Driving right for {} seconds.".format(duration))
-    if duration <= 0.0:
+
+    if sec and deg:
+        print("Error: Please specify duration (sec) OR degrees (deg) - not both.")
         return
-    motors.drive(-45.0, motors.safe_forward_throttle(), duration)
+    if sec is None and deg is None:
+        sec = 1.0
+
+    if sec:
+        if sec > 5.0:
+            print("Error: The duration (sec) exceeds 5 seconds; will reset to 5 seconds.")
+            sec = 5.0
+        if verbose:
+            print("Driving left for {} seconds.".format(sec))
+        if sec <= 0.0:
+            return
+
+    if deg:
+        if deg <= 0.0:
+            return
+        if deg and verbose:
+            print("Driving left for {} degrees.".format(deg))
+
+    motors.drive(45.0, motors.safe_forward_throttle(), sec, deg)
 
 
-def pause(duration=1.0, verbose=True):
+def right(sec=None, deg=None, verbose=True):
     """
-    Pause the car's code for `duration` seconds.
+    Drive the car forward and right for `sec` seconds or `deg` degrees.
+    """
+    from car import motors
+
+    if sec and deg:
+        print("Error: Please specify duration (sec) OR degrees (deg) - not both.")
+        return
+    if sec is None and deg is None:
+        sec = 1.0
+
+    if sec:
+        if sec > 5.0:
+            print("Error: The duration (sec) exceeds 5 seconds; will reset to 5 seconds.")
+            sec = 5.0
+        if verbose:
+            print("Driving right for {} seconds.".format(sec))
+        if sec <= 0.0:
+            return
+
+    if deg:
+        if deg <= 0.0:
+            return
+        if deg and verbose:
+            print("Driving right for {} degrees.".format(deg))
+
+    motors.drive(-45.0, motors.safe_forward_throttle(), sec, deg)
+
+
+def pause(sec=1.0, verbose=True):
+    """
+    Pause the car's code for `sec` seconds.
     """
     if verbose:
-        print("Pausing for {} seconds.".format(duration))
-    time.sleep(duration)
+        print("Pausing for {} seconds.".format(sec))
+    time.sleep(sec)
 
 
 def capture(num_frames=1, verbose=True):
