@@ -34,7 +34,7 @@ gpiozero==1.5.1
 grpcio==1.25.0
 h5py==2.10.0
 html5lib==1.0.1
-httplib2==0.14.0
+httplib2==0.18.0
 idna==2.6
 importlib-metadata==0.23
 ipykernel==5.1.3
