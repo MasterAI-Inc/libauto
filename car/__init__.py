@@ -29,11 +29,12 @@ import time
 
 def forward(sec=None, cm=None, verbose=True):
     """
-    Drive the car forward for `sec` seconds or `cm` centimeters.
+    Drive the car forward for `sec` seconds or `cm` centimeters (passing in both
+    will raise an error). If neither is passed in, the car will drive for 1 second.
     """
     from car import motors
 
-    if sec and cm:
+    if sec is not None and cm is not None:
         print("Error: Please specify duration (sec) OR distance (cm) - not both.")
         return
     if sec is None and cm is None:
@@ -45,13 +46,16 @@ def forward(sec=None, cm=None, verbose=True):
             sec = 5.0
         if sec <= 0.0:
             return
-        if sec and verbose:
+        if verbose:
             print("Driving forward for {} seconds.".format(sec))
 
-    if cm:
+    if cm is not None:
+        if cm > 300.0:
+            print("Error: The distance (cm) exceeds 300 cm (~10 feet); will reset to 300 cm.")
+            cm = 300.0
         if cm <= 0.0:
             return
-        if cm and verbose:
+        if verbose:
             print("Driving forward for {} centimeters.".format(cm))
 
     motors.straight(motors.safe_forward_throttle(), sec, cm, invert_output=False)
@@ -59,11 +63,12 @@ def forward(sec=None, cm=None, verbose=True):
 
 def reverse(sec=None, cm=None, verbose=True):
     """
-    Drive the car in reverse for `sec` seconds or `cm` centimeters.
+    Drive the car in reverse for `sec` seconds or `cm` centimeters (passing in both
+    will raise an error). If neither is passed in, the car will drive for 1 second.
     """
     from car import motors
 
-    if sec and cm:
+    if sec is not None and cm is not None:
         print("Error: Please specify duration (sec) OR distance (cm) - not both.")
         return
     if sec is None and cm is None:
@@ -75,13 +80,16 @@ def reverse(sec=None, cm=None, verbose=True):
             sec = 5.0
         if sec <= 0.0:
             return
-        if sec and verbose:
+        if verbose:
             print("Driving in reverse for {} seconds.".format(sec))
 
-    if cm:
+    if cm is not None:
+        if cm > 300.0:
+            print("Error: The distance (cm) exceeds 300 cm (~10 feet); will reset to 300 cm.")
+            cm = 300.0
         if cm <= 0.0:
             return
-        if cm and verbose:
+        if verbose:
             print("Driving in reverse for {} centimeters.".format(cm))
         cm = -cm
 
@@ -90,11 +98,12 @@ def reverse(sec=None, cm=None, verbose=True):
 
 def left(sec=None, deg=None, verbose=True):
     """
-    Drive the car forward and left for `sec` seconds or `deg` degrees.
+    Drive the car forward and left for `sec` seconds or `deg` degrees (passing in both
+    will raise an error). If neither is passed in, the car will drive for 1 second.
     """
     from car import motors
 
-    if sec and deg:
+    if sec is not None and deg is not None:
         print("Error: Please specify duration (sec) OR degrees (deg) - not both.")
         return
     if sec is None and deg is None:
@@ -104,15 +113,18 @@ def left(sec=None, deg=None, verbose=True):
         if sec > 5.0:
             print("Error: The duration (sec) exceeds 5 seconds; will reset to 5 seconds.")
             sec = 5.0
-        if verbose:
-            print("Driving left for {} seconds.".format(sec))
         if sec <= 0.0:
             return
+        if verbose:
+            print("Driving left for {} seconds.".format(sec))
 
-    if deg:
+    if deg is not None:
+        if deg > 360.0:
+            print("Error: The degrees (deg) exceeds 360; will reset to 360.")
+            cm = 360.0
         if deg <= 0.0:
             return
-        if deg and verbose:
+        if verbose:
             print("Driving left for {} degrees.".format(deg))
 
     motors.drive(45.0, motors.safe_forward_throttle(), sec, deg)
@@ -120,11 +132,12 @@ def left(sec=None, deg=None, verbose=True):
 
 def right(sec=None, deg=None, verbose=True):
     """
-    Drive the car forward and right for `sec` seconds or `deg` degrees.
+    Drive the car forwad and right for `sec` seconds or `deg` degrees (passing in both
+    will raise an error). If neither is passed in, the car will drive for 1 second.
     """
     from car import motors
 
-    if sec and deg:
+    if sec is not None and deg is not None:
         print("Error: Please specify duration (sec) OR degrees (deg) - not both.")
         return
     if sec is None and deg is None:
@@ -134,15 +147,18 @@ def right(sec=None, deg=None, verbose=True):
         if sec > 5.0:
             print("Error: The duration (sec) exceeds 5 seconds; will reset to 5 seconds.")
             sec = 5.0
-        if verbose:
-            print("Driving right for {} seconds.".format(sec))
         if sec <= 0.0:
             return
+        if verbose:
+            print("Driving right for {} seconds.".format(sec))
 
-    if deg:
+    if deg is not None:
+        if deg > 360.0:
+            print("Error: The degrees (deg) exceeds 360; will reset to 360.")
+            cm = 360.0
         if deg <= 0.0:
             return
-        if deg and verbose:
+        if verbose:
             print("Driving right for {} degrees.".format(deg))
 
     motors.drive(-45.0, motors.safe_forward_throttle(), sec, deg)
