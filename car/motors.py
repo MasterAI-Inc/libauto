@@ -18,15 +18,11 @@ from auto.capabilities import list_caps, acquire
 import time
 
 
-WHEEL_CIRCUMFERENCE = 197.92    # in millimeters
+ENCODER_INDEX = None            # PCB's index for the encoder
+ENCODER_CPR = 28                # The encoder's counts per revolution
 MOTOR_RATIO = 100               # e.g. if "100:1", then just 100
-ENCODER_CPR = 28                # the encoder's counts per revolution
-INVERT_ENCODER = -1             # 1 or -1; specific to how the encoder is insatlled
-
-
-enc = acquire('Encoders')
-enc.enable(1)
-gyroscope = acquire('Gyroscope_accum')
+WHEEL_CIRCUMFERENCE = 197.92    # In millimeters
+INVERT_ENCODER = -1             # 1 or -1; specific to how the encoder is installed
 
 
 def safe_forward_throttle():
@@ -66,6 +62,9 @@ def straight(throttle, duration, distance, invert_output, forward=True):
     """
     pid_steering = _get_pid_steering()
     gyro_accum = _get_gyro_accum()
+    if ENCODER_INDEX is not None:
+        encoder = _get_encoder()
+        encoder.enable(ENCODER_INDEX)
     set_steering(0.0)
     time.sleep(0.1)
     _, _, z = gyro_accum.read()
@@ -85,10 +84,10 @@ def straight(throttle, duration, distance, invert_output, forward=True):
         # Multiply by 10 to convert cm to mm.
         distance *= 10
         # `target_distance` adjusts for the current encoder reading.
-        target_distance = get_current_distance() + distance
+        target_distance = get_current_distance(encoder) + distance
 
         while True:
-            curr_distance = get_current_distance()
+            curr_distance = get_current_distance(encoder)
             if forward:
                 if curr_distance >= target_distance:
                     break
@@ -129,7 +128,7 @@ def drive(angle, throttle, duration, degrees):
 
         if degrees:
             # Start the gyroscope reading at 0.
-            gyroscope.reset()
+            _GYRO_ACCUM.reset()
             while True:
                 curr_degrees = get_current_degrees()
                 if curr_degrees >= degrees:
@@ -141,12 +140,12 @@ def drive(angle, throttle, duration, degrees):
         time.sleep(0.1)
 
 
-def get_current_distance():
+def get_current_distance(encoder):
     """
     Gets current encoder count, converts to linear distance and
     returns distance in millimeters.
     """
-    curr_count, _, _ = enc.read_counts(1)
+    curr_count, _, _ = encoder.read_counts(ENCODER_INDEX)
 
     # Convert `curr_count` to linear distance.
     curr_distance = (curr_count / ENCODER_CPR) * (WHEEL_CIRCUMFERENCE / MOTOR_RATIO)
@@ -158,7 +157,7 @@ def get_current_degrees():
     """
     Gets current gyroscope's z-axis reading in degrees.
     """
-    x, y, z = gyroscope.read()
+    x, y, z = _GYRO_ACCUM.read()
     return abs(z)
 
 
@@ -232,3 +231,14 @@ def _get_gyro_accum():
         _GYRO_ACCUM = acquire('Gyroscope_accum')
     return _GYRO_ACCUM
 
+
+def _get_encoder():
+    global _ENCODER
+    try:
+        _ENCODER
+    except NameError:
+        caps = list_caps()
+        if 'Encoders' not in caps:
+            raise AttributeError('This device has no encoder.')
+        _ENCODER = acquire('Encoders')
+    return _ENCODER
