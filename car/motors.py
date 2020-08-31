@@ -21,6 +21,8 @@ import time
 WHEEL_CIRCUMFERENCE = 197.92    # in millimeters
 MOTOR_RATIO = 100               # e.g. if "100:1", then just 100
 ENCODER_CPR = 28                # the encoder's counts per revolution
+INVERT_ENCODER = -1             # 1 or -1; specific to how the encoder is insatlled
+
 
 enc = acquire('Encoders')
 enc.enable(1)
@@ -149,7 +151,7 @@ def get_current_distance():
     # Convert `curr_count` to linear distance.
     curr_distance = (curr_count / ENCODER_CPR) * (WHEEL_CIRCUMFERENCE / MOTOR_RATIO)
 
-    return -curr_distance
+    return curr_distance * INVERT_ENCODER
 
 
 def get_current_degrees():
