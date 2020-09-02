@@ -18,7 +18,7 @@ from auto.capabilities import list_caps, acquire
 import time
 
 
-ENCODER_INDEX = None            # PCB's index for the encoder
+ENCODER_INDEX = 1               # PCB's index for the encoder
 ENCODER_CPR = 28                # The encoder's counts per revolution
 MOTOR_RATIO = 100               # e.g. if "100:1", then just 100
 WHEEL_CIRCUMFERENCE = 197.92    # In millimeters
@@ -62,9 +62,6 @@ def straight(throttle, duration, distance, invert_output, forward=True):
     """
     pid_steering = _get_pid_steering()
     gyro_accum = _get_gyro_accum()
-    if ENCODER_INDEX is not None:
-        encoder = _get_encoder()
-        encoder.enable(ENCODER_INDEX)
     set_steering(0.0)
     time.sleep(0.1)
     _, _, z = gyro_accum.read()
@@ -81,6 +78,7 @@ def straight(throttle, duration, distance, invert_output, forward=True):
             time.sleep(min(0.1, curr_time - start_time))
 
     elif distance:
+        encoder = _get_encoder()
         # Multiply by 10 to convert cm to mm.
         distance *= 10
         # `target_distance` adjusts for the current encoder reading.
@@ -102,42 +100,43 @@ def straight(throttle, duration, distance, invert_output, forward=True):
 
 
 def drive(angle, throttle, duration, degrees):
-        """
-        A more generic driving function.
+    """
+    A more generic driving function.
 
-        This function is synchronous, thus it will not return for
-        approximately `duration` seconds.
+    This function is synchronous, thus it will not return for
+    approximately `duration` seconds.
 
-        Note: If you use this function to drive the car "straight" (i.e. `angle=0`),
-              the car may still veer because this function does _not_ make use of the
-              car's gyroscope. This is unlike the `straight()` function, which _does_
-              use the car's gyroscope.
-        """
-        set_steering(angle)
-        time.sleep(0.1)
-        start_time = time.time()
+    Note: If you use this function to drive the car "straight" (i.e. `angle=0`),
+          the car may still veer because this function does _not_ make use of the
+          car's gyroscope. This is unlike the `straight()` function, which _does_
+          use the car's gyroscope.
+    """
+    set_steering(angle)
+    time.sleep(0.1)
+    start_time = time.time()
 
-        if duration:
-            while True:
-                curr_time = time.time()
-                if curr_time - start_time >= duration:
-                    break
-                set_throttle(throttle)
-                set_steering(angle)
-                time.sleep(min(0.1, curr_time - start_time))
+    if duration:
+        while True:
+            curr_time = time.time()
+            if curr_time - start_time >= duration:
+                break
+            set_throttle(throttle)
+            set_steering(angle)
+            time.sleep(min(0.1, curr_time - start_time))
 
-        if degrees:
-            # Start the gyroscope reading at 0.
-            _GYRO_ACCUM.reset()
-            while True:
-                curr_degrees = get_current_degrees()
-                if curr_degrees >= degrees:
-                    break
-                set_throttle(throttle)
-                set_steering(angle)
+    if degrees:
+        gyro = _get_gyro_accum()
+        # Start the gyroscope reading at 0.
+        gyro.reset()
+        while True:
+            curr_degrees = get_current_degrees(gyro)
+            if curr_degrees >= degrees:
+                break
+            set_throttle(throttle)
+            set_steering(angle)
 
-        set_throttle(0.0)
-        time.sleep(0.1)
+    set_throttle(0.0)
+    time.sleep(0.1)
 
 
 def get_current_distance(encoder):
@@ -153,11 +152,11 @@ def get_current_distance(encoder):
     return curr_distance * INVERT_ENCODER
 
 
-def get_current_degrees():
+def get_current_degrees(gyro):
     """
     Gets current gyroscope's z-axis reading in degrees.
     """
-    x, y, z = _GYRO_ACCUM.read()
+    x, y, z = gyro.read()
     return abs(z)
 
 
@@ -241,4 +240,5 @@ def _get_encoder():
         if 'Encoders' not in caps:
             raise AttributeError('This device has no encoder.')
         _ENCODER = acquire('Encoders')
+        _ENCODER.enable(ENCODER_INDEX)
     return _ENCODER
