@@ -26,6 +26,8 @@ import asyncio
 from math import floor
 from collections import deque
 
+import numpy as np
+
 
 class VersionInfo(cio.VersionInfoIface):
     def __init__(self, fd, reg_num):
@@ -382,6 +384,8 @@ class Encoders(cio.EncodersIface):
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
+        self.last_counts = {}
+        self.abs_counts  = {}
 
     async def num_encoders(self):
         return 2
@@ -394,9 +398,13 @@ class Encoders(cio.EncodersIface):
 
     async def read_counts(self, encoder_index):
         if encoder_index == 0:
-            return await self._read_e1_counts()
+            vals = await self._read_e1_counts()
         else:
-            return await self._read_e2_counts()
+            vals = await self._read_e2_counts()
+        vals = list(vals)
+        vals[0] = self._fix_count_rollover(vals[0], encoder_index)
+        vals = tuple(vals)
+        return vals
 
     async def read_timing(self, encoder_index):
         if encoder_index == 0:
@@ -453,6 +461,18 @@ class Encoders(cio.EncodersIface):
     async def _read_e2_timing(self):
         buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x07], 8)
         return struct.unpack('2I', buf)
+
+    def _fix_count_rollover(self, count, encoder_index):
+        count = np.int16(count)
+        if encoder_index not in self.last_counts:
+            self.last_counts[encoder_index] = count
+            self.abs_counts[encoder_index] = 0
+            return 0
+        diff = int(count - self.last_counts[encoder_index])
+        self.last_counts[encoder_index] = count
+        abs_count = self.abs_counts[encoder_index] + diff
+        self.abs_counts[encoder_index] = abs_count
+        return abs_count
 
 
 class CarMotors(cio.CarMotorsIface):
