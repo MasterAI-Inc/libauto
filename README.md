@@ -438,6 +438,31 @@ release(buttons)
 release(leds)
 ```
 
+### Encoders
+
+Some devices have motor encoders to track how many "clicks" the motor has rotated.
+
+```python
+from auto.capabilities import list_caps, acquire, release
+import time
+
+encoders = acquire('Encoders')
+
+index = 1
+
+print("There are", encoders.num_encoders(), "encoders.")
+print(f"Enabling encoder at index {index}.")
+
+encoders.enable(index)
+
+for i in range(50):
+    counts, _, _ = encoders.read_counts(index)
+    print(counts)
+    time.sleep(0.1)
+
+release(encoders)
+```
+
 ### Calibration
 
 Depending on the device you have, you can run the appropriate calibration script.
