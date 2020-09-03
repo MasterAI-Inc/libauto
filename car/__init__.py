@@ -37,10 +37,11 @@ def forward(sec=None, cm=None, verbose=True):
     if sec is not None and cm is not None:
         print("Error: Please specify duration (sec) OR distance (cm) - not both.")
         return
+
     if sec is None and cm is None:
         sec = 1.0
 
-    if sec:
+    if sec is not None:
         if sec > 5.0:
             print("Error: The duration (sec) exceeds 5 seconds; will reset to 5 seconds.")
             sec = 5.0
@@ -58,7 +59,7 @@ def forward(sec=None, cm=None, verbose=True):
         if verbose:
             print("Driving forward for {} centimeters.".format(cm))
 
-    motors.straight(motors.safe_forward_throttle(), sec, cm, invert_output=False)
+    motors.straight(motors.safe_forward_throttle(), sec, cm)
 
 
 def reverse(sec=None, cm=None, verbose=True):
@@ -71,10 +72,11 @@ def reverse(sec=None, cm=None, verbose=True):
     if sec is not None and cm is not None:
         print("Error: Please specify duration (sec) OR distance (cm) - not both.")
         return
+
     if sec is None and cm is None:
         sec = 1.0
 
-    if sec:
+    if sec is not None:
         if sec > 5.0:
             print("Error: The duration (sec) exceeds 5 seconds; will reset to 5 seconds.")
             sec = 5.0
@@ -93,7 +95,7 @@ def reverse(sec=None, cm=None, verbose=True):
             print("Driving in reverse for {} centimeters.".format(cm))
         cm = -cm
 
-    motors.straight(motors.safe_reverse_throttle(), sec, cm, invert_output=True, forward=False)
+    motors.straight(motors.safe_reverse_throttle(), sec, cm, invert_output=True)
 
 
 def left(sec=None, deg=None, verbose=True):
@@ -106,10 +108,11 @@ def left(sec=None, deg=None, verbose=True):
     if sec is not None and deg is not None:
         print("Error: Please specify duration (sec) OR degrees (deg) - not both.")
         return
+
     if sec is None and deg is None:
         sec = 1.0
 
-    if sec:
+    if sec is not None:
         if sec > 5.0:
             print("Error: The duration (sec) exceeds 5 seconds; will reset to 5 seconds.")
             sec = 5.0
@@ -121,7 +124,7 @@ def left(sec=None, deg=None, verbose=True):
     if deg is not None:
         if deg > 360.0:
             print("Error: The degrees (deg) exceeds 360; will reset to 360.")
-            cm = 360.0
+            deg = 360.0
         if deg <= 0.0:
             return
         if verbose:
@@ -140,10 +143,11 @@ def right(sec=None, deg=None, verbose=True):
     if sec is not None and deg is not None:
         print("Error: Please specify duration (sec) OR degrees (deg) - not both.")
         return
+
     if sec is None and deg is None:
         sec = 1.0
 
-    if sec:
+    if sec is not None:
         if sec > 5.0:
             print("Error: The duration (sec) exceeds 5 seconds; will reset to 5 seconds.")
             sec = 5.0
@@ -155,7 +159,7 @@ def right(sec=None, deg=None, verbose=True):
     if deg is not None:
         if deg > 360.0:
             print("Error: The degrees (deg) exceeds 360; will reset to 360.")
-            cm = 360.0
+            deg = 360.0
         if deg <= 0.0:
             return
         if verbose:

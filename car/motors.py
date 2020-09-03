@@ -19,10 +19,10 @@ import time
 
 
 ENCODER_INDEX = 1               # PCB's index for the encoder
-ENCODER_CPR = 28                # The encoder's counts per revolution
-MOTOR_RATIO = 100               # e.g. if "100:1", then just 100
+ENCODER_CPR = 28                # Encoder's counts per revolution (CPR)
+MOTOR_RATIO = 100               # Motor's internal gearbox ratio; e.g. if "100:1", then just 100
 WHEEL_CIRCUMFERENCE = 197.92    # In millimeters
-INVERT_ENCODER = -1             # 1 or -1; specific to how the encoder is installed
+INVERT_ENCODER = -1             # 1 or -1; specific to how the encoder is installed.
 
 
 def safe_forward_throttle():
@@ -52,13 +52,13 @@ def safe_reverse_throttle():
     return safe_reverse
 
 
-def straight(throttle, duration, distance, invert_output, forward=True):
+def straight(throttle, sec, cm, invert_output=False):
     """
     Drive the car "straight". This function uses the car's gyroscope to
     continually keep the car in the same direction in which it started.
 
-    This function is synchronous, thus it will not return until after these
-    instructions are finish, which takes approximately `duration` seconds.
+    This function is synchronous, thus it will not return until after the
+    car has completed the desired motion.
     """
     pid_steering = _get_pid_steering()
     gyro_accum = _get_gyro_accum()
@@ -69,42 +69,36 @@ def straight(throttle, duration, distance, invert_output, forward=True):
     pid_steering.set_point(z)
     pid_steering.enable(invert_output=invert_output)
 
-    if duration:
+    if sec:
         while True:
             curr_time = time.time()
-            if curr_time - start_time >= duration:
+            if curr_time - start_time >= sec:
                 break
             set_throttle(throttle)
             time.sleep(min(0.1, curr_time - start_time))
 
-    elif distance:
-        encoder = _get_encoder()
-        # Multiply by 10 to convert cm to mm.
-        distance *= 10
-        # `target_distance` adjusts for the current encoder reading.
-        target_distance = get_current_distance(encoder) + distance
-
-        while True:
-            curr_distance = get_current_distance(encoder)
-            if forward:
-                if curr_distance >= target_distance:
-                    break
-            else:
-                if curr_distance <= target_distance:
-                    break
-            set_throttle(throttle)
+    elif cm:
+        start_distance = current_distance_cm()
+        throttle_time = time.time()
+        set_throttle(throttle)
+        while abs(current_distance_cm() - start_distance) < cm:
+            curr_time = time.time()
+            if curr_time - throttle_time > 0.75:
+                set_throttle(throttle)
+                throttle_time = curr_time
 
     set_throttle(0.0)
     time.sleep(0.1)
     pid_steering.disable()
 
 
-def drive(angle, throttle, duration, degrees):
+def drive(angle, throttle, sec, deg):
     """
-    A more generic driving function.
+    Drive at a given wheel angle (`angle`) and at a given throttle (`throttle`)
+    for a given duration (`sec`) or degrees (`deg`).
 
-    This function is synchronous, thus it will not return for
-    approximately `duration` seconds.
+    This function is synchronous, thus it will not return until after the
+    car has completed the desired motion.
 
     Note: If you use this function to drive the car "straight" (i.e. `angle=0`),
           the car may still veer because this function does _not_ make use of the
@@ -115,49 +109,49 @@ def drive(angle, throttle, duration, degrees):
     time.sleep(0.1)
     start_time = time.time()
 
-    if duration:
+    if sec:
         while True:
             curr_time = time.time()
-            if curr_time - start_time >= duration:
+            if curr_time - start_time >= sec:
                 break
             set_throttle(throttle)
             set_steering(angle)
             time.sleep(min(0.1, curr_time - start_time))
 
-    if degrees:
+    elif deg:
         gyro = _get_gyro_accum()
-        # Start the gyroscope reading at 0.
-        gyro.reset()
+        gyro.reset()  # Start the gyroscope reading at 0.
+        throttle_time = time.time()
+        set_throttle(throttle)
         while True:
-            curr_degrees = get_current_degrees(gyro)
-            if curr_degrees >= degrees:
+            x, y, z = gyro.read()
+            if abs(z) >= deg:
                 break
-            set_throttle(throttle)
-            set_steering(angle)
+            curr_time = time.time()
+            if curr_time - throttle_time > 0.75:
+                set_throttle(throttle)
+                set_steering(angle)
+                throttle_time = curr_time
 
     set_throttle(0.0)
     time.sleep(0.1)
 
 
-def get_current_distance(encoder):
+def current_distance_cm():
     """
-    Gets current encoder count, converts to linear distance and
-    returns distance in millimeters.
+    Use the encoder to calculate how far the car has travels
+    since bootup.
     """
+    encoder = _get_encoder()
     curr_count, _, _ = encoder.read_counts(ENCODER_INDEX)
 
-    # Convert `curr_count` to linear distance.
+    # Convert `curr_count` to linear distance (in mm).
     curr_distance = (curr_count / ENCODER_CPR) * (WHEEL_CIRCUMFERENCE / MOTOR_RATIO)
 
+    # mm to cm
+    curr_distance /= 10
+
     return curr_distance * INVERT_ENCODER
-
-
-def get_current_degrees(gyro):
-    """
-    Gets current gyroscope's z-axis reading in degrees.
-    """
-    x, y, z = gyro.read()
-    return abs(z)
 
 
 def set_steering(angle):
@@ -242,3 +236,4 @@ def _get_encoder():
         _ENCODER = acquire('Encoders')
         _ENCODER.enable(ENCODER_INDEX)
     return _ENCODER
+
