@@ -93,7 +93,6 @@ def reverse(sec=None, cm=None, verbose=True):
             return
         if verbose:
             print("Driving in reverse for {} centimeters.".format(cm))
-        cm = -cm
 
     motors.straight(motors.safe_reverse_throttle(), sec, cm, invert_output=True)
 
