@@ -19,7 +19,7 @@ import time
 
 
 ENCODER_INDEX = 1               # PCB's index for the encoder
-ENCODER_CPR = 28                # Encoder's counts per revolution (CPR)
+ENCODER_CPR = 20                # Encoder's counts per revolution (CPR)
 MOTOR_RATIO = 100               # Motor's internal gearbox ratio; e.g. if "100:1", then just 100
 WHEEL_CIRCUMFERENCE = 197.92    # In millimeters
 INVERT_ENCODER = -1             # 1 or -1; specific to how the encoder is installed.
