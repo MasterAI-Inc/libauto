@@ -392,16 +392,19 @@ class LEDs(cio.LEDsIface):
         await self._show()
 
     async def mode_map(self):
-        # TODO
-        return {}
+        return {
+            'spin': 'Spin colors around the six primary LEDs.',
+            'beat': 'Pulse white the six primary LEDs.',
+        }
 
     @i2c_retry(N_I2C_TRIES)
     async def set_mode(self, mode_identifier):
-        # TODO
-        mode = 0   # default mode where the values are merely those set by `set_led()`
+        mode = 0
         if mode_identifier == 'spin':
             mode = 1
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x0F, mode], 1)
+        elif mode_identifier == 'beat':
+            mode = 2
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x03, mode], 1)
         if status != 72:
             raise Exception("failed to set LED mode")
 

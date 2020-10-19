@@ -32,7 +32,7 @@ N_I2C_TRIES = 10
 """
 For this particular controller, we talk to it via I2C.
 """
-CONTROLLER_I2C_SLAVE_ADDRESS = 0x14
+CONTROLLER_I2C_SLAVE_ADDRESS = 0x15
 
 
 import asyncio
