@@ -9,7 +9,7 @@
 ###############################################################################
 
 """
-This package contains the interface to AutoAuto v2 microcontroller which we
+This package contains the interface to AutoAuto v3 microcontroller which we
 communicate with via I2C from this host.
 """
 
@@ -47,7 +47,7 @@ import cio
 
 class CioRoot(cio.CioRoot):
     """
-    This is the CIO root interface for the AutoAuto v2.x microcontrollers.
+    This is the CIO root interface for the AutoAuto v3.x microcontrollers.
     """
 
     def __init__(self):
@@ -58,7 +58,7 @@ class CioRoot(cio.CioRoot):
 
     async def init(self):
         """
-        Attempt to initialize the version 2.x AutoAuto controller. Return a list
+        Attempt to initialize the version 3.x AutoAuto controller. Return a list
         of capabilities if initialization worked, else raise an exception.
         """
         async with self.lock:
@@ -89,32 +89,33 @@ class CioRoot(cio.CioRoot):
                 major, minor = await version_info.version()
                 await capabilities.release_component_interface(self.capability_ref_count, version_info)
 
-                if major != 2:
-                    raise Exception('Controller is not version 2, thus this interface will not work.')
+                if major != 3:
+                    raise Exception('Controller is not version 3, thus this interface will not work.')
 
-                imu.start_thread()
-                loop = asyncio.get_running_loop()
-                imu_start = loop.time()
-                imu_working = True
-                while imu.DATA is None:
-                    if loop.time() - imu_start > 1.0:
-                        imu_working = False
-                        break
-                    await asyncio.sleep(0.1)
+                # TODO
+                #imu.start_thread()
+                #loop = asyncio.get_running_loop()
+                #imu_start = loop.time()
+                #imu_working = True
+                #while imu.DATA is None:
+                #    if loop.time() - imu_start > 1.0:
+                #        imu_working = False
+                #        break
+                #    await asyncio.sleep(0.1)
 
-                if imu_working:
-                    for c in ['Gyroscope', 'Gyroscope_accum', 'Accelerometer', 'AHRS']:
-                        self.caps[c] = {
-                                'register_number': None,   # <-- this is a virtual component; it is implemented on the Python side, not the controller side
-                                'is_enabled': False
-                        }
-                    if 'CarMotors' in self.caps:
-                        carmotors_regnum = self.caps['CarMotors']['register_number']
-                        gyroaccum_regnum = self.caps['Gyroscope_accum']['register_number']
-                        self.caps['PID_steering'] = {
-                                'register_number': (carmotors_regnum, gyroaccum_regnum),
-                                'is_enabled': False
-                        }
+                #if imu_working:
+                #    for c in ['Gyroscope', 'Gyroscope_accum', 'Accelerometer', 'AHRS']:
+                #        self.caps[c] = {
+                #                'register_number': None,   # <-- this is a virtual component; it is implemented on the Python side, not the controller side
+                #                'is_enabled': False
+                #        }
+                #    if 'CarMotors' in self.caps:
+                #        carmotors_regnum = self.caps['CarMotors']['register_number']
+                #        gyroaccum_regnum = self.caps['Gyroscope_accum']['register_number']
+                #        self.caps['PID_steering'] = {
+                #                'register_number': (carmotors_regnum, gyroaccum_regnum),
+                #                'is_enabled': False
+                #        }
 
             except:
                 if self.fd is not None:
