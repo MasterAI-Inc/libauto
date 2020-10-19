@@ -351,51 +351,69 @@ class LEDs(cio.LEDsIface):
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
-        self.vals = {
-            'red': False,
-            'green': False,
-            'blue': False,
-        }
+        self.NUM_LEDS = 6
+        self.vals = [None for index in range(self.NUM_LEDS)]  # so that fist call to _set() actually sets it, no matter what the value
 
     async def led_map(self):
-        return {
-            'red': 'The red LED',
-            'green': 'The green LED',
-            'blue': 'The blue LED',
-        }
+        return {index: 'RGB LED at index {}'.format(index) for index in range(self.NUM_LEDS)}
 
     @i2c_retry(N_I2C_TRIES)
-    async def _set(self):
-        red   = self.vals['red']
-        green = self.vals['green']
-        blue  = self.vals['blue']
-        led_state = ((1 if red else 0) | ((1 if green else 0) << 1) | ((1 if blue else 0) << 2))
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x00, led_state], 1)
+    async def _set(self, index, val):
+        if not isinstance(index, int):
+            raise ValueError('You must pass an integer for the led identifier parameter.')
+        if index < 0 or index >= self.NUM_LEDS:
+            raise ValueError('The index {} is out of range.'.format(index))
+        if isinstance(val, int):
+            r, g, b = val, val, val
+        elif isinstance(val, (tuple, list)):
+            r, g, b = val
+        else:
+            raise ValueError('You must pass the LED value as a three-tuple denoting the three RGB values.')
+        if self.vals[index] == val:
+            return
+        self.vals[index] = val
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x00, index, r, g, b], 1)
+        if status != 72:
+            raise Exception("failed to set LED state")
+
+    @i2c_retry(N_I2C_TRIES)
+    async def _show(self):
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x02], 1)
         if status != 72:
             raise Exception("failed to set LED state")
 
     async def set_led(self, led_identifier, val):
-        self.vals[led_identifier] = val
-        await self._set()
+        await self._set(led_identifier, val)
+        await self._show()
 
     async def set_many_leds(self, id_val_list):
         for led_identifier, val in id_val_list:
-            self.vals[led_identifier] = val
-        await self._set()
+            await self._set(led_identifier, val)
+        await self._show()
 
     async def mode_map(self):
-        return {
-            'spin': 'the LEDs flash red, then green, then blue, then repeat',
-        }
+        # TODO
+        return {}
 
     @i2c_retry(N_I2C_TRIES)
     async def set_mode(self, mode_identifier):
+        # TODO
         mode = 0   # default mode where the values are merely those set by `set_led()`
         if mode_identifier == 'spin':
             mode = 1
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01, mode], 1)
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x0F, mode], 1)
         if status != 72:
             raise Exception("failed to set LED mode")
+
+    @i2c_retry(N_I2C_TRIES)
+    async def _set_brightness(self, brightness):
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01, brightness], 1)
+        if status != 72:
+            raise Exception("failed to set LED mode")
+
+    async def set_brightness(self, brightness):
+        await self._set_brightness(brightness)
+        await self._show()
 
 
 class Photoresistor(cio.PhotoresistorIface):

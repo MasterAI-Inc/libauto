@@ -359,6 +359,9 @@ class LEDs(cio.LEDsIface):
         if status != 72:
             raise Exception("failed to set LED mode")
 
+    async def set_brightness(self, brightness):
+        raise Exception('LED brightness not available on this hardware.')
+
 
 class Photoresistor(cio.PhotoresistorIface):
     def __init__(self, fd, reg_num):

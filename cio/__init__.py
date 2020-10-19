@@ -440,6 +440,14 @@ class LEDsIface(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
+    async def set_brightness(self, brightness):
+        """
+        Set the brightness of the LEDs, in the range [0-255].
+        Raises if not supported by the hardware you have.
+        """
+        pass
+
 
 class PhotoresistorIface(abc.ABC):
     """
