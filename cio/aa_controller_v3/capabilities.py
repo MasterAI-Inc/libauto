@@ -60,8 +60,8 @@ async def get_num_components(fd, only_enabled):
     (when `only_enabled=False`) or the list of enabled components (when `only_enabled=True`).
     """
     which_list = 0x01 if only_enabled else 0x00
-    lsb, msb = await write_read_i2c_with_integrity(fd, [CAPABILITIES_REG_NUM, 0x02, which_list], 2)
-    return (msb << 8) | lsb
+    n, = await write_read_i2c_with_integrity(fd, [CAPABILITIES_REG_NUM, 0x02, which_list], 1)
+    return n
 
 
 @i2c_retry(N_I2C_TRIES)

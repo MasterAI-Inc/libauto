@@ -134,7 +134,7 @@ async def write_read_i2c_with_integrity(fd, write_buf, read_len):
     )
     read_buf = integrity.check_integrity(read_buf)
     if read_buf is None:
-        raise OSError(errno.ECOMM, os.strerror(errno.ECOMM))
+        raise OSError(errno.ECOMM, os.strerror(errno.ECOMM) + ' - integrity error')
     return read_buf
 
 

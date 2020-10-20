@@ -550,14 +550,14 @@ class CarMotors(cio.CarMotorsIface):
     @i2c_retry(N_I2C_TRIES)
     async def set_steering(self, steering):
         steering = int(round(min(max(steering, -45), 45)))
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01, (steering & 0xFF), ((steering >> 8) & 0xFF)], 1)
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01, steering & 0xFF], 1)
         if status != 104:
             raise Exception("failed to set steering")
 
     @i2c_retry(N_I2C_TRIES)
     async def set_throttle(self, throttle):
         throttle = int(round(min(max(throttle, -100), 100)))
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x02, (throttle & 0xFF), ((throttle >> 8) & 0xFF)], 1)
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x02, throttle & 0xFF], 1)
         if status != 104:
             raise Exception("failed to set throttle")
 
@@ -590,19 +590,12 @@ class CarMotors(cio.CarMotorsIface):
         if status != 104:
             raise Exception("failed to turn off car motors")
 
-    async def set_params(self, top, steering_left, steering_mid, steering_right, steering_millis,
+    async def set_params(self, steering_left, steering_mid, steering_right, steering_millis,
                          throttle_forward, throttle_mid, throttle_reverse, throttle_millis):
         """
         Set the car motors' PWM signal parameters.
         This is a non-standard method which is not a part of the CarMotors interface.
         """
-        @i2c_retry(N_I2C_TRIES)
-        async def set_top():
-            payload = list(struct.pack("1H", top))
-            status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x04] + payload, 1)
-            if status != 104:
-                raise Exception("failed to set params: top")
-
         @i2c_retry(N_I2C_TRIES)
         async def set_steering_params():
             payload = list(struct.pack("4H", steering_left, steering_mid, steering_right, steering_millis))
@@ -617,7 +610,6 @@ class CarMotors(cio.CarMotorsIface):
             if status != 104:
                 raise Exception("failed to set params: throttle_forward, throttle_mid, throttle_reverse, throttle_millis")
 
-        await set_top()
         await set_steering_params()
         await set_throttle_params()
 
