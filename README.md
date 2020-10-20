@@ -258,6 +258,33 @@ The helper function `car.plot()` will both stream a single frame to your AutoAut
 
 ![](https://static.autoauto.ai/uploads/abecaaf6d4d34146bd802be839f1f993.png)
 
+### Servos
+
+If your device has extra servo outputs, you can control them via the `auto.servos` module.
+
+```python
+TODO
+```
+
+### LEDs
+
+If your device has RGB LEDs, then you can control them via the `auto.leds` module.
+
+```python
+from auto.leds import led_map, set_many_leds
+from random import randint
+import time
+
+randpixel = lambda: [randint(0, 255) for i in range(3)]
+
+leds = led_map()
+
+while True:
+    state = [(i, randpixel()) for i in leds]
+    set_many_leds(state)
+    time.sleep(0.5)
+```
+
 ### List the device's capabilities
 
 Different MasterAI devices (and different versions of the same device) may have a different set of hardware capabilities. You can ask your device to list its capabilities like this:
