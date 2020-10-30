@@ -89,7 +89,7 @@ async def _manage_connection(channel, queue, send_func):
             if 'open' in msg:
                 port = msg['open']
                 try:
-                    reader, writer = await asyncio.wait_for(asyncio.open_connection('localhost', port), 1.0)
+                    reader, writer = await asyncio.wait_for(asyncio.open_connection('127.0.0.1', port), 1.0)
                     await send_func({
                         'type': 'proxy_send',
                         'channel': channel,

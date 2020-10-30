@@ -21,7 +21,7 @@ from auto.services.labs.rpc import LabsServiceIface
 
 class LabsService(LabsServiceIface):
 
-    def __init__(self, inet_addr='localhost', inet_port=7004):
+    def __init__(self, inet_addr='127.0.0.1', inet_port=7004):
         self.inet_addr = inet_addr
         self.inet_port = inet_port
         self.is_connected = False

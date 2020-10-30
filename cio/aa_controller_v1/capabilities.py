@@ -214,7 +214,7 @@ async def acquire_component_interface(fd, caps, ref_count, component_name):
     # is that the `if` condition in the link below is not evaluating to `true`
     # (even though it should!) ... thus my theory about the caching of the
     # `status`. It's still a wild guess, really, so who knows.
-    #   https://github.com/acu192/autoauto-controller/blob/0c234f3e8abfdc34a5011481e140998560097cbc/libraries/aa_controller/Capabilities.cpp#L526
+    #   https://github.com/MasterAI-Inc/autoauto-controller/blob/0c234f3e8abfdc34a5011481e140998560097cbc/libraries/aa_controller/Capabilities.cpp#L526
     # Anyway, if that bug were fixed, then the whole next bock would be moved
     # such that it would only run `if component_name not in ref_count` above.
     orig_register_number = register_number

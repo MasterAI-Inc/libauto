@@ -21,7 +21,7 @@ import cui
 
 class CuiRoot(cui.CuiRoot):
 
-    def __init__(self, loop, inet_addr='localhost', inet_port=7003):
+    def __init__(self, loop, inet_addr='127.0.0.1', inet_port=7003):
         self.cui_root = CuiRoot_async(inet_addr, inet_port)
         self.loop = loop
 

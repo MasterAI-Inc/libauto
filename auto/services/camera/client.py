@@ -31,7 +31,7 @@ class CameraRGB:
     from an RPC server.
     """
 
-    def __init__(self, inet_addr='localhost', inet_port=7001):
+    def __init__(self, inet_addr='127.0.0.1', inet_port=7001):
         """
         Initialize a camera object. The size of the captured frames
         will be whatever the RPC server chooses, so you should be prepared

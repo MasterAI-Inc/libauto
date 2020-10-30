@@ -93,7 +93,7 @@ async def init():
 
     pubsub_iface = None
 
-    server = await serve(root_factory, pubsub_iface, 'localhost', 7003)
+    server = await serve(root_factory, pubsub_iface, '127.0.0.1', 7003)
 
     log.info("RUNNING!")
 

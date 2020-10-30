@@ -24,6 +24,8 @@ import requests
 import re
 import os
 
+from auto.services.labs.labs import BASE_HOST
+
 
 class Wireless:
     """
@@ -118,7 +120,7 @@ def get_mac_address(ifname):
 def has_internet_access():
     try:
         # Consider instead: https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.getaddrinfo
-        params = socket.getaddrinfo('ws.autoauto.ai', 'https', proto=socket.IPPROTO_TCP)[0]
+        params = socket.getaddrinfo(BASE_HOST, 'https', proto=socket.IPPROTO_TCP)[0]
     except:
         return False
     family, type_, proto = params[:3]
@@ -132,7 +134,7 @@ def has_internet_access():
         return False
     sock.close()
     try:
-        req = requests.get('http://api.autoauto.ai/ping', timeout=80.0)
+        req = requests.get('https://{BASE_HOST}/ping', timeout=80.0)
         data = req.json()
         return req.status_code == 200 and data['text'] == 'pong'
     except:
@@ -140,21 +142,24 @@ def has_internet_access():
 
 
 def list_ifaces():
-    response = _run_cmd('nmcli --terse --fields DEVICE,TYPE dev'.split(' '))
+    response = _run_cmd('ip link show up'.split(' '))
 
     interfaces = []
     for line in response.splitlines():
-        lst = line.split(':')
-        if len(lst) != 2:
-            continue
-        iface, type_ = lst
-        interfaces.append(iface)
+        match = re.search(r'^\d+: ([^:@]+)', line)
+        if match is not None:
+            iface = match[1]
+            interfaces.append(iface)
 
     return interfaces
 
 
 def list_wifi_ifaces():
-    response = _run_cmd('nmcli --terse --fields DEVICE,TYPE dev'.split(' '))
+    try:
+        response = _run_cmd('nmcli --terse --fields DEVICE,TYPE dev'.split(' '))
+    except FileNotFoundError:
+        # nmcli not installed on this system -- assume no wifi in this case
+        return []
 
     interfaces = []
     for line in response.splitlines():

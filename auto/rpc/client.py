@@ -20,7 +20,7 @@ from auto.rpc.packer import pack, unpack
 from auto.rpc.build_interface import build_interface
 
 
-async def client(inet_addr='localhost', inet_port=7000):
+async def client(inet_addr='127.0.0.1', inet_port=7000):
     """
     This function connects to the RPC server via websocket at the IP address
     given by `inet_addr` and on the port `inet_port`. It returns the reconstructed

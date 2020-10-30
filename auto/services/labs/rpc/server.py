@@ -39,7 +39,7 @@ async def init(pubsub_channels):
         'unsubscribe': None,
     }
 
-    server, publish_func = await serve(interface_factory, pubsub, 'localhost', 7004)
+    server, publish_func = await serve(interface_factory, pubsub, '127.0.0.1', 7004)
 
     return server, interface, publish_func
 

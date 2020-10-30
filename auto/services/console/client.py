@@ -20,7 +20,7 @@ import cui
 
 class CuiRoot(cui.CuiRoot):
 
-    def __init__(self, inet_addr='localhost', inet_port=7003):
+    def __init__(self, inet_addr='127.0.0.1', inet_port=7003):
         self.proxy_interface = None
         self.inet_addr = inet_addr
         self.inet_port = inet_port

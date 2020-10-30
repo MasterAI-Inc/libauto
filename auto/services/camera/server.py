@@ -162,7 +162,7 @@ async def init():
 
     root_factory, pubsub = _init_interface(loop, frame_callback)
 
-    server, publish_func = await serve(root_factory, pubsub, 'localhost', 7001)
+    server, publish_func = await serve(root_factory, pubsub, '127.0.0.1', 7001)
 
     log.info("RUNNING!")
 

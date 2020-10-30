@@ -129,7 +129,7 @@ async def init():
 
     pubsub_iface = None
 
-    server = await serve(CioIface, pubsub_iface, 'localhost', 7002)
+    server = await serve(CioIface, pubsub_iface, '127.0.0.1', 7002)
 
     log.info("RUNNING!")
 
