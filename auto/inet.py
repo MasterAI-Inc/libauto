@@ -24,7 +24,9 @@ import requests
 import re
 import os
 
-from auto.services.labs.labs import BASE_HOST
+
+PING_PROTO = os.environ.get('MAI_PING_PROTO', 'https')
+PING_HOST  = os.environ.get('MAI_PING_HOST', 'ws.autoauto.ai')
 
 
 class Wireless:
@@ -120,7 +122,7 @@ def get_mac_address(ifname):
 def has_internet_access():
     try:
         # Consider instead: https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.getaddrinfo
-        params = socket.getaddrinfo(BASE_HOST, 'https', proto=socket.IPPROTO_TCP)[0]
+        params = socket.getaddrinfo(PING_HOST, PING_PROTO, proto=socket.IPPROTO_TCP)[0]
     except:
         return False
     family, type_, proto = params[:3]
@@ -134,7 +136,7 @@ def has_internet_access():
         return False
     sock.close()
     try:
-        req = requests.get('https://{BASE_HOST}/ping', timeout=80.0)
+        req = requests.get(f'{PING_PROTO}://{PING_HOST}/ping', timeout=80.0)
         data = req.json()
         return req.status_code == 200 and data['text'] == 'pong'
     except:

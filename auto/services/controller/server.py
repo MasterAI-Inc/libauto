@@ -31,7 +31,7 @@ from auto.services.controller.cio_inspector import build_cio_method_map, get_abc
 
 
 async def _get_cio_implementation():
-    fixed_impl = os.environ.get('CIO_IMPLEMENTATION', None)
+    fixed_impl = os.environ.get('MAI_CIO_IMPLEMENTATION', None)
 
     if fixed_impl is not None:
         list_of_impls = [fixed_impl]

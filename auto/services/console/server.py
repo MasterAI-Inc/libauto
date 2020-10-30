@@ -36,7 +36,7 @@ async def _safe_invoke(func, *args):
 
 
 async def _get_cui_implementation():
-    fixed_impl = os.environ.get('CUI_IMPLEMENTATION', None)
+    fixed_impl = os.environ.get('MAI_CUI_IMPLEMENTATION', None)
 
     if fixed_impl is not None:
         list_of_impls = [fixed_impl]
