@@ -88,18 +88,7 @@ class Credentials(cio.CredentialsIface):
         os.sync()
 
 
-class LoopFrequency(cio.LoopFrequencyIface):
-    def __init__(self, fd, reg_num):
-        self.fd = fd
-        self.reg_num = reg_num
-
-    @i2c_retry(N_I2C_TRIES)
-    async def read(self):
-        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 4)
-        return struct.unpack('1I', buf)[0]
-
-
-class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
+class BatteryVoltageReader(cio.BatteryVoltageReaderIface):   # TODO
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
@@ -122,7 +111,7 @@ class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
         return not on_flag
 
 
-class Buzzer(cio.BuzzerIface):
+class Buzzer(cio.BuzzerIface):   # TODO
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
@@ -171,7 +160,7 @@ class Buzzer(cio.BuzzerIface):
         await start_playback()
 
 
-class Gyroscope(cio.GyroscopeIface):
+class Gyroscope(cio.GyroscopeIface):  # TODO
     def __init__(self, fd, reg_num):
         self.loop = asyncio.get_running_loop()
 
@@ -192,7 +181,7 @@ class Gyroscope(cio.GyroscopeIface):
         return vals
 
 
-class GyroscopeAccum(cio.GyroscopeAccumIface):
+class GyroscopeAccum(cio.GyroscopeAccumIface):  # TODO
     def __init__(self, fd, reg_num):
         self.loop = asyncio.get_running_loop()
         self.offsets = None
@@ -224,7 +213,7 @@ class GyroscopeAccum(cio.GyroscopeAccumIface):
         return (t,) + new_vals
 
 
-class Accelerometer(cio.AccelerometerIface):
+class Accelerometer(cio.AccelerometerIface):  # TODO
     def __init__(self, fd, reg_num):
         self.loop = asyncio.get_running_loop()
 
@@ -245,7 +234,7 @@ class Accelerometer(cio.AccelerometerIface):
         return vals
 
 
-class Ahrs(cio.AhrsIface):
+class Ahrs(cio.AhrsIface):  # TODO
     def __init__(self, fd, reg_num):
         self.loop = asyncio.get_running_loop()
 
@@ -266,7 +255,7 @@ class Ahrs(cio.AhrsIface):
         return vals
 
 
-class PushButtons(cio.PushButtonsIface):
+class PushButtons(cio.PushButtonsIface):  # TODO
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
@@ -352,7 +341,7 @@ class LEDs(cio.LEDsIface):
         self.fd = fd
         self.reg_num = reg_num
         self.NUM_LEDS = 6
-        self.vals = [None for index in range(self.NUM_LEDS)]  # so that fist call to _set() actually sets it, no matter what the value
+        self.vals = [None for index in range(self.NUM_LEDS)]  # using `None`, so that fist call to _set() actually sets it, no matter what the value
 
     async def led_map(self):
         return {index: 'RGB LED at index {}'.format(index) for index in range(self.NUM_LEDS)}
@@ -394,7 +383,7 @@ class LEDs(cio.LEDsIface):
     async def mode_map(self):
         return {
             'spin': 'Spin colors around the six primary LEDs.',
-            'beat': 'Pulse white the six primary LEDs.',
+            'pulse': 'Pulse on all LEDs the value of the LED at index 0.',
         }
 
     @i2c_retry(N_I2C_TRIES)
@@ -402,7 +391,7 @@ class LEDs(cio.LEDsIface):
         mode = 0
         if mode_identifier == 'spin':
             mode = 1
-        elif mode_identifier == 'beat':
+        elif mode_identifier == 'pulse':
             mode = 2
         status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x03, mode], 1)
         if status != 72:
@@ -410,6 +399,8 @@ class LEDs(cio.LEDsIface):
 
     @i2c_retry(N_I2C_TRIES)
     async def _set_brightness(self, brightness):
+        if brightness > 50:
+            brightness = 50
         status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01, brightness], 1)
         if status != 72:
             raise Exception("failed to set LED mode")
@@ -419,15 +410,34 @@ class LEDs(cio.LEDsIface):
         await self._show()
 
 
-class Photoresistor(cio.PhotoresistorIface):
+class ADC(cio.AdcIface):
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
 
+    async def num_pins(self):
+        return 1
+
     @i2c_retry(N_I2C_TRIES)
+    async def read(self, index):
+        if index != 0:
+            raise ValueError(f'Invalid index: {index}')
+        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 2)
+        volts, = struct.unpack('H', buf)
+        return volts / 1023 * 3.3
+
+
+class Photoresistor(cio.PhotoresistorIface):
+    def __init__(self, fd, reg_num):
+        self.adc = ADC(fd, reg_num)
+
     async def read(self):
-        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 8)
-        millivolts, resistance = struct.unpack('2I', buf)
+        volts = await self.adc.read(0)
+        if volts == 0:
+            return volts, float("inf")
+        KNOWN_RESISTANCE = 470000
+        resistance = (3.3 - volts) * KNOWN_RESISTANCE / volts
+        millivolts = volts * 1000
         return millivolts, resistance
 
     async def read_millivolts(self):
@@ -437,101 +447,6 @@ class Photoresistor(cio.PhotoresistorIface):
     async def read_ohms(self):
         millivolts, resistance = await self.read()
         return resistance
-
-
-class Encoders(cio.EncodersIface):
-    def __init__(self, fd, reg_num):
-        self.fd = fd
-        self.reg_num = reg_num
-        self.last_counts = {}
-        self.abs_counts  = {}
-
-    async def num_encoders(self):
-        return 2
-
-    async def enable(self, encoder_index):
-        if encoder_index == 0:
-            return await self._enable_e1()
-        else:
-            return await self._enable_e2()
-
-    async def read_counts(self, encoder_index):
-        if encoder_index == 0:
-            vals = await self._read_e1_counts()
-        else:
-            vals = await self._read_e2_counts()
-        vals = list(vals)
-        vals[0] = self._fix_count_rollover(vals[0], encoder_index)
-        vals = tuple(vals)
-        return vals
-
-    async def read_timing(self, encoder_index):
-        if encoder_index == 0:
-            return await self._read_e1_timing()
-        else:
-            return await self._read_e2_timing()
-
-    async def disable(self, encoder_index):
-        if encoder_index == 0:
-            return await self._disable_e1()
-        else:
-            return await self._disable_e2()
-
-    @i2c_retry(N_I2C_TRIES)
-    async def _enable_e1(self):
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x00], 1)
-        if status != 31:
-            raise Exception("Failed to enable encoder")
-
-    @i2c_retry(N_I2C_TRIES)
-    async def _enable_e2(self):
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01], 1)
-        if status != 31:
-            raise Exception("Failed to enable encoder")
-
-    @i2c_retry(N_I2C_TRIES)
-    async def _disable_e1(self):
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x02], 1)
-        if status != 31:
-            raise Exception("Failed to disable encoder")
-
-    @i2c_retry(N_I2C_TRIES)
-    async def _disable_e2(self):
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x03], 1)
-        if status != 31:
-            raise Exception("Failed to disable encoder")
-
-    @i2c_retry(N_I2C_TRIES)
-    async def _read_e1_counts(self):
-        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x04], 6)
-        return struct.unpack('3h', buf)
-
-    @i2c_retry(N_I2C_TRIES)
-    async def _read_e1_timing(self):
-        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x05], 8)
-        return struct.unpack('2I', buf)
-
-    @i2c_retry(N_I2C_TRIES)
-    async def _read_e2_counts(self):
-        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x06], 6)
-        return struct.unpack('3h', buf)
-
-    @i2c_retry(N_I2C_TRIES)
-    async def _read_e2_timing(self):
-        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x07], 8)
-        return struct.unpack('2I', buf)
-
-    def _fix_count_rollover(self, count, encoder_index):
-        count = np.int16(count)
-        if encoder_index not in self.last_counts:
-            self.last_counts[encoder_index] = count
-            self.abs_counts[encoder_index] = 0
-            return 0
-        diff = int(count - self.last_counts[encoder_index])
-        self.last_counts[encoder_index] = count
-        abs_count = self.abs_counts[encoder_index] + diff
-        self.abs_counts[encoder_index] = abs_count
-        return abs_count
 
 
 class CarMotors(cio.CarMotorsIface):
@@ -843,7 +758,6 @@ class PidSteering(cio.PidSteeringIface):
 KNOWN_COMPONENTS = {
     'VersionInfo':           VersionInfo,
     'Credentials':           Credentials,
-    'LoopFrequency':         LoopFrequency,
     'BatteryVoltageReader':  BatteryVoltageReader,
     'Buzzer':                Buzzer,
     'Gyroscope':             Gyroscope,

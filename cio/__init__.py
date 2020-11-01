@@ -445,6 +445,34 @@ class LEDsIface(abc.ABC):
         """
         Set the brightness of the LEDs, in the range [0-255].
         Raises if not supported by the hardware you have.
+        Setting `brightness=0` means set the brightness to the
+        default value.
+        """
+        pass
+
+
+class AdcIface(abc.ABC):
+    """
+    Query the Analog-to-Digital Converter (ADC)
+
+    Required: False
+
+    Capability Identifier: 'ADC'
+    """
+
+    @abc.abstractmethod
+    async def num_pins(self):
+        """
+        Return the number of ADC pins on this controller.
+        """
+
+    @abc.abstractmethod
+    async def read(self, index):
+        """
+        Read and return the voltage (in Volts) of the ADC pin
+        at index `index`. The first pin is index-0 (i.e.
+        zero-based indexing). Call `num_pins()` to know the
+        index range.
         """
         pass
 

@@ -54,7 +54,6 @@ class CioRoot(cio.CioRoot):
         self.fd = None
         self.caps = None
         self.lock = asyncio.Lock()
-        self.capability_ref_count = {}
 
     async def init(self):
         """
@@ -69,25 +68,9 @@ class CioRoot(cio.CioRoot):
                 self.fd = await easyi2c.open_i2c(1, CONTROLLER_I2C_SLAVE_ADDRESS)
                 self.caps = await capabilities.get_capabilities(self.fd, soft_reset_first=True)
 
-                for component_name, config in self.caps.items():
-                    if config['is_enabled']:
-                        # This component is enabled by default, so make sure it stays enabled!
-                        # We'll do this by starting its ref count at 1, so it will never go
-                        # to zero -- it's as if the controller itself holds one reference.
-                        register_number = config['register_number']
-                        if not isinstance(register_number, (tuple, list)):
-                            register_number = [register_number]
-                        for n in register_number:
-                            if n is None:
-                                continue
-                        self.capability_ref_count[n] = 1
-
-                if 'VersionInfo' not in self.caps:
-                    raise Exception('Controller does not implement the required VersionInfo component.')
-
-                version_info = await capabilities.acquire_component_interface(self.fd, self.caps, self.capability_ref_count, 'VersionInfo')
+                version_info = await capabilities.acquire_component_interface(self.fd, self.caps, 'VersionInfo')
                 major, minor = await version_info.version()
-                await capabilities.release_component_interface(self.capability_ref_count, version_info)
+                await capabilities.release_component_interface(version_info)
 
                 if major != 3:
                     raise Exception('Controller is not version 3, thus this interface will not work.')
@@ -122,7 +105,6 @@ class CioRoot(cio.CioRoot):
                     await easyi2c.close_i2c(self.fd)
                     self.fd = None
                     self.caps = None
-                    self.capability_ref_count = {}
                 raise
 
             return list(self.caps.keys())
@@ -133,7 +115,7 @@ class CioRoot(cio.CioRoot):
         a concrete object implementing its interface.
         """
         async with self.lock:
-            return await capabilities.acquire_component_interface(self.fd, self.caps, self.capability_ref_count, capability_id)
+            return await capabilities.acquire_component_interface(self.fd, self.caps, capability_id)
 
     async def release(self, capability_obj):
         """
@@ -141,7 +123,7 @@ class CioRoot(cio.CioRoot):
         the exact object returned by `acquire()`.
         """
         async with self.lock:
-            await capabilities.release_component_interface(self.capability_ref_count, capability_obj)
+            await capabilities.release_component_interface(capability_obj)
 
     async def close(self):
         """
@@ -156,5 +138,4 @@ class CioRoot(cio.CioRoot):
             await easyi2c.close_i2c(self.fd)
             self.fd = None
             self.caps = None
-            self.capability_ref_count = {}
 
