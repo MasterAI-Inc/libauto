@@ -21,33 +21,22 @@ async def run():
 
     motors = await c.acquire('CarMotors')
 
-    await motors.set_params(
-            top              = 40000,
-            steering_left    = 3600,
-            steering_mid     = 3000,
-            steering_right   = 2400,
-            steering_millis  = 1000,
-            throttle_forward = 4000,
-            throttle_mid     = 3000,
-            throttle_reverse = 2000,
-            throttle_millis  = 1000,
-    )
-    await motors.save_params()
-
     await motors.on()
 
     await asyncio.sleep(1)
 
+    t = 70
+
     for i in range(2):
         for v in range(-45, 45):
-            print(v)
+            #print(v)
             await motors.set_steering(v)
-            await motors.set_throttle(20)
+            await motors.set_throttle(t)
             await asyncio.sleep(0.02)
         for v in range(45, -45, -1):
-            print(v)
+            #print(v)
             await motors.set_steering(v)
-            await motors.set_throttle(20)
+            await motors.set_throttle(t)
             await asyncio.sleep(0.02)
 
     await motors.off()
