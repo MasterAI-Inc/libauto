@@ -197,6 +197,20 @@ class BatteryVoltageReaderIface(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
+    async def shut_down(self):
+        """
+        Instruct the device to shut itself down.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def reboot(self):
+        """
+        Instruct the device to reboot itself.
+        """
+        pass
+
 
 class BuzzerIface(abc.ABC):
     """
