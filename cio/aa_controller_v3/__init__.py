@@ -68,7 +68,7 @@ class CioRoot(cio.CioRoot):
                 self.fd = await easyi2c.open_i2c(1, CONTROLLER_I2C_SLAVE_ADDRESS)
                 self.caps = await capabilities.get_capabilities(self.fd, soft_reset_first=True)
 
-                version_info = await capabilities.acquire_component_interface(self.fd, self.caps, 'VersionInfo')
+                version_info = await capabilities.acquire_component_interface(self.caps, 'VersionInfo')
                 major, minor = await version_info.version()
                 await capabilities.release_component_interface(version_info)
 
@@ -90,14 +90,12 @@ class CioRoot(cio.CioRoot):
                 #    for c in ['Gyroscope', 'Gyroscope_accum', 'Accelerometer', 'AHRS']:
                 #        self.caps[c] = {
                 #                'register_number': None,   # <-- this is a virtual component; it is implemented on the Python side, not the controller side
-                #                'is_enabled': False
                 #        }
                 #    if 'CarMotors' in self.caps:
                 #        carmotors_regnum = self.caps['CarMotors']['register_number']
                 #        gyroaccum_regnum = self.caps['Gyroscope_accum']['register_number']
                 #        self.caps['PID_steering'] = {
                 #                'register_number': (carmotors_regnum, gyroaccum_regnum),
-                #                'is_enabled': False
                 #        }
 
             except:
@@ -115,7 +113,7 @@ class CioRoot(cio.CioRoot):
         a concrete object implementing its interface.
         """
         async with self.lock:
-            return await capabilities.acquire_component_interface(self.fd, self.caps, capability_id)
+            return await capabilities.acquire_component_interface(self.caps, capability_id)
 
     async def release(self, capability_obj):
         """

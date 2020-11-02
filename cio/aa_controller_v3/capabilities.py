@@ -133,20 +133,20 @@ async def get_capabilities(fd, soft_reset_first=False, only_enabled=False):
     for reg, name in CAPABILITIES_LIST:
         if name != "Capabilities":
             caps[name] = {
+                    'fd': fd,
                     'register_number': reg,
             }
-            caps[name]['is_enabled'] = True
 
     for c in ['Credentials', 'Calibrator']:
         caps[c] = {
+                'fd': None,
                 'register_number': None,  # <-- this is a virtual component; it is implemented on the Python side, not the controller side
-                'is_enabled': False
         }
 
     return caps
 
 
-async def acquire_component_interface(fd, caps, component_name):
+async def acquire_component_interface(caps, component_name):
     """
     Acquire the interface to the component having the name `component_name`.
     This is a helper function which will:
@@ -156,6 +156,7 @@ async def acquire_component_interface(fd, caps, component_name):
     Note, when you are finished using the components interface, you should
     call `release_component_interface`.
     """
+    fd = caps[component_name]['fd']
     register_number = caps[component_name]['register_number']
     interface = KNOWN_COMPONENTS[component_name](fd, register_number)
     interface.__fd__ = fd
