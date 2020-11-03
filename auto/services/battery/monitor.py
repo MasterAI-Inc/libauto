@@ -20,8 +20,6 @@ from auto.services.console.client import CuiRoot
 
 from auto.services.labs.rpc.client import LabsService
 
-from auto.services.labs.util import _shutdown
-
 from auto import logger
 log = logger.init(__name__, terminal=True)
 
@@ -67,8 +65,7 @@ async def _check_shutdown_forever(battery):
                     break
             else:
                 log.info('Off switch triggered; shutting down...')
-                output = _shutdown(reboot=False)
-                log.info('Shutdown command output: {}'.format(output))
+                await battery.shut_down()
                 break
         await asyncio.sleep(1)
 

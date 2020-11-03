@@ -29,11 +29,6 @@ async def set_hostname(name):
     return await loop.run_in_executor(None, _set_hostname, name)
 
 
-async def shutdown(reboot=False):
-    loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, _shutdown, reboot)
-
-
 async def update_libauto():
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, _update_libauto)
@@ -43,11 +38,6 @@ def _set_hostname(name):
     path = os.path.join(SCRIPTS_DIRECTORY, 'set_hostname')
     name = re.sub(r'[^A-Za-z0-9]', '', name)
     return run_script(path, name)
-
-
-def _shutdown(reboot):
-    path = '/sbin/reboot' if reboot else '/sbin/poweroff'
-    return run_script(path)
 
 
 def _update_libauto():

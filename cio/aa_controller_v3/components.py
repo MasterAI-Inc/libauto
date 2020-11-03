@@ -9,6 +9,7 @@
 ###############################################################################
 
 from .easyi2c import (write_read_i2c_with_integrity,
+                      write_read_i2c,
                       i2c_retry, i2c_poll_until)
 
 from . import N_I2C_TRIES
@@ -23,6 +24,7 @@ from . import imu
 import cio
 
 import os
+import time
 import struct
 import asyncio
 import subprocess
@@ -30,6 +32,12 @@ from math import floor, isnan
 from collections import deque
 
 import numpy as np
+
+import RPi.GPIO as GPIO
+GPIO.setmode(GPIO.BOARD)   # GPIO.BOARD or GPIO.BCM
+POWER_BUTTON_PIN = 31
+GPIO.setup(POWER_BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+POWER_BUTTON_REQUIRED_PRESS_SECONDS = 1.5
 
 
 class VersionInfo(cio.VersionInfoIface):
@@ -89,29 +97,57 @@ class Credentials(cio.CredentialsIface):   # TODO - store both in EEPROM and SD 
         os.sync()
 
 
-class BatteryVoltageReader(cio.BatteryVoltageReaderIface):   # TODO
+class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
+    @staticmethod
+    async def _write_reg(fd, reg, v):
+        buf = bytes([reg, v])
+        await write_read_i2c(fd, buf, 0)
+
+    @staticmethod
+    async def _read_reg(fd, reg):
+        buf = bytes([reg])
+        readlen = 1
+        r = await write_read_i2c(fd, buf, readlen)
+        v = r[0]
+        return v
+
+    @staticmethod
+    def _batt_convert_millivolts(v):
+        millivolts = 2304
+        bit_vals = [20, 40, 80, 160, 320, 640, 1280]
+        for i in range(7):
+            if v & (1 << i):
+                millivolts += bit_vals[i]
+        return millivolts
+
+    @staticmethod
+    def _is_power_button_pressed():
+        return GPIO.input(POWER_BUTTON_PIN) == 0  # active low
+
     def __init__(self, fd, reg_num):
         self.fd = fd
-        self.reg_num = reg_num
 
-    @i2c_retry(N_I2C_TRIES)
     async def millivolts(self):
-        lsb, msb = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x00], 2)
-        return (msb << 8) | lsb   # <-- You can also use int.from_bytes(...) but I think doing the bitwise operations explicitly is cooler.
+        v = await self._read_reg(self.fd, 0x0E)
+        millivolts = self._batt_convert_millivolts(v)
+        return millivolts
 
     async def estimate_remaining(self, millivolts=None):
         if millivolts is None:
             millivolts = await self.millivolts()
-        percentage = battery_map_millivolts_to_percentage(millivolts)
+        percentage = battery_map_millivolts_to_percentage(millivolts)   # TODO: create a new discharge curve, with the new battery, once finalized
         minutes = 4.0 * 60.0 * (percentage / 100.0)  # Assumes the full battery lasts 4 hours.
         return floor(minutes), floor(percentage)
 
-    @i2c_retry(N_I2C_TRIES)
     async def should_shut_down(self):
-        on_flag, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01], 1)
-        return not on_flag
+        curr_state = self._is_power_button_pressed()
+        return curr_state
 
     async def shut_down(self):
+        v = await self._read_reg(self.fd, 0x09)
+        v |= (1 << 3)
+        v |= (1 << 5)
+        await self._write_reg(self.fd, 0x09, v)   # <-- tell charger chip to shutdown after a 10-15 second delay
         subprocess.run(['/sbin/poweroff'])
 
     async def reboot(self):

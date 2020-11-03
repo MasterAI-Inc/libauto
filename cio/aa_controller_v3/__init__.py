@@ -75,6 +75,12 @@ class CioRoot(cio.CioRoot):
                 if major != 3:
                     raise Exception('Controller is not version 3, thus this interface will not work.')
 
+                batt_fd = await easyi2c.open_i2c(1, 0x6a)   # TODO: clean this up, somehow
+                self.caps['BatteryVoltageReader'] = {
+                    'fd': batt_fd,
+                    'register_number': None,
+                }
+
                 # TODO
                 #imu.start_thread()
                 #loop = asyncio.get_running_loop()
