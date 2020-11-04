@@ -433,38 +433,6 @@ release(battery)
 
 **Note:** There's a background task that will monitor the battery voltage for you and will buzz the buzzer when the battery gets to 5% or lower.
 
-### LEDs
-
-The main PCB has three on-board LEDs that you can turn on/off programmatically.
-
-```python
-from auto.capabilities import list_caps, acquire, release
-import time
-
-buttons = acquire('PushButtons')
-leds = acquire('LEDs')
-
-led_ordering = ['red', 'green', 'blue']
-
-print("Press the buttons to turn on/off the on-board LEDs:")
-
-while True:
-    button_index, action = buttons.wait_for_action('any')
-
-    # We use the button
-    led_identifier = led_ordering[button_index]
-
-    # Turn on the LED when the button is pressed, and off
-    # whent he button is released.
-    led_value = (action == 'pressed')
-
-    # We set the state of every led below:
-    leds.set_led(led_identifier, led_value)
-
-release(buttons)
-release(leds)
-```
-
 ### Encoders
 
 Some devices have motor encoders to track how many "clicks" the motor has rotated.
