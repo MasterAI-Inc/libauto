@@ -23,6 +23,9 @@ async def run():
 
     fd = c.fd
 
+    buf = await eeprom_query(fd, 0xA0, 4)
+    print(buf)
+
     await eeprom_store(fd, 0xA0, b'0000')
 
     buf = await eeprom_query(fd, 0xA0, 4)

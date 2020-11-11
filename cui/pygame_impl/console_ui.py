@@ -15,8 +15,6 @@ import pygame
 import numpy as np
 from collections import deque
 
-from auto.services.labs.util import _shutdown
-
 from auto import logger
 log = logger.init(__name__, terminal=True)
 

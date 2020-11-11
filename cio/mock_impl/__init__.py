@@ -14,6 +14,7 @@ components.
 """
 
 import random
+import subprocess
 
 import cio
 from cio.aa_controller_v1.components import Credentials
@@ -81,4 +82,10 @@ class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
 
     async def should_shut_down(self):
         return False
+
+    async def shut_down(self):
+        subprocess.run(['/sbin/poweroff'])
+
+    async def reboot(self):
+        subprocess.run(['/sbin/reboot'])
 

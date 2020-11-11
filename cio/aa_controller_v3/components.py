@@ -9,6 +9,7 @@
 ###############################################################################
 
 from .easyi2c import (write_read_i2c_with_integrity,
+                      write_read_i2c,
                       i2c_retry, i2c_poll_until)
 
 from . import N_I2C_TRIES
@@ -23,12 +24,20 @@ from . import imu
 import cio
 
 import os
+import time
 import struct
 import asyncio
+import subprocess
 from math import floor, isnan
 from collections import deque
 
 import numpy as np
+
+import RPi.GPIO as GPIO
+GPIO.setmode(GPIO.BOARD)   # GPIO.BOARD or GPIO.BCM
+POWER_BUTTON_PIN = 31
+GPIO.setup(POWER_BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+POWER_BUTTON_REQUIRED_PRESS_SECONDS = 1.5
 
 
 class VersionInfo(cio.VersionInfoIface):
@@ -45,7 +54,7 @@ class VersionInfo(cio.VersionInfoIface):
         return major, minor
 
 
-class Credentials(cio.CredentialsIface):
+class Credentials(cio.CredentialsIface):   # TODO - store both in EEPROM and SD card
     def __init__(self, fd, reg_num):
         self.db = None
         self.loop = asyncio.get_running_loop()
@@ -88,41 +97,64 @@ class Credentials(cio.CredentialsIface):
         os.sync()
 
 
-class LoopFrequency(cio.LoopFrequencyIface):
-    def __init__(self, fd, reg_num):
-        self.fd = fd
-        self.reg_num = reg_num
-
-    @i2c_retry(N_I2C_TRIES)
-    async def read(self):
-        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 4)
-        return struct.unpack('1I', buf)[0]
-
-
 class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
+    @staticmethod
+    async def _write_reg(fd, reg, v):
+        buf = bytes([reg, v])
+        await write_read_i2c(fd, buf, 0)
+
+    @staticmethod
+    async def _read_reg(fd, reg):
+        buf = bytes([reg])
+        readlen = 1
+        r = await write_read_i2c(fd, buf, readlen)
+        v = r[0]
+        return v
+
+    @staticmethod
+    def _batt_convert_millivolts(v):
+        millivolts = 2304
+        bit_vals = [20, 40, 80, 160, 320, 640, 1280]
+        for i in range(7):
+            if v & (1 << i):
+                millivolts += bit_vals[i]
+        return millivolts
+
+    @staticmethod
+    def _is_power_button_pressed():
+        return GPIO.input(POWER_BUTTON_PIN) == 0  # active low
+
     def __init__(self, fd, reg_num):
         self.fd = fd
-        self.reg_num = reg_num
 
-    @i2c_retry(N_I2C_TRIES)
     async def millivolts(self):
-        lsb, msb = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x00], 2)
-        return (msb << 8) | lsb   # <-- You can also use int.from_bytes(...) but I think doing the bitwise operations explicitly is cooler.
+        v = await self._read_reg(self.fd, 0x0E)
+        millivolts = self._batt_convert_millivolts(v)
+        return millivolts
 
     async def estimate_remaining(self, millivolts=None):
         if millivolts is None:
             millivolts = await self.millivolts()
-        percentage = battery_map_millivolts_to_percentage(millivolts)
+        percentage = battery_map_millivolts_to_percentage(millivolts)   # TODO: create a new discharge curve, with the new battery, once finalized
         minutes = 4.0 * 60.0 * (percentage / 100.0)  # Assumes the full battery lasts 4 hours.
         return floor(minutes), floor(percentage)
 
-    @i2c_retry(N_I2C_TRIES)
     async def should_shut_down(self):
-        on_flag, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01], 1)
-        return not on_flag
+        curr_state = self._is_power_button_pressed()
+        return curr_state
+
+    async def shut_down(self):
+        v = await self._read_reg(self.fd, 0x09)
+        v |= (1 << 3)
+        v |= (1 << 5)
+        await self._write_reg(self.fd, 0x09, v)   # <-- tell charger chip to shutdown after a 10-15 second delay
+        subprocess.run(['/sbin/poweroff'])
+
+    async def reboot(self):
+        subprocess.run(['/sbin/reboot'])
 
 
-class Buzzer(cio.BuzzerIface):
+class Buzzer(cio.BuzzerIface):   # TODO
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
@@ -171,7 +203,7 @@ class Buzzer(cio.BuzzerIface):
         await start_playback()
 
 
-class Gyroscope(cio.GyroscopeIface):
+class Gyroscope(cio.GyroscopeIface):  # TODO
     def __init__(self, fd, reg_num):
         self.loop = asyncio.get_running_loop()
 
@@ -192,7 +224,7 @@ class Gyroscope(cio.GyroscopeIface):
         return vals
 
 
-class GyroscopeAccum(cio.GyroscopeAccumIface):
+class GyroscopeAccum(cio.GyroscopeAccumIface):  # TODO
     def __init__(self, fd, reg_num):
         self.loop = asyncio.get_running_loop()
         self.offsets = None
@@ -224,7 +256,7 @@ class GyroscopeAccum(cio.GyroscopeAccumIface):
         return (t,) + new_vals
 
 
-class Accelerometer(cio.AccelerometerIface):
+class Accelerometer(cio.AccelerometerIface):  # TODO
     def __init__(self, fd, reg_num):
         self.loop = asyncio.get_running_loop()
 
@@ -245,7 +277,7 @@ class Accelerometer(cio.AccelerometerIface):
         return vals
 
 
-class Ahrs(cio.AhrsIface):
+class Ahrs(cio.AhrsIface):  # TODO
     def __init__(self, fd, reg_num):
         self.loop = asyncio.get_running_loop()
 
@@ -266,7 +298,7 @@ class Ahrs(cio.AhrsIface):
         return vals
 
 
-class PushButtons(cio.PushButtonsIface):
+class PushButtons(cio.PushButtonsIface):  # TODO
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
@@ -352,7 +384,7 @@ class LEDs(cio.LEDsIface):
         self.fd = fd
         self.reg_num = reg_num
         self.NUM_LEDS = 6
-        self.vals = [None for index in range(self.NUM_LEDS)]  # so that fist call to _set() actually sets it, no matter what the value
+        self.vals = [None for index in range(self.NUM_LEDS)]  # using `None`, so that fist call to _set() actually sets it, no matter what the value
 
     async def led_map(self):
         return {index: 'RGB LED at index {}'.format(index) for index in range(self.NUM_LEDS)}
@@ -394,7 +426,7 @@ class LEDs(cio.LEDsIface):
     async def mode_map(self):
         return {
             'spin': 'Spin colors around the six primary LEDs.',
-            'beat': 'Pulse white the six primary LEDs.',
+            'pulse': 'Pulse on all LEDs the value of the LED at index 0.',
         }
 
     @i2c_retry(N_I2C_TRIES)
@@ -402,7 +434,7 @@ class LEDs(cio.LEDsIface):
         mode = 0
         if mode_identifier == 'spin':
             mode = 1
-        elif mode_identifier == 'beat':
+        elif mode_identifier == 'pulse':
             mode = 2
         status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x03, mode], 1)
         if status != 72:
@@ -410,6 +442,8 @@ class LEDs(cio.LEDsIface):
 
     @i2c_retry(N_I2C_TRIES)
     async def _set_brightness(self, brightness):
+        if brightness > 50:
+            brightness = 50
         status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01, brightness], 1)
         if status != 72:
             raise Exception("failed to set LED mode")
@@ -419,15 +453,34 @@ class LEDs(cio.LEDsIface):
         await self._show()
 
 
-class Photoresistor(cio.PhotoresistorIface):
+class ADC(cio.AdcIface):
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
 
+    async def num_pins(self):
+        return 1
+
     @i2c_retry(N_I2C_TRIES)
+    async def read(self, index):
+        if index != 0:
+            raise ValueError(f'Invalid index: {index}')
+        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 2)
+        volts, = struct.unpack('H', buf)
+        return volts / 1023 * 3.3
+
+
+class Photoresistor(cio.PhotoresistorIface):
+    def __init__(self, fd, reg_num):
+        self.adc = ADC(fd, reg_num)
+
     async def read(self):
-        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num], 8)
-        millivolts, resistance = struct.unpack('2I', buf)
+        volts = await self.adc.read(0)
+        if volts == 0:
+            return volts, float("inf")
+        KNOWN_RESISTANCE = 470000
+        resistance = (3.3 - volts) * KNOWN_RESISTANCE / volts
+        millivolts = volts * 1000
         return millivolts, resistance
 
     async def read_millivolts(self):
@@ -439,103 +492,63 @@ class Photoresistor(cio.PhotoresistorIface):
         return resistance
 
 
-class Encoders(cio.EncodersIface):
-    def __init__(self, fd, reg_num):
-        self.fd = fd
-        self.reg_num = reg_num
-        self.last_counts = {}
-        self.abs_counts  = {}
+class CarMotors(cio.CarMotorsIface):
+    params_cache = {}
 
-    async def num_encoders(self):
-        return 2
-
-    async def enable(self, encoder_index):
-        if encoder_index == 0:
-            return await self._enable_e1()
+    @staticmethod
+    async def _steering_params(fd, store=None):
+        addr = 0xC0
+        if store:
+            await capabilities.eeprom_store(fd, addr, struct.pack('3B', *store))
         else:
-            return await self._enable_e2()
+            vals = struct.unpack('3B', await capabilities.eeprom_query(fd, addr, 3))
+            if vals == (255, 255, 255):
+                vals = (35, 45, 55)
+            return vals
 
-    async def read_counts(self, encoder_index):
-        if encoder_index == 0:
-            vals = await self._read_e1_counts()
+    @staticmethod
+    async def _safe_speeds(fd, store=None):
+        addr = 0xC3
+        if store:
+            await capabilities.eeprom_store(fd, addr, struct.pack('2b', *store))
         else:
-            vals = await self._read_e2_counts()
-        vals = list(vals)
-        vals[0] = self._fix_count_rollover(vals[0], encoder_index)
-        vals = tuple(vals)
+            vals = struct.unpack('2b', await capabilities.eeprom_query(fd, addr, 2))
+            if vals == (-1, -1):
+                vals = (-40, 40)
+            return vals
+
+    @classmethod
+    async def _cached_stuff(cls, fd, name, func):
+        vals = cls.params_cache.get(name)
+        if vals is None:
+            vals = await func(fd)
+            cls.params_cache[name] = vals
         return vals
 
-    async def read_timing(self, encoder_index):
-        if encoder_index == 0:
-            return await self._read_e1_timing()
+    @classmethod
+    async def _store_stuff(cls, fd, name, func, vals):
+        await func(fd, vals)
+        cls.params_cache[name] = vals
+
+    async def get_steering_params(self):
+        return await self._cached_stuff(self.fd, 'steering_params', self._steering_params)
+
+    async def set_steering_params(self, vals):
+        return await self._store_stuff(self.fd, 'steering_params', self._steering_params, vals)
+
+    async def get_safe_speeds(self):
+        return await self._cached_stuff(self.fd, 'safe_speeds', self._safe_speeds)
+
+    async def set_safe_speeds(self, vals):
+        return await self._store_stuff(self.fd, 'safe_speeds', self._safe_speeds, vals)
+
+    @staticmethod
+    def interp(a, b, c, x, y, z, val):
+        val = min(max(val, x), z)
+        if val < y:
+            return (val - x) / (y - x) * (b - a) + a
         else:
-            return await self._read_e2_timing()
-
-    async def disable(self, encoder_index):
-        if encoder_index == 0:
-            return await self._disable_e1()
-        else:
-            return await self._disable_e2()
-
-    @i2c_retry(N_I2C_TRIES)
-    async def _enable_e1(self):
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x00], 1)
-        if status != 31:
-            raise Exception("Failed to enable encoder")
-
-    @i2c_retry(N_I2C_TRIES)
-    async def _enable_e2(self):
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01], 1)
-        if status != 31:
-            raise Exception("Failed to enable encoder")
-
-    @i2c_retry(N_I2C_TRIES)
-    async def _disable_e1(self):
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x02], 1)
-        if status != 31:
-            raise Exception("Failed to disable encoder")
-
-    @i2c_retry(N_I2C_TRIES)
-    async def _disable_e2(self):
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x03], 1)
-        if status != 31:
-            raise Exception("Failed to disable encoder")
-
-    @i2c_retry(N_I2C_TRIES)
-    async def _read_e1_counts(self):
-        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x04], 6)
-        return struct.unpack('3h', buf)
-
-    @i2c_retry(N_I2C_TRIES)
-    async def _read_e1_timing(self):
-        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x05], 8)
-        return struct.unpack('2I', buf)
-
-    @i2c_retry(N_I2C_TRIES)
-    async def _read_e2_counts(self):
-        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x06], 6)
-        return struct.unpack('3h', buf)
-
-    @i2c_retry(N_I2C_TRIES)
-    async def _read_e2_timing(self):
-        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x07], 8)
-        return struct.unpack('2I', buf)
-
-    def _fix_count_rollover(self, count, encoder_index):
-        count = np.int16(count)
-        if encoder_index not in self.last_counts:
-            self.last_counts[encoder_index] = count
-            self.abs_counts[encoder_index] = 0
-            return 0
-        diff = int(count - self.last_counts[encoder_index])
-        self.last_counts[encoder_index] = count
-        abs_count = self.abs_counts[encoder_index] + diff
-        self.abs_counts[encoder_index] = abs_count
-        return abs_count
-
-
-class CarMotors(cio.CarMotorsIface):
-    safe_throttle_cache = None
+            return (val - y) / (z - y) * (c - b) + b
 
     def __init__(self, fd, reg_num):
         self.fd = fd
@@ -544,190 +557,44 @@ class CarMotors(cio.CarMotorsIface):
     @i2c_retry(N_I2C_TRIES)
     async def on(self):
         status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x00], 1)
-        if status != 104:
+        if status != 105:
             raise Exception("failed to turn on car motors")
 
     @i2c_retry(N_I2C_TRIES)
     async def set_steering(self, steering):
-        steering = int(round(min(max(steering, -45), 45)))
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01, steering & 0xFF], 1)
-        if status != 104:
+        low, mid, high = await self.get_steering_params()
+        val = self.interp(low, mid, high, -45, 0, 45, steering)
+        val = int(round(val))
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01, val], 1)
+        if status != 105:
             raise Exception("failed to set steering")
 
     @i2c_retry(N_I2C_TRIES)
     async def set_throttle(self, throttle):
-        throttle = int(round(min(max(throttle, -100), 100)))
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x02, throttle & 0xFF], 1)
-        if status != 104:
+        val = self.interp(10000, 0, 10000, -100, 0, 100, throttle)
+        val = int(round(val))
+        d = 0 if throttle >= 0 else 1
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x02, *struct.pack('H', val), d], 1)
+        if status != 105:
             raise Exception("failed to set throttle")
 
-    @i2c_retry(N_I2C_TRIES)
-    async def _get_safe_throttle(self):
-        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x09], 4)
-        min_throttle, max_throttle = struct.unpack('2h', buf)
-        return min_throttle, max_throttle
-
-    @i2c_retry(N_I2C_TRIES)
-    async def _set_safe_throttle(self, min_throttle, max_throttle):
-        payload = list(struct.pack('2h', min_throttle, max_throttle))
-        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x0A] + payload, 1)
-        if status != 104:
-            raise Exception('failed to set params: min_throttle and max_throttle')
-        await self.save_params()
-
     async def get_safe_throttle(self):
-        if CarMotors.safe_throttle_cache is None:
-            CarMotors.safe_throttle_cache = await self._get_safe_throttle()
-        return CarMotors.safe_throttle_cache
+        return await self.get_safe_speeds()
 
     async def set_safe_throttle(self, min_throttle, max_throttle):
-        CarMotors.safe_throttle_cache = (min_throttle, max_throttle)
-        return await self._set_safe_throttle(min_throttle, max_throttle)
+        return await self.set_safe_speeds((min_throttle, max_throttle))
 
     @i2c_retry(N_I2C_TRIES)
     async def off(self):
         status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x03], 1)
-        if status != 104:
+        if status != 105:
             raise Exception("failed to turn off car motors")
 
-    async def set_params(self, steering_left, steering_mid, steering_right, steering_millis,
-                         throttle_forward, throttle_mid, throttle_reverse, throttle_millis):
-        """
-        Set the car motors' PWM signal parameters.
-        This is a non-standard method which is not a part of the CarMotors interface.
-        """
-        @i2c_retry(N_I2C_TRIES)
-        async def set_steering_params():
-            payload = list(struct.pack("4H", steering_left, steering_mid, steering_right, steering_millis))
-            status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x05] + payload, 1)
-            if status != 104:
-                raise Exception("failed to set params: steering_left, steering_mid, steering_right, steering_millis")
-
-        @i2c_retry(N_I2C_TRIES)
-        async def set_throttle_params():
-            payload = list(struct.pack("4H", throttle_forward, throttle_mid, throttle_reverse, throttle_millis))
-            status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x06] + payload, 1)
-            if status != 104:
-                raise Exception("failed to set params: throttle_forward, throttle_mid, throttle_reverse, throttle_millis")
-
-        await set_steering_params()
-        await set_throttle_params()
-
-    async def save_params(self):
-        """
-        Save the car motors' current parameters to the EEPROM.
-        This is a non-standard method which is not a part of the CarMotors interface.
-        """
-        @i2c_retry(N_I2C_TRIES)
-        async def save():
-            status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x07], 1)
-            if status != 104:
-                raise Exception("failed to tell car to save motor params")
-
-        @i2c_retry(N_I2C_TRIES)
-        async def is_saved():
-            status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x08], 1)
-            return status == 0
-
-        await save()
-        await i2c_poll_until(is_saved, True, timeout_ms=1000)
-
     def rpc_extra_exports(self):
-        return ['set_params', 'save_params']
+        return ['get_steering_params', 'set_steering_params']
 
 
-class PWMs(cio.PWMsIface):
-    def __init__(self, fd, reg_num):
-        self.fd = fd
-        self.t1_reg_num = reg_num[0]
-        self.t3_reg_num = reg_num[1]
-        self.timer_1 = Timer1PWM(self.fd, self.t1_reg_num)
-        self.timer_3 = Timer3PWM(self.fd, self.t3_reg_num)
-        self.enabled = {}   # dict mapping pin_index to frequency
-
-    async def num_pins(self):
-        return 4
-
-    async def enable(self, pin_index, frequency, duty=0):
-        if 2000000 % frequency:
-            raise Exception('cannot set frequency exactly')
-        top = 2000000 // frequency
-
-        duty = min(100.0, duty)
-        duty = max(0.0, duty)
-        duty = int(round(duty / 100.0 * top))
-
-        if pin_index in (0, 1, 2):
-            # These pins are on Timer 1.
-            needs_init = True
-
-            for idx in (0, 1, 2):
-                if idx in self.enabled:
-                    if frequency != self.enabled[idx]:
-                        raise Exception("All enabled pins 0, 1, and 2 must have the same frequency.")
-                    needs_init = False
-
-            if needs_init:
-                await self.timer_1.set_top(top)
-
-            if pin_index == 0:
-                await self.timer_1.set_ocr_a(duty)
-                await self.timer_1.enable_a()
-            elif pin_index == 1:
-                await self.timer_1.set_ocr_b(duty)
-                await self.timer_1.enable_b()
-            elif pin_index == 2:
-                await self.timer_1.set_ocr_c(duty)
-                await self.timer_1.enable_c()
-
-        elif pin_index == 3:
-            # This pin is on Timer 3.
-            await self.timer_3.set_top(top)
-            await self.timer_3.set_ocr(duty)
-            await self.timer_3.enable()
-
-        else:
-            raise Exception('invalid pin_index')
-
-        self.enabled[pin_index] = frequency
-
-    async def set_duty(self, pin_index, duty):
-        if pin_index not in self.enabled:
-            raise Exception('that pin is not enabled')
-
-        frequency = self.enabled[pin_index]
-        top = 2000000 // frequency
-
-        duty = min(100.0, duty)
-        duty = max(0.0, duty)
-        duty = int(round(duty / 100.0 * top))
-
-        if pin_index == 0:
-            await self.timer_1.set_ocr_a(duty)
-        elif pin_index == 1:
-            await self.timer_1.set_ocr_b(duty)
-        elif pin_index == 2:
-            await self.timer_1.set_ocr_c(duty)
-        elif pin_index == 3:
-            await self.timer_3.set_ocr(duty)
-
-    async def disable(self, pin_index):
-        if pin_index not in self.enabled:
-            raise Exception('that pin is not enabled')
-
-        if pin_index == 0:
-            await self.timer_1.disable_a()
-        elif pin_index == 1:
-            await self.timer_1.disable_b()
-        elif pin_index == 2:
-            await self.timer_1.disable_c()
-        elif pin_index == 3:
-            await self.timer_3.disable()
-
-        del self.enabled[pin_index]
-
-
-class Calibrator(cio.CalibratorIface):
+class Calibrator(cio.CalibratorIface):  # TODO
     def __init__(self, fd, reg_num):
         pass
 
@@ -741,7 +608,7 @@ class Calibrator(cio.CalibratorIface):
         return "calibrate_car_v3"
 
 
-class PidSteering(cio.PidSteeringIface):
+class PidSteering(cio.PidSteeringIface):  # TODO
     pid_cache = None
 
     def __init__(self, fd, reg_nums):
@@ -843,7 +710,6 @@ class PidSteering(cio.PidSteeringIface):
 KNOWN_COMPONENTS = {
     'VersionInfo':           VersionInfo,
     'Credentials':           Credentials,
-    'LoopFrequency':         LoopFrequency,
     'BatteryVoltageReader':  BatteryVoltageReader,
     'Buzzer':                Buzzer,
     'Gyroscope':             Gyroscope,
@@ -853,9 +719,7 @@ KNOWN_COMPONENTS = {
     'PushButtons':           PushButtons,
     'LEDs':                  LEDs,
     'Photoresistor':         Photoresistor,
-    'Encoders':              Encoders,
     'CarMotors':             CarMotors,
-    'PWMs':                  PWMs,
     'Calibrator':            Calibrator,
     'PID_steering':          PidSteering,
 }

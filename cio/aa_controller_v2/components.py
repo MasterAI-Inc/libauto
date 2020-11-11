@@ -25,6 +25,7 @@ import cio
 import os
 import struct
 import asyncio
+import subprocess
 from math import floor, isnan
 from collections import deque
 
@@ -120,6 +121,12 @@ class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
     async def should_shut_down(self):
         on_flag, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01], 1)
         return not on_flag
+
+    async def shut_down(self):
+        subprocess.run(['/sbin/poweroff'])
+
+    async def reboot(self):
+        subprocess.run(['/sbin/reboot'])
 
 
 class Buzzer(cio.BuzzerIface):

@@ -19,6 +19,8 @@ async def run():
     caps = await c.init()
     pprint(caps)
 
+    await asyncio.sleep(2)
+
     leds = await c.acquire('LEDs')
 
     mode_map = await leds.mode_map()
@@ -35,6 +37,10 @@ async def run():
     led_map = await leds.led_map()
     print(led_map)
 
+    print('Turning all blue')
+    await leds.set_many_leds([(index, (0, 0, 255)) for index in led_map])
+    await asyncio.sleep(1)
+
     print('Clearning LEDs')
     await leds.set_many_leds([(index, (0, 0, 0)) for index in led_map])
     await asyncio.sleep(1)
@@ -48,7 +54,7 @@ async def run():
     await asyncio.sleep(1)
 
     print('Playing with brightness!')
-    for b in range(0, 255, 5):
+    for b in range(5, 255, 5):
         await leds.set_brightness(b)
         await asyncio.sleep(0.1)
 

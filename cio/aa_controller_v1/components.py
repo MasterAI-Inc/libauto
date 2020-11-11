@@ -23,6 +23,7 @@ import cio
 import os
 import struct
 import asyncio
+import subprocess
 from math import floor
 from collections import deque
 
@@ -117,14 +118,13 @@ class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
         return floor(minutes), floor(percentage)
 
     async def should_shut_down(self):
-        # Notes for version 3.
-        #import RPi.GPIO as GPIO
-        #GPIO.setmode(GPIO.BCM)
-        #BCM_PIN = 26
-        #GPIO.setup(BCM_PIN, GPIO.IN, GPIO.PUD_UP)
-        #val = GPIO.input(BCM_PIN)
-        #return val == 0
         return False
+
+    async def shut_down(self):
+        subprocess.run(['/sbin/poweroff'])
+
+    async def reboot(self):
+        subprocess.run(['/sbin/reboot'])
 
 
 class Buzzer(cio.BuzzerIface):

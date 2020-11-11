@@ -22,7 +22,8 @@ async def run():
     p = await c.acquire('Photoresistor')
 
     for i in range(1000):
-        print(await p.read(), await p.read_millivolts(), await p.read_ohms())
+        millivolts, resistance = await p.read()
+        print(f'{millivolts:.2f} {resistance:.0f}')
         await asyncio.sleep(0.1)
 
     await c.release(p)

@@ -19,7 +19,7 @@ from auto.inet import Wireless, list_wifi_ifaces, get_ip_address, get_mac_addres
 from auto import logger
 log = logger.init(__name__, terminal=True)
 
-from auto.services.labs.util import shutdown, update_libauto
+from auto.services.labs.util import update_libauto
 
 
 class Dashboard:
@@ -33,6 +33,7 @@ class Dashboard:
 
     async def init(self):
         loop = asyncio.get_running_loop()
+        self.battery = await self.controller.acquire('BatteryVoltageReader')
         wifi_ifaces = await loop.run_in_executor(None, list_wifi_ifaces)
         if wifi_ifaces:
             wifi_iface = wifi_ifaces[0]
@@ -119,9 +120,9 @@ class Dashboard:
 
     async def _command(self, command, command_id, user_session, send_func):
         if command == 'shutdown':
-            response = await shutdown(reboot=False)
+            response = await self.battery.shut_down()
         elif command == 'reboot':
-            response = await shutdown(reboot=True)
+            response = await self.battery.reboot()
         elif command == 'update_libauto':
             response = await update_libauto()
         elif command == 'start_capture_stream':
@@ -232,9 +233,7 @@ class Dashboard:
         return cio_version
 
     async def _get_battery_state(self):
-        battery = await self.controller.acquire('BatteryVoltageReader')
-        minutes, percentage = await battery.estimate_remaining()
-        await self.controller.release(battery)
+        minutes, percentage = await self.battery.estimate_remaining()
         return {
             'minutes': minutes,
             'percentage': percentage,
