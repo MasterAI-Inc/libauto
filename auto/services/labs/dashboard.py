@@ -26,6 +26,7 @@ class Dashboard:
 
     def __init__(self, camera, controller):
         self.wireless = None
+        self.mac_address = None
         self.capture_streams = {}
         self.camera = camera
         self.controller = controller
@@ -33,9 +34,10 @@ class Dashboard:
     async def init(self):
         loop = asyncio.get_running_loop()
         wifi_ifaces = await loop.run_in_executor(None, list_wifi_ifaces)
-        wifi_iface = wifi_ifaces[0]
-        self.wireless = Wireless(wifi_iface)
-        self.mac_address = await loop.run_in_executor(None, get_mac_address, wifi_iface)
+        if wifi_ifaces:
+            wifi_iface = wifi_ifaces[0]
+            self.wireless = Wireless(wifi_iface)
+            self.mac_address = await loop.run_in_executor(None, get_mac_address, wifi_iface)
 
     async def connected_cdp(self):
         self.known_user_sessions = set()
@@ -142,11 +144,20 @@ class Dashboard:
         elif component == 'version_controller':
             return await self._get_cio_version()
         elif component == 'wifi_ssid':
-            return await loop.run_in_executor(None, self.wireless.current)
+            if self.wireless:
+                return await loop.run_in_executor(None, self.wireless.current)
+            else:
+                return None
         elif component == 'wifi_iface':
-            return self.wireless.interface
+            if self.wireless:
+                return self.wireless.interface
+            else:
+                return None
         elif component == 'local_ip_addr':
-            return await loop.run_in_executor(None, get_ip_address, self.wireless.interface)
+            if self.wireless:
+                return await loop.run_in_executor(None, get_ip_address, self.wireless.interface)
+            else:
+                return None
         elif component == 'mac_address':
             return self.mac_address
         elif component == 'battery_state':
