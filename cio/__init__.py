@@ -143,7 +143,7 @@ class LoopFrequencyIface(abc.ABC):
     """
     Read the Controller's Loop Frequency (in Hz)
 
-    Required: True
+    Required: False
 
     Capability Identifier: 'LoopFrequency'
     """
