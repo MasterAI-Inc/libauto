@@ -283,8 +283,13 @@ async def run_forever(system_priv_user):
 
     log.info("Starting Wifi controller using the privileged user: {}".format(system_priv_user))
 
-    wifi_interface = await loop.run_in_executor(None, list_wifi_ifaces)
-    wifi_interface = wifi_interface[0]
+    wifi_interfaces = await loop.run_in_executor(None, list_wifi_ifaces)
+
+    if not wifi_interfaces:
+        log.info("No WiFi interfaces, so not running the WiFi monitor script...")
+        return
+
+    wifi_interface = wifi_interfaces[0]
 
     wireless = Wireless(wifi_interface)
 
@@ -327,8 +332,13 @@ async def _mock_wifi_run_forever(system_priv_user):
             if ssid_to_delete == self.curr:
                 self.curr = None
 
-    wifi_interface = await loop.run_in_executor(None, list_wifi_ifaces)
-    wifi_interface = wifi_interface[0]
+    wifi_interfaces = await loop.run_in_executor(None, list_wifi_ifaces)
+
+    if not wifi_interfaces:
+        log.info("No WiFi interfaces, so not running the WiFi monitor script...")
+        return
+
+    wifi_interface = wifi_interfaces[0]
 
     wireless = MockWireless(wifi_interface)
 

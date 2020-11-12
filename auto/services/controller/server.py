@@ -41,7 +41,11 @@ async def _get_cio_implementation():
         log.info('Environment does not specify cio implementation, using known list: {}'.format(known_impls))
 
     for impl in list_of_impls:
-        impl_module = importlib.import_module(impl)
+        try:
+            impl_module = importlib.import_module(impl)
+        except Exception as e:
+            log.info('Failed to import cio implementation: {}; error: {}'.format(impl, e))
+            continue
 
         impl_classes = inspect.getmembers(impl_module, predicate=inspect.isclass)
 
