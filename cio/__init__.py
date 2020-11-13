@@ -156,13 +156,13 @@ class LoopFrequencyIface(abc.ABC):
         pass
 
 
-class BatteryVoltageReaderIface(abc.ABC):
+class PowerIface(abc.ABC):
     """
     Read the Battery Voltage
 
     Required: True
 
-    Capability Identifier: 'BatteryVoltageReader'
+    Capability Identifier: 'Power'
     """
 
     @abc.abstractmethod

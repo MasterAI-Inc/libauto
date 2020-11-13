@@ -19,16 +19,16 @@ async def run():
     caps = await c.init()
     pprint(caps)
 
-    batt = await c.acquire('BatteryVoltageReader')
+    power = await c.acquire('Power')
 
     for i in range(1000):
-        mv = await batt.millivolts()
-        mi = await batt.estimate_remaining()
-        sd = await batt.should_shut_down()
+        mv = await power.millivolts()
+        mi = await power.estimate_remaining()
+        sd = await power.should_shut_down()
         print(mv, mi, sd)
         await asyncio.sleep(0.1)
 
-    await c.release(batt)
+    await c.release(power)
 
     await c.close()
 

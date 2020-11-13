@@ -2,7 +2,7 @@ from auto.capabilities import list_caps, acquire
 from itertools import count
 import time
 
-b = acquire('BatteryVoltageReader')
+b = acquire('Power')
 
 start_time = time.time()
 

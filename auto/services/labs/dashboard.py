@@ -33,7 +33,7 @@ class Dashboard:
 
     async def init(self):
         loop = asyncio.get_running_loop()
-        self.battery = await self.controller.acquire('BatteryVoltageReader')
+        self.power = await self.controller.acquire('Power')
         wifi_ifaces = await loop.run_in_executor(None, list_wifi_ifaces)
         if wifi_ifaces:
             wifi_iface = wifi_ifaces[0]
@@ -120,9 +120,9 @@ class Dashboard:
 
     async def _command(self, command, command_id, user_session, send_func):
         if command == 'shutdown':
-            response = await self.battery.shut_down()
+            response = await self.power.shut_down()
         elif command == 'reboot':
-            response = await self.battery.reboot()
+            response = await self.power.reboot()
         elif command == 'update_libauto':
             response = await update_libauto()
         elif command == 'start_capture_stream':
@@ -233,7 +233,7 @@ class Dashboard:
         return cio_version
 
     async def _get_battery_state(self):
-        minutes, percentage = await self.battery.estimate_remaining()
+        minutes, percentage = await self.power.estimate_remaining()
         return {
             'minutes': minutes,
             'percentage': percentage,

@@ -34,7 +34,7 @@ class CioRoot(cio.CioRoot):
         self.impls = {
             'VersionInfo': VersionInfo(),
             'Credentials': Credentials(None, None),
-            'BatteryVoltageReader': BatteryVoltageReader(),
+            'Power': Power(),
         }
 
     async def init(self):
@@ -59,7 +59,7 @@ class VersionInfo(cio.VersionInfoIface):
         return (0, 1)
 
 
-class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
+class Power(cio.PowerIface):
 
     async def millivolts(self):
         return random.randint(7000, 8000)

@@ -100,7 +100,7 @@ class LoopFrequency(cio.LoopFrequencyIface):
         return struct.unpack('1I', buf)[0]
 
 
-class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
+class Power(cio.PowerIface):
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
@@ -841,7 +841,7 @@ KNOWN_COMPONENTS = {
     'VersionInfo':           VersionInfo,
     'Credentials':           Credentials,
     'LoopFrequency':         LoopFrequency,
-    'BatteryVoltageReader':  BatteryVoltageReader,
+    'Power':                 Power,
     'Buzzer':                Buzzer,
     'Gyroscope':             Gyroscope,
     'Gyroscope_accum':       GyroscopeAccum,

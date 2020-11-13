@@ -97,7 +97,7 @@ class Credentials(cio.CredentialsIface):   # TODO - store both in EEPROM and SD 
         os.sync()
 
 
-class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
+class Power(cio.PowerIface):
     @staticmethod
     async def _write_reg(fd, reg, v):
         buf = bytes([reg, v])
@@ -710,7 +710,7 @@ class PidSteering(cio.PidSteeringIface):  # TODO
 KNOWN_COMPONENTS = {
     'VersionInfo':           VersionInfo,
     'Credentials':           Credentials,
-    'BatteryVoltageReader':  BatteryVoltageReader,
+    'Power':                 Power,
     'Buzzer':                Buzzer,
     'Gyroscope':             Gyroscope,
     'Gyroscope_accum':       GyroscopeAccum,

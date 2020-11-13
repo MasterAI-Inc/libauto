@@ -30,17 +30,17 @@ def _gen_sample_sizes():
         yield 10
 
 
-async def _display_forever(battery, console, labs, buzzer):
+async def _display_forever(power, console, labs, buzzer):
     for sample_size in _gen_sample_sizes():
         samples = []
 
         for _ in range(sample_size):
-            millivolts = await battery.millivolts()
+            millivolts = await power.millivolts()
             samples.append(millivolts)
             await asyncio.sleep(3)
 
         millivolts = sum(samples) / len(samples)
-        minutes, percentage = await battery.estimate_remaining(millivolts)
+        minutes, percentage = await power.estimate_remaining(millivolts)
 
         await console.set_battery(minutes, percentage)
         await labs.send({
@@ -54,18 +54,18 @@ async def _display_forever(battery, console, labs, buzzer):
                 await buzzer.play("EEE")
 
 
-async def _check_shutdown_forever(battery):
+async def _check_shutdown_forever(power):
     while True:
-        v = await battery.should_shut_down()
+        v = await power.should_shut_down()
         if v:
             for _ in range(5):
                 await asyncio.sleep(0.1)
-                v = await battery.should_shut_down()
+                v = await power.should_shut_down()
                 if not v:
                     break
             else:
                 log.info('Off switch triggered; shutting down...')
-                await battery.shut_down()
+                await power.shut_down()
                 break
         await asyncio.sleep(1)
 
@@ -79,14 +79,14 @@ async def run_forever():
     await console.init()
     await labs.connect()
 
-    battery = None
+    power = None
     buzzer = None
 
     try:
-        if 'BatteryVoltageReader' in capabilities:
-            battery = await controller.acquire('BatteryVoltageReader')
+        if 'Power' in capabilities:
+            power = await controller.acquire('Power')
         else:
-            log.warning('No battery component exists on this device; exiting...')
+            log.warning('No power component exists on this device; exiting...')
             return
 
         if 'Buzzer' in capabilities:
@@ -97,17 +97,17 @@ async def run_forever():
         log.info('RUNNING!')
 
         await asyncio.gather(
-                _display_forever(battery, console, labs, buzzer),
-                _check_shutdown_forever(battery),
+                _display_forever(power, console, labs, buzzer),
+                _check_shutdown_forever(power),
         )
 
     except asyncio.CancelledError:
         log.info('Battery monitor is being canceled...')
 
     finally:
-        if battery is not None:
-            await controller.release(battery)
-            battery = None
+        if power is not None:
+            await controller.release(power)
+            power = None
         if buzzer is not None:
             await controller.release(buzzer)
             buzzer = None
