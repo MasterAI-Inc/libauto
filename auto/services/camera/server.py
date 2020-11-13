@@ -70,10 +70,6 @@ def import_camera_implementation():
     return CameraRGB
 
 
-# The dynamically loaded camera implementation...
-CameraRGB = import_camera_implementation()
-
-
 # This is how long the camera will stay open _after_ the last client disconnects.
 # It is common that another client will reconnect quickly after the last one disconnects,
 # thus keeping the camera open for some amount of time helps make things faster for the
@@ -89,7 +85,7 @@ CAM_FPS = 8
 
 
 def _init_bg_capture_thread(ctl_queue, frame_callback, loop):
-    def run_camera():
+    def run_camera(CameraRGB):
         event = ctl_queue.get()     # <-- block waiting for an event
         assert event == 'start'
 
@@ -112,8 +108,9 @@ def _init_bg_capture_thread(ctl_queue, frame_callback, loop):
         log.info("Destroyed the camera instance...")
 
     def camera_thread_main():
+        CameraRGB = import_camera_implementation()
         while True:
-            run_camera()
+            run_camera(CameraRGB)
             time.sleep(1)
 
     thread = Thread(target=camera_thread_main)
