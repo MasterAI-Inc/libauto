@@ -202,6 +202,21 @@ car.print("The detected color is", color)
 
 The lower-level class-based interface for the color classifier can be found in `auto.models.ColorClassifier`.
 
+### Read QR Codes
+
+```python
+import car
+from auto.qrcode import qr_scan
+
+while True:
+    frame = car.capture(verbose=False)
+    car.plot(frame, verbose=False)
+    qr = qr_scan(frame)
+    print(qr)
+    if qr:
+        car.honk(1)
+```
+
 ### Precise steering
 
 **Note:** Only applicable to AutoAuto _cars_, not other devices.
