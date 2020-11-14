@@ -61,6 +61,9 @@ class VersionInfo(cio.VersionInfoIface):
 
 class Power(cio.PowerIface):
 
+    async def state(self):
+        return 'wall'
+
     async def millivolts(self):
         return random.randint(7000, 8000)
 

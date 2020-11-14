@@ -127,6 +127,9 @@ class Power(cio.PowerIface):
     def __init__(self, fd, reg_num):
         self.fd = fd
 
+    async def state(self):
+        return 'battery'   # TODO
+
     async def millivolts(self):
         v = await self._read_reg(self.fd, 0x0E)
         millivolts = self._batt_convert_millivolts(v)

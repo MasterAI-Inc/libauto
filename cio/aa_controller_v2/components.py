@@ -105,6 +105,9 @@ class Power(cio.PowerIface):
         self.fd = fd
         self.reg_num = reg_num
 
+    async def state(self):
+        return 'battery'
+
     @i2c_retry(N_I2C_TRIES)
     async def millivolts(self):
         lsb, msb = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x00], 2)
