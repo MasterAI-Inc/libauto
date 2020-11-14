@@ -11,10 +11,10 @@
 from auto.services.camera.client import CameraRGB
 from auto.services.console.client import CuiRoot
 from auto.services.controller.client import CioRoot
-from auto.services.wifi import myzbarlight
 from auto.services.wifi import util
 
 from auto.inet import Wireless, list_wifi_ifaces, get_ip_address, has_internet_access
+from auto.qrcode import qr_scan
 
 import itertools
 import asyncio
@@ -77,12 +77,11 @@ async def _get_wifi_info_from_user(wireless, console):
         frame = await camera.capture()
         frame = await loop.run_in_executor(None, cv2.cvtColor, frame, cv2.COLOR_RGB2GRAY)
         await _stream_frame(frame, console)
-        qrcodes = await loop.run_in_executor(None, myzbarlight.qr_scan, frame)
+        qr_data = await loop.run_in_executor(None, qr_scan, frame)
 
-        if len(qrcodes) > 0:
-            qr_data = qrcodes[0]
+        if qr_data is not None:
             try:
-                qr_data = json.loads(qr_data.decode('utf-8'))
+                qr_data = json.loads(qr_data)
                 ssid = qr_data['s']
                 password = qr_data['p']
                 break
@@ -149,12 +148,11 @@ async def _ensure_token(console, controller, system_priv_user):
         frame = await camera.capture()
         frame = await loop.run_in_executor(None, cv2.cvtColor, frame, cv2.COLOR_RGB2GRAY)
         await _stream_frame(frame, console)
-        qrcodes = await loop.run_in_executor(None, myzbarlight.qr_scan, frame)
+        qr_data = await loop.run_in_executor(None, qr_scan, frame)
 
-        if len(qrcodes) > 0:
-            qr_data = qrcodes[0]
+        if qr_data is not None:
             try:
-                qr_data = json.loads(qr_data.decode('utf-8'))
+                qr_data = json.loads(qr_data)
                 token = qr_data['t']
                 if 'p' in qr_data:
                     # This allows us to override the default system_password for special-purpose devices.
