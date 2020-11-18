@@ -17,6 +17,9 @@ from auto import logger
 log = logger.init(__name__, terminal=True)
 
 
+READ_BUF_SIZE = 4096*8
+
+
 class Proxy:
 
     def __init__(self):
@@ -151,7 +154,7 @@ async def _read(channel, reader, send_func):
 
     try:
         while True:
-            buf = await reader.read(4096)
+            buf = await reader.read(READ_BUF_SIZE)
             n_read_bytes += len(buf)
             extra = {'close': True} if buf == b'' else {}
             await send_func({
