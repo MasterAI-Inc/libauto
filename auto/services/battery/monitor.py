@@ -41,10 +41,12 @@ async def _display_forever(power, console, labs, buzzer):
 
         millivolts = sum(samples) / len(samples)
         minutes, percentage = await power.estimate_remaining(millivolts)
+        state = await power.state()
 
         await console.set_battery(minutes, percentage)
         await labs.send({
             'type': 'battery_state',
+            'state': state,
             'minutes': minutes,
             'percentage': percentage,
         })
