@@ -215,6 +215,7 @@ async def get_capabilities(fd, soft_reset_first=False, only_enabled=False):
 
     for reg in register_numbers:
         name = await get_component_name(fd, reg)
+        if name == 'BatteryVoltageReader': name = 'Power'
         if name != "Capabilities":
             caps[name] = {
                     'register_number': reg,
