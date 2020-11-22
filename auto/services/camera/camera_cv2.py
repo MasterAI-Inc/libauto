@@ -21,6 +21,16 @@ import numpy as np
 from threading import Thread, Condition
 
 
+# Test to see that we can instantiate a cv2 camera object and use it.
+_ = cv2.VideoCapture(0)
+try:
+    ret, frame = _.read()
+    if not ret:
+        raise Exception('Failed to capture frame using OpenCV')
+finally:
+    _.release()
+
+
 class CameraRGB:
     """
     This class represents a camera which captures in raw RGB.

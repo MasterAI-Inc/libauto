@@ -435,15 +435,15 @@ release(buttons)
 ```python
 from auto.capabilities import list_caps, acquire, release
 
-battery = acquire('BatteryVoltageReader')
+power = acquire('Power')
 
-millivolts = battery.millivolts()
-percentage, minutes = battery.estimate_remaining(millivolts)
+millivolts = power.millivolts()
+percentage, minutes = power.estimate_remaining(millivolts)
 
-print('The battery voltage is {} millivolts.'.format(millivolts))
+print('The power voltage is {} millivolts.'.format(millivolts))
 print('It is at ~{}% and will last for ~{} more minutes.'.format(minutes, percentage))
 
-release(battery)
+release(power)
 ```
 
 **Note:** There's a background task that will monitor the battery voltage for you and will buzz the buzzer when the battery gets to 5% or lower.

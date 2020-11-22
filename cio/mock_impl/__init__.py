@@ -34,8 +34,7 @@ class CioRoot(cio.CioRoot):
         self.impls = {
             'VersionInfo': VersionInfo(),
             'Credentials': Credentials(None, None),
-            'LoopFrequency': LoopFrequency(),
-            'BatteryVoltageReader': BatteryVoltageReader(),
+            'Power': Power(),
         }
 
     async def init(self):
@@ -60,13 +59,10 @@ class VersionInfo(cio.VersionInfoIface):
         return (0, 1)
 
 
-class LoopFrequency(cio.LoopFrequencyIface):
+class Power(cio.PowerIface):
 
-    async def read(self):
-        return random.randint(150, 180)
-
-
-class BatteryVoltageReader(cio.BatteryVoltageReaderIface):
+    async def state(self):
+        return 'wall'
 
     async def millivolts(self):
         return random.randint(7000, 8000)

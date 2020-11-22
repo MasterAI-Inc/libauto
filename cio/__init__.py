@@ -143,7 +143,7 @@ class LoopFrequencyIface(abc.ABC):
     """
     Read the Controller's Loop Frequency (in Hz)
 
-    Required: True
+    Required: False
 
     Capability Identifier: 'LoopFrequency'
     """
@@ -156,14 +156,25 @@ class LoopFrequencyIface(abc.ABC):
         pass
 
 
-class BatteryVoltageReaderIface(abc.ABC):
+class PowerIface(abc.ABC):
     """
     Read the Battery Voltage
 
     Required: True
 
-    Capability Identifier: 'BatteryVoltageReader'
+    Capability Identifier: 'Power'
     """
+
+    @abc.abstractmethod
+    async def state(self):
+        """
+        Return the state of the power of this device.
+        Returns a string, one of:
+         - 'battery'  : The device is running on battery power.
+         - 'wall'     : The device is running on "wall" power (aka, has external power in some way).
+         - 'charging' : The device is charging its battery, which implies "wall" power as well.
+        """
+        pass
 
     @abc.abstractmethod
     async def millivolts(self):

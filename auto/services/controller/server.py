@@ -31,7 +31,7 @@ from auto.services.controller.cio_inspector import build_cio_method_map, get_abc
 
 
 async def _get_cio_implementation():
-    fixed_impl = os.environ.get('CIO_IMPLEMENTATION', None)
+    fixed_impl = os.environ.get('MAI_CIO_IMPLEMENTATION', None)
 
     if fixed_impl is not None:
         list_of_impls = [fixed_impl]
@@ -41,7 +41,11 @@ async def _get_cio_implementation():
         log.info('Environment does not specify cio implementation, using known list: {}'.format(known_impls))
 
     for impl in list_of_impls:
-        impl_module = importlib.import_module(impl)
+        try:
+            impl_module = importlib.import_module(impl)
+        except Exception as e:
+            log.info('Failed to import cio implementation: {}; error: {}'.format(impl, e))
+            continue
 
         impl_classes = inspect.getmembers(impl_module, predicate=inspect.isclass)
 
@@ -129,7 +133,7 @@ async def init():
 
     pubsub_iface = None
 
-    server = await serve(CioIface, pubsub_iface, 'localhost', 7002)
+    server = await serve(CioIface, pubsub_iface, '127.0.0.1', 7002)
 
     log.info("RUNNING!")
 

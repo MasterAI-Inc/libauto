@@ -38,9 +38,7 @@ from auto.services.labs.util import set_hostname
 from auto.services.labs.rpc.server import init as init_rpc_server
 
 
-BASE_PROTO = os.environ.get('LABS_PROTO', 'wss')
-BASE_HOST  = os.environ.get('LABS_HOST', 'ws.autoauto.ai')
-BASE_URL = "{}://{}/autopair/device".format(BASE_PROTO, BASE_HOST)
+WS_BASE_URL = os.environ.get('MAI_WS_URL', 'wss://ws.autoauto.ai/autopair/device')
 
 PING_INTERVAL_SECONDS = 20
 
@@ -424,14 +422,14 @@ async def init_and_create_forever_task(system_up_user):
     async def _forever():
         auth_code = await _get_labs_auth_code(controller, console)
 
-        url = BASE_URL + '/' + auth_code
+        url = WS_BASE_URL + '/' + auth_code
 
         while True:
             was_connected = False
 
             try:
                 async with ws_connect(url) as ws:
-                    log.info("Connected: {}...".format(BASE_URL + '/' + auth_code[:4]))
+                    log.info("Connected: {}...".format(WS_BASE_URL + '/' + auth_code[:4]))
                     await console.write_text('Connected to Labs. Standing by...\n')
                     was_connected = True
                     await _run(ws, consumers, console, rpc_interface, publish_func)

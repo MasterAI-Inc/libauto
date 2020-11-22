@@ -17,7 +17,7 @@ import os
 import sqlite3
 
 
-DEFAULT_DB_PATH = os.environ.get('LIBAUTO_DEFAULT_DB_PATH', '/var/lib/libauto')
+DEFAULT_DB_PATH = os.environ.get('MAI_LIBAUTO_DEFAULT_DB_PATH', '/var/lib/libauto')
 
 
 def default_db(same_thread=False):

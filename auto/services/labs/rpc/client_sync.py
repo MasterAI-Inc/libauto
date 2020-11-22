@@ -21,7 +21,7 @@ from auto.services.labs.rpc import LabsServiceIface
 
 class LabsService(LabsServiceIface):
 
-    def __init__(self, loop, inet_addr='localhost', inet_port=7004):
+    def __init__(self, loop, inet_addr='127.0.0.1', inet_port=7004):
         self.labs = LabsService_async(inet_addr, inet_port)
         self.loop = loop
 

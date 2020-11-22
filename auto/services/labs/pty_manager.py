@@ -29,6 +29,9 @@ from auto import logger
 log = logger.init(__name__, terminal=True)
 
 
+READ_BUF_SIZE = 4096*8
+
+
 class PtyManager:
 
     def __init__(self, system_up_user, console):
@@ -265,7 +268,7 @@ class PtyProcess:
 
     async def _read(self, fd):
         try:
-            return await self.loop.run_in_executor(None, os.read, fd, 4096)
+            return await self.loop.run_in_executor(None, os.read, fd, READ_BUF_SIZE)
         except OSError:
             # PTYs throw OSError when they hit EOF, for some reason.
             # Pipes and regular files don't throw, so PTYs are unique.

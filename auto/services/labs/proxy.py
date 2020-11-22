@@ -17,6 +17,9 @@ from auto import logger
 log = logger.init(__name__, terminal=True)
 
 
+READ_BUF_SIZE = 4096*8
+
+
 class Proxy:
 
     def __init__(self):
@@ -89,7 +92,7 @@ async def _manage_connection(channel, queue, send_func):
             if 'open' in msg:
                 port = msg['open']
                 try:
-                    reader, writer = await asyncio.wait_for(asyncio.open_connection('localhost', port), 1.0)
+                    reader, writer = await asyncio.wait_for(asyncio.open_connection('127.0.0.1', port), 1.0)
                     await send_func({
                         'type': 'proxy_send',
                         'channel': channel,
@@ -151,7 +154,7 @@ async def _read(channel, reader, send_func):
 
     try:
         while True:
-            buf = await reader.read(4096)
+            buf = await reader.read(READ_BUF_SIZE)
             n_read_bytes += len(buf)
             extra = {'close': True} if buf == b'' else {}
             await send_func({

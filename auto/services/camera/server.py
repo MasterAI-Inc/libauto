@@ -13,13 +13,6 @@ This is an RPC server to serve the camera as a shared resource. Because of this,
 multiple processes may access the camera simultaneously.
 """
 
-
-try:
-    from auto.camera_pi import CameraRGB
-except ImportError:
-    from auto.camera_cv2 import CameraRGB
-
-
 from auto.rpc.server import serve
 
 
@@ -30,8 +23,51 @@ log = logger.init(__name__, terminal=True)
 from threading import Thread
 from queue import Queue
 
+import os
 import asyncio
+import importlib
 import time
+
+
+FIXED_IMPL = os.environ.get('MAI_CAMERA_IMPLEMENTATION', None)
+
+KNOWN_IMPLS = [
+    'auto.services.camera.camera_pi.CameraRGB',
+    'auto.services.camera.camera_cv2.CameraRGB',
+    'auto.services.camera.camera_mock.CameraRGB',
+]
+
+
+def import_camera_implementation():
+    if FIXED_IMPL is not None:
+        list_of_impls = [FIXED_IMPL]
+        log.info('Environment specifies camera implementation: {}'.format(FIXED_IMPL))
+    else:
+        list_of_impls = KNOWN_IMPLS
+        log.info('Environment does not specify camera implementation, using known list: {}'.format(KNOWN_IMPLS))
+
+    CameraRGB = None
+
+    for impl in list_of_impls:
+        modulepath, classname = impl.rsplit('.', maxsplit=1)
+        try:
+            log.info('Will import camera implementation: {}'.format(modulepath))
+            module = importlib.import_module(modulepath)
+            log.info('Successfully imported camera implementation: {}'.format(modulepath))
+        except Exception as e:
+            log.warning('Failed to import camera implementation: {}; error: {}'.format(modulepath, e))
+            continue
+        if hasattr(module, classname):
+            CameraRGB = getattr(module, classname)
+            log.info('Will use implementation: {} with CameraRGB: {}'.format(modulepath, CameraRGB))
+            break
+        else:
+            log.warning('Camera implementation has no class named: {}'.format(classname))
+
+    if CameraRGB is None:
+        raise Exception('Failed to find a working camera implementation...')
+
+    return CameraRGB
 
 
 # This is how long the camera will stay open _after_ the last client disconnects.
@@ -49,7 +85,7 @@ CAM_FPS = 8
 
 
 def _init_bg_capture_thread(ctl_queue, frame_callback, loop):
-    def run_camera():
+    def run_camera(CameraRGB):
         event = ctl_queue.get()     # <-- block waiting for an event
         assert event == 'start'
 
@@ -72,8 +108,9 @@ def _init_bg_capture_thread(ctl_queue, frame_callback, loop):
         log.info("Destroyed the camera instance...")
 
     def camera_thread_main():
+        CameraRGB = import_camera_implementation()
         while True:
-            run_camera()
+            run_camera(CameraRGB)
             time.sleep(1)
 
     thread = Thread(target=camera_thread_main)
@@ -162,7 +199,7 @@ async def init():
 
     root_factory, pubsub = _init_interface(loop, frame_callback)
 
-    server, publish_func = await serve(root_factory, pubsub, 'localhost', 7001)
+    server, publish_func = await serve(root_factory, pubsub, '127.0.0.1', 7001)
 
     log.info("RUNNING!")
 

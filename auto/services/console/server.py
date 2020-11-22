@@ -36,7 +36,7 @@ async def _safe_invoke(func, *args):
 
 
 async def _get_cui_implementation():
-    fixed_impl = os.environ.get('CUI_IMPLEMENTATION', None)
+    fixed_impl = os.environ.get('MAI_CUI_IMPLEMENTATION', None)
 
     if fixed_impl is not None:
         list_of_impls = [fixed_impl]
@@ -93,7 +93,7 @@ async def init():
 
     pubsub_iface = None
 
-    server = await serve(root_factory, pubsub_iface, 'localhost', 7003)
+    server = await serve(root_factory, pubsub_iface, '127.0.0.1', 7003)
 
     log.info("RUNNING!")
 

@@ -33,7 +33,7 @@ class SerializeIface(Exception):
         self.whitelist_method_names = whitelist_method_names
 
 
-async def serve(root_factory, pubsub=None, inet_addr='localhost', inet_port=7000):
+async def serve(root_factory, pubsub=None, inet_addr='127.0.0.1', inet_port=7000):
     """
     Serve an RPC server for objects created by `root_factory`. Each new client will
     receive its own copy of the root object as created by the `root_factory`. Clients
