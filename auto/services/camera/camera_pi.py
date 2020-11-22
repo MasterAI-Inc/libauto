@@ -17,12 +17,15 @@ This is a **synchronous** interface.
 
 from picamera import PiCamera
 from picamera.array import PiRGBArray
+import numpy as np
 import time
 
 
-with PiCamera() as _:
+with PiCamera(resolution=(320, 240)) as _:
     # Test to see that we can instantiate a PiCamera object and use it.
-    _.capture()
+    output = np.empty((240, 320, 3), dtype=np.uint8)
+    _.capture(output, 'rgb')
+    del output
 
 
 class CameraRGB:
