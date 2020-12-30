@@ -267,6 +267,8 @@ class PtyProcess:
         return await self._read(self.stderr)
 
     async def _read(self, fd):
+        if fd is None:
+            return b''
         try:
             return await self.loop.run_in_executor(None, os.read, fd, READ_BUF_SIZE)
         except OSError:
@@ -276,9 +278,9 @@ class PtyProcess:
 
     async def close_fds(self):
         """Close the underlying file descriptors; don't leak FDs!"""
-        os.close(self.stdin)
-        os.close(self.stdout)
-        os.close(self.stderr)
+        for fd in set([self.stdin, self.stdout, self.stderr]):
+            if fd is not None:
+                os.close(fd)
 
     def setwinsize(self, rows, cols):
         try:
@@ -338,13 +340,12 @@ async def _run_pty_cmd_background(cmd, system_user, env_override=None, start_dir
             os.setuid(pw_record.pw_uid)
 
     fd_master_io, fd_slave_io = os.openpty()
-    fd_master_er, fd_slave_er = os.openpty()
     try:
         p = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdin=fd_slave_io,
                 stdout=fd_slave_io,
-                stderr=fd_slave_er,
+                stderr=fd_slave_io,
                 cwd=start_dir_override,
                 env=env,
                 preexec_fn=switch_user,
@@ -352,16 +353,13 @@ async def _run_pty_cmd_background(cmd, system_user, env_override=None, start_dir
     except:
         os.close(fd_master_io)
         os.close(fd_slave_io)
-        os.close(fd_master_er)
-        os.close(fd_slave_er)
         raise
 
     os.close(fd_slave_io)
-    os.close(fd_slave_er)
 
     stdin = fd_master_io
-    stdout = os.dup(fd_master_io)
-    stderr = fd_master_er
+    stdout = fd_master_io
+    stderr = None
 
     proc = PtyProcess(stdin, stdout, stderr, p, loop)
 
