@@ -19,12 +19,9 @@ class LabsService:
         self.send_func = None
 
     async def export_send(self, msg):
-        short_msg = ('string like ' + msg[:10] + '...') if isinstance(msg, str) else ('dict with keys: ' + repr(list(msg.keys())))
         if self.send_func is not None:
-            log.info('Will send message to Labs; message: {}'.format(short_msg))
             return await self.send_func(msg)
         else:
-            log.warning('Cannot send message to Labs; currently disconnected; message: {}'.format(short_msg))
             return False
 
 
