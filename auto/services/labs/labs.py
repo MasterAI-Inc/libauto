@@ -377,7 +377,7 @@ async def init_and_create_forever_task(system_up_user):
     camera = CameraRGB()
     console = CuiRoot()
 
-    await controller.init()
+    capabilities = await controller.init()
     await camera.connect()
     await console.init()
 
@@ -407,7 +407,7 @@ async def init_and_create_forever_task(system_up_user):
     consumers = [
         PtyManager(system_up_user, console),
         Verification(console),
-        Dashboard(camera, controller),
+        Dashboard(camera, controller, capabilities),
         Proxy(),
     ]
 

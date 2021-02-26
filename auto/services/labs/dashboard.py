@@ -24,12 +24,13 @@ from auto.services.labs.util import update_libauto
 
 class Dashboard:
 
-    def __init__(self, camera, controller):
+    def __init__(self, camera, controller, capabilities):
         self.wireless = None
         self.mac_address = None
         self.capture_streams = {}
         self.camera = camera
         self.controller = controller
+        self.capabilities = capabilities
 
     async def init(self):
         loop = asyncio.get_running_loop()
@@ -39,6 +40,10 @@ class Dashboard:
             wifi_iface = wifi_ifaces[0]
             self.wireless = Wireless(wifi_iface)
             self.mac_address = await loop.run_in_executor(None, get_mac_address, wifi_iface)
+        if 'PhysicsClient' in self.capabilities:
+            self.physics = await self.controller.acquire('PhysicsClient')
+        else:
+            self.physics = None
 
     async def connected_cdp(self):
         self.known_user_sessions = set()
@@ -70,7 +75,7 @@ class Dashboard:
             command = msg['command']
             command_id = msg['command_id']
             user_session = msg['user_session']
-            coro = self._command(command, command_id, user_session, send_func)
+            coro = self._command(command, command_id, user_session, send_func, msg)
 
         else:
             return
@@ -118,7 +123,7 @@ class Dashboard:
             'to_user_session': user_session,
         })
 
-    async def _command(self, command, command_id, user_session, send_func):
+    async def _command(self, command, command_id, user_session, send_func, msg):
         if command == 'shutdown':
             response = await self.power.shut_down()
         elif command == 'reboot':
@@ -129,6 +134,8 @@ class Dashboard:
             response = await self._start_capture_stream(command_id, send_func, user_session)
         elif command == 'stop_capture_stream':
             response = await self._stop_capture_stream(user_session)
+        elif command == 'physics_control' and self.physics is not None:
+            response = await self.physics.control(msg.get('payload'))
         else:
             return
         await send_func({

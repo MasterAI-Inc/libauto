@@ -820,3 +820,20 @@ class PidSteeringIface(PidIface):
     """
     pass   # <-- See abstract methods of `PidIface`
 
+
+class PhysicsClientIface(abc.ABC):
+    """
+    Instruct the physics client. This is only used for virtual devices.
+
+    Required: False
+
+    Capability Identifier: 'PhysicsClient'
+    """
+
+    @abc.abstractmethod
+    async def control(self, msg):
+        """
+        Pass this control-message to the physics client.
+        """
+        pass
+
