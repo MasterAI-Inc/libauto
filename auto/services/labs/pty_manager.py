@@ -312,7 +312,14 @@ async def _run_pty_cmd_background(cmd, system_user, env_override=None, start_dir
     if start_dir_override is None:
         start_dir_override = pw_record.pw_dir
 
-    env = dict(os.environ.copy())
+    env = {}
+
+    for k, v in os.environ.items():
+        for prefix in ['MAI_', 'AWS_', 'ECS_']:
+            if k.startswith(prefix):
+                break
+        else:
+            env[k] = v
 
     env['TERM'] = 'xterm-256color'   # background info: https://unix.stackexchange.com/a/198949
 
