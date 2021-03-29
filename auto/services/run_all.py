@@ -49,7 +49,8 @@ async def init_all(system_up_user, system_priv_user):
     wifi_task = asyncio.create_task(wifi_run_forever(system_priv_user))
 
     # Jupyter
-    jupyter_thread = run_jupyter_in_background(system_up_user)
+    if os.environ.get('MAI_RUN_JUPYTER', 'True').lower() in ['true', 't', '1', 'yes', 'y']:
+        jupyter_thread = run_jupyter_in_background(system_up_user)
 
 
 if __name__ == '__main__':
