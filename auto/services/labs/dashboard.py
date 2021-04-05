@@ -134,8 +134,11 @@ class Dashboard:
             response = await self._start_capture_stream(command_id, send_func, user_session)
         elif command == 'stop_capture_stream':
             response = await self._stop_capture_stream(user_session)
-        elif command == 'physics_control' and self.physics is not None:
-            response = await self.physics.control(msg.get('payload'))
+        elif command == 'physics_control':
+            if self.physics is not None:
+                response = await self.physics.control(msg.get('payload'))
+            else:
+                response = 'No PhysicsClient'
         else:
             return
         await send_func({
