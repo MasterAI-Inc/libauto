@@ -138,7 +138,7 @@ class Dashboard:
             if self.physics is not None:
                 response = await self.physics.control(msg.get('payload'))
             else:
-                response = 'No PhysicsClient'
+                response = None
         else:
             return
         await send_func({
