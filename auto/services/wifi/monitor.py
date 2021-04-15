@@ -8,7 +8,6 @@
 #
 ###############################################################################
 
-from auto.services.camera.client import CameraRGB
 from auto.services.console.client import CuiRoot
 from auto.services.controller.client import CioRoot
 from auto.services.wifi import util
@@ -67,11 +66,10 @@ async def _current(wireless):
     return await loop.run_in_executor(None, wireless.current)
 
 
-async def _get_wifi_info_from_user(wireless, console):
+async def _get_wifi_info_from_user(wireless, console, controller):
     loop = asyncio.get_running_loop()
 
-    camera = CameraRGB()
-    await camera.connect()
+    camera = await controller.acquire('Camera')
 
     for i in itertools.count():
         frame = await camera.capture()
@@ -98,8 +96,7 @@ async def _get_wifi_info_from_user(wireless, console):
                 break
 
     await console.clear_image()
-    await camera.release()        # [1]
-    await camera.close()
+    await controller.release(camera)  # [1]
 
     return ssid, password
 
@@ -139,8 +136,7 @@ async def _ensure_token(console, controller, system_priv_user):
     await console.big_image('token_error')
     await console.big_status('Ready to receive login token.')
 
-    camera = CameraRGB()
-    await camera.connect()
+    camera = await controller.acquire('Camera')
 
     system_password = None
 
@@ -162,7 +158,7 @@ async def _ensure_token(console, controller, system_priv_user):
             except:
                 pass
 
-    await camera.close()
+    await controller.release(camera)  # [1]
     await console.clear_image()
 
     await console.big_image('token_success')
@@ -237,7 +233,7 @@ async def _main_loop(wireless, console, controller, system_priv_user):
                 await console.big_image('wifi_error')
                 await console.big_status('https://labs.autoauto.ai/wifi')
                 while (await _current(wireless)) is None:
-                    ssid, password = await _get_wifi_info_from_user(wireless, console)
+                    ssid, password = await _get_wifi_info_from_user(wireless, console, controller)
                     if ssid is None:
                         log.info("WiFi magically came back before user input.")
                         break

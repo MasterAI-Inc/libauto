@@ -20,8 +20,34 @@ import base64
 import numpy as np
 
 import auto
-from auto.asyncio_tools import get_loop
-from auto.services.camera.client_sync import CameraRGB
+from auto.capabilities import list_caps, acquire, release
+
+
+class _CameraRGB:
+    def __init__(self, camera):
+        self._camera = camera
+        self.frame_index = 0
+        self.text_scale = 0.75,
+        self.text_color = [255, 255, 255]
+        self.text_line_width = 2
+
+    def capture(self):
+        buf, shape = self._camera.capture()
+        frame = np.frombuffer(buf, dtype=np.uint8).reshape(shape)
+        draw_frame_index(
+                frame,
+                self.frame_index,
+                self.text_scale,
+                self.text_color,
+                self.text_line_width
+        )
+        self.frame_index += 1
+        return frame
+
+    def stream(self):
+        while True:
+            frame = self.capture()
+            yield frame
 
 
 def global_camera(verbose=False):
@@ -32,12 +58,16 @@ def global_camera(verbose=False):
     """
     global GLOBAL_CAMERA
     try:
-        return GLOBAL_CAMERA
+        GLOBAL_CAMERA
     except NameError:
-        GLOBAL_CAMERA = wrap_frame_index_decorator(CameraRGB(get_loop()))
+        caps = list_caps()
+        if 'Camera' not in caps:
+            raise AttributeError("This device does not have a Camera.")
+        camera = acquire('Camera')
+        GLOBAL_CAMERA = _CameraRGB(camera)
         if verbose:
             auto.print_all("Instantiated a global camera object!")
-        return GLOBAL_CAMERA
+    return GLOBAL_CAMERA
 
 
 def close_global_camera(verbose=False):
@@ -49,7 +79,7 @@ def close_global_camera(verbose=False):
         GLOBAL_CAMERA   # <-- just to see if it exists
         if verbose:
             auto.print_all("Closing the global camera object...")
-        GLOBAL_CAMERA.close()
+        release(GLOBAL_CAMERA._camera)
         del GLOBAL_CAMERA
     except NameError:
         # There is no global camera, so nothing needs to be done.
@@ -91,47 +121,6 @@ def draw_frame_index(frame, index,
                 text_scale,
                 text_color,
                 text_line_width)
-
-
-def wrap_frame_index_decorator(camera):
-    """
-    Wrap `camera` in a decorator which draws the frame index onto
-    each from once captured from the camera.
-    Returns a camera-like object.
-    """
-    class CameraRGBFrameIndexDecorator:
-        def __init__(self,
-                     decorated,
-                     text_scale=0.75,
-                     text_color=[255, 255, 255],
-                     text_line_width=2):
-            self.decorated = decorated
-            self.frame_index = 0
-            self.text_scale = text_scale
-            self.text_color = text_color
-            self.text_line_width = text_line_width
-
-        def _draw_frame_index(self, frame):
-            draw_frame_index(frame, self.frame_index,
-                             self.text_scale,
-                             self.text_color,
-                             self.text_line_width)
-            self.frame_index += 1
-
-        def capture(self):
-            frame = self.decorated.capture()
-            self._draw_frame_index(frame)
-            return frame
-
-        def stream(self):
-            for frame in self.decorated.stream():
-                self._draw_frame_index(frame)
-                yield frame
-
-        def close(self):
-            return self.decorated.close()
-
-    return CameraRGBFrameIndexDecorator(camera)
 
 
 def base64_encode_image(frame):

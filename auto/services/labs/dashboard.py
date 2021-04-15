@@ -24,17 +24,17 @@ from auto.services.labs.util import update_libauto
 
 class Dashboard:
 
-    def __init__(self, camera, controller, capabilities):
+    def __init__(self, controller, capabilities):
         self.wireless = None
         self.mac_address = None
         self.capture_streams = {}
-        self.camera = camera
         self.controller = controller
         self.capabilities = capabilities
 
     async def init(self):
         loop = asyncio.get_running_loop()
         self.power = await self.controller.acquire('Power')
+        self.camera = await self.controller.acquire('Camera')
         wifi_ifaces = await loop.run_in_executor(None, list_wifi_ifaces)
         if wifi_ifaces:
             wifi_iface = wifi_ifaces[0]

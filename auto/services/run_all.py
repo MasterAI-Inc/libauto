@@ -12,7 +12,6 @@
 This script runs all the services in one process.
 """
 
-from auto.services.camera.server import init as camera_init
 from auto.services.controller.server import init as controller_init
 from auto.services.console.server import init as console_init
 from auto.services.labs.labs import init_and_create_forever_task as labs_init_and_create_forever_task
@@ -27,9 +26,6 @@ import asyncio
 
 
 async def init_all(system_up_user, system_priv_user):
-    # Camera Service
-    camera_server = await camera_init()
-
     # Controller Service
     cio_server = await controller_init()
 
