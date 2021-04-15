@@ -32,16 +32,16 @@ class CioRoot(cio.CioRoot):
     def __init__(self):
         # These are the only required components.
         self.impls = {
-            'VersionInfo': VersionInfo(),
-            'Credentials': Credentials(None, None),
-            'Power': Power(),
+            'VersionInfo': VersionInfo,
+            'Credentials': lambda: Credentials(None, None),
+            'Power': Power,
         }
 
     async def init(self):
         return list(self.impls.keys())
 
     async def acquire(self, capability_id):
-        return self.impls[capability_id]
+        return self.impls[capability_id]()
 
     async def release(self, capability_obj):
         pass

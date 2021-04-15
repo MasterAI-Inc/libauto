@@ -9,7 +9,7 @@
 ###############################################################################
 
 """
-This package contains the interface to your robot's microcontroller(s).
+This package contains the interface to your device's controller(s).
 
 Its name is CIO (Controller Input/Output).
 """
@@ -40,10 +40,12 @@ class CioRoot(abc.ABC):
     async def acquire(self, capability_id):
         """
         Acquire the component whose capability id is `capability_id`.
-        This method returns a new object which implements the capability's
+        This method returns a *new* object which implements the capability's
         interface. Once you are finished using the acquired component,
         you should "release" it by passing the interface to the `release()`
-        method.
+        method. Implementations of this method *must* return a new object
+        on each invocation (this is a limitation due to how the CIO RPC server
+        works).
         """
         pass
 
