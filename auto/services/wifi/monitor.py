@@ -72,7 +72,8 @@ async def _get_wifi_info_from_user(wireless, console, controller):
     camera = await controller.acquire('Camera')
 
     for i in itertools.count():
-        frame = await camera.capture()
+        buf, shape = await camera.capture()
+        frame = np.frombuffer(buf, dtype=np.uint8).reshape(shape)
         frame = await loop.run_in_executor(None, cv2.cvtColor, frame, cv2.COLOR_RGB2GRAY)
         await _stream_frame(frame, console)
         qr_data = await loop.run_in_executor(None, qr_scan, frame)
@@ -141,7 +142,8 @@ async def _ensure_token(console, controller, system_priv_user):
     system_password = None
 
     for i in itertools.count():
-        frame = await camera.capture()
+        buf, shape = await camera.capture()
+        frame = np.frombuffer(buf, dtype=np.uint8).reshape(shape)
         frame = await loop.run_in_executor(None, cv2.cvtColor, frame, cv2.COLOR_RGB2GRAY)
         await _stream_frame(frame, console)
         qr_data = await loop.run_in_executor(None, qr_scan, frame)

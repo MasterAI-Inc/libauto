@@ -182,7 +182,8 @@ class Dashboard:
         guid = str(uuid.uuid4())
         async def run():
             loop = asyncio.get_running_loop()
-            frame = await self.camera.capture()
+            buf, shape = await self.camera.capture()
+            frame = np.frombuffer(buf, dtype=np.uint8).reshape(shape)
             base64_img = await loop.run_in_executor(None, base64_encode_image, frame)
             await send_func({
                 'type': 'query_response_async',
@@ -210,7 +211,8 @@ class Dashboard:
             try:
                 loop = asyncio.get_running_loop()
                 for index in itertools.count():
-                    frame = await self.camera.capture()
+                    buf, shape = await self.camera.capture()
+                    frame = np.frombuffer(buf, dtype=np.uint8).reshape(shape)
                     await loop.run_in_executor(None, draw_frame_index, frame, index)
                     base64_img = await loop.run_in_executor(None, base64_encode_image, frame)
                     await send_func({
