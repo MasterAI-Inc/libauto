@@ -27,7 +27,7 @@ class _CameraRGB:
     def __init__(self, camera):
         self._camera = camera
         self.frame_index = 0
-        self.text_scale = 0.75,
+        self.text_scale = 0.75
         self.text_color = [255, 255, 255]
         self.text_line_width = 2
 
