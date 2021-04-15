@@ -141,6 +141,23 @@ class CredentialsIface(abc.ABC):
         pass
 
 
+class CameraIface(abc.ABC):
+    """
+    Capture frames from the on-board camera.
+
+    Required: True
+
+    Capability Identifier: 'Camera'
+    """
+
+    @abc.abstractmethod
+    async def capture(self):
+        """
+        Capture and return one frame.
+        """
+        pass
+
+
 class LoopFrequencyIface(abc.ABC):
     """
     Read the Controller's Loop Frequency (in Hz)

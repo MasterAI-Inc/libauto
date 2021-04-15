@@ -116,6 +116,11 @@ class CioRoot(cio.CioRoot):
                                 'is_enabled': False
                         }
 
+                self.caps['Camera'] = {
+                    'register_number': None,   # <-- this is a virtual component; it is implemented on the Python side, not the controller side
+                    'is_enabled': False
+                }
+
             except:
                 if self.fd is not None:
                     await easyi2c.close_i2c(self.fd)
