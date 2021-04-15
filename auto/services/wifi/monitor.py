@@ -21,6 +21,7 @@ import json
 import cv2
 import sys
 import os
+import numpy as np
 
 from auto import logger
 log = logger.init(__name__, terminal=True)

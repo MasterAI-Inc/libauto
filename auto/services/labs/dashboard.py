@@ -11,6 +11,7 @@
 import uuid
 import asyncio
 import itertools
+import numpy as np
 
 import auto
 from auto.camera import draw_frame_index, base64_encode_image
