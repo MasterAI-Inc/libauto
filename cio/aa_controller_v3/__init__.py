@@ -81,6 +81,8 @@ class CioRoot(cio.CioRoot):
                     'register_number': None,
                 }
 
+                # TODO: Camera
+
                 # TODO
                 #imu.start_thread()
                 #loop = asyncio.get_running_loop()

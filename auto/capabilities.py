@@ -17,7 +17,6 @@ This module provides a fully **synchronous** interface.
 
 from auto.asyncio_tools import get_loop
 from auto.services.controller.client_sync import CioRoot
-from auto.camera import global_camera, close_global_camera
 
 
 def list_caps():
@@ -47,11 +46,6 @@ def list_caps():
                 'acquire': controller_connection.acquire,
                 'release': controller_connection.release,
         }
-
-    _CAPABILITIES_MAP['Camera'] = {
-            'acquire': lambda _: global_camera(),
-            'release': lambda _: close_global_camera(),
-    }
 
     return tuple(sorted(_CAPABILITIES_MAP.keys()))
 

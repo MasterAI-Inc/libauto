@@ -11,6 +11,7 @@
 import uuid
 import asyncio
 import itertools
+import numpy as np
 
 import auto
 from auto.camera import draw_frame_index, base64_encode_image
@@ -24,17 +25,17 @@ from auto.services.labs.util import update_libauto
 
 class Dashboard:
 
-    def __init__(self, camera, controller, capabilities):
+    def __init__(self, controller, capabilities):
         self.wireless = None
         self.mac_address = None
         self.capture_streams = {}
-        self.camera = camera
         self.controller = controller
         self.capabilities = capabilities
 
     async def init(self):
         loop = asyncio.get_running_loop()
         self.power = await self.controller.acquire('Power')
+        self.camera = await self.controller.acquire('Camera')
         wifi_ifaces = await loop.run_in_executor(None, list_wifi_ifaces)
         if wifi_ifaces:
             wifi_iface = wifi_ifaces[0]
@@ -182,7 +183,8 @@ class Dashboard:
         guid = str(uuid.uuid4())
         async def run():
             loop = asyncio.get_running_loop()
-            frame = await self.camera.capture()
+            buf, shape = await self.camera.capture()
+            frame = np.frombuffer(buf, dtype=np.uint8).reshape(shape)
             base64_img = await loop.run_in_executor(None, base64_encode_image, frame)
             await send_func({
                 'type': 'query_response_async',
@@ -210,7 +212,8 @@ class Dashboard:
             try:
                 loop = asyncio.get_running_loop()
                 for index in itertools.count():
-                    frame = await self.camera.capture()
+                    buf, shape = await self.camera.capture()
+                    frame = np.frombuffer(buf, dtype=np.uint8).reshape(shape)
                     await loop.run_in_executor(None, draw_frame_index, frame, index)
                     base64_img = await loop.run_in_executor(None, base64_encode_image, frame)
                     await send_func({

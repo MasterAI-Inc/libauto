@@ -16,6 +16,8 @@ components.
 import random
 import subprocess
 
+import numpy as np
+
 import cio
 from cio.aa_controller_v1.components import Credentials
 
@@ -34,6 +36,7 @@ class CioRoot(cio.CioRoot):
         self.impls = {
             'VersionInfo': VersionInfo,
             'Credentials': lambda: Credentials(None, None),
+            'Camera': Camera,
             'Power': Power,
         }
 
@@ -57,6 +60,17 @@ class VersionInfo(cio.VersionInfoIface):
 
     async def version(self):
         return (0, 1)
+
+
+class Camera(cio.CameraIface):
+
+    def __init__(self):
+        self.width = 320
+        self.height = 240
+
+    async def capture(self):
+        frame = np.random.randint(0, 255, (self.height, self.width, 3), np.uint8)
+        return frame.tobytes(), frame.shape
 
 
 class Power(cio.PowerIface):

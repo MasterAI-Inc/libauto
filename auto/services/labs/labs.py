@@ -22,7 +22,6 @@ from websockets import WebSocketException
 from auto import __version__ as libauto_version
 
 from auto.services.controller.client import CioRoot
-from auto.services.camera.client import CameraRGB
 from auto.services.console.client import CuiRoot
 
 from auto import logger
@@ -39,6 +38,7 @@ from auto.services.labs.rpc.server import init as init_rpc_server
 
 
 WS_BASE_URL = os.environ.get('MAI_WS_URL', 'wss://ws.autoauto.ai/autopair/device')
+#WS_BASE_URL = os.environ.get('MAI_WS_URL', 'wss://api.masterai.ai/autopair/device')
 
 PING_INTERVAL_SECONDS = 20
 
@@ -374,11 +374,9 @@ async def _get_labs_auth_code(controller, console):
 
 async def init_and_create_forever_task(system_up_user):
     controller = CioRoot()
-    camera = CameraRGB()
     console = CuiRoot()
 
     capabilities = await controller.init()
-    await camera.connect()
     await console.init()
 
     cio_version_iface = await controller.acquire('VersionInfo')
@@ -407,7 +405,7 @@ async def init_and_create_forever_task(system_up_user):
     consumers = [
         PtyManager(system_up_user, console),
         Verification(console),
-        Dashboard(camera, controller, capabilities),
+        Dashboard(controller, capabilities),
         Proxy(),
     ]
 
