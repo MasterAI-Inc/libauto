@@ -175,7 +175,7 @@ def stream(frame, to_console=True, to_labs=False, verbose=False):
         rect = [0, 0, 0, 0]
         console.stream_image(rect, shape, final_frame.tobytes())
 
-    # Convert the frame to a JPG buffer and publish to the network connection.
+    # Encode the frame and publish to the network connection.
     if to_labs:
         base64_img = base64_encode_image(frame)
         send_message_to_labs({'base64_img': base64_img})

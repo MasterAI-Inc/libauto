@@ -15,12 +15,16 @@ Internally, it obtains frames by querying the camera RPC server.
 This is a **synchronous** interface.
 """
 
+import os
 import cv2
 import base64
 import numpy as np
 
 import auto
 from auto.capabilities import list_caps, acquire, release
+
+
+IS_VIRTUAL = os.environ.get('MAI_IS_VIRTUAL', 'False').lower() in ['true', 't', '1', 'yes', 'y']
 
 
 class _CameraRGB:
@@ -141,7 +145,11 @@ def base64_encode_image(frame):
             raise Exception("invalid number of channels")
     else:
         raise Exception("invalid frame ndarray ndim")
-    jpg_img = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 50])[1].tobytes()
-    base64_img = 'data:image/jpeg;base64,' + base64.b64encode(jpg_img).decode('ascii')
+    if IS_VIRTUAL:
+        png_img = cv2.imencode('.png', frame, [cv2.IMWRITE_PNG_COMPRESSION, 6])[1].tobytes()
+        base64_img = 'data:image/png;base64,' + base64.b64encode(png_img).decode('ascii')
+    else:
+        jpg_img = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 50])[1].tobytes()
+        base64_img = 'data:image/jpeg;base64,' + base64.b64encode(jpg_img).decode('ascii')
     return base64_img
 
