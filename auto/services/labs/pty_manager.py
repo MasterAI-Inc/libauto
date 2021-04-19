@@ -318,11 +318,14 @@ async def _run_pty_cmd_background(cmd, system_user, env_override=None, start_dir
     blacklist_prefixes = ['MAI_', 'AWS_', 'ECS_']
 
     for k, v in os.environ.items():
+        okay = True
         if k not in whitelist:
             for prefix in blacklist_prefixes:
                 if k.startswith(prefix):
-                    continue
-        env[k] = v
+                    okay = False
+                    break
+        if okay:
+            env[k] = v
 
     env['TERM'] = 'xterm-256color'   # background info: https://unix.stackexchange.com/a/198949
 
