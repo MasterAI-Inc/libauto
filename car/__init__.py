@@ -24,6 +24,7 @@ do not print.
 """
 
 from auto import print_all as print  # override the build-in `print()`
+from auto import IS_VIRTUAL
 import time
 
 
@@ -311,7 +312,10 @@ def detect_pedestrians(frame, annotate=True, verbose=True):
     try: PEDESTRIANDETECTOR
     except NameError:
         from auto.models import PedestrianDetector
-        PEDESTRIANDETECTOR = PedestrianDetector()
+        if IS_VIRTUAL:
+            PEDESTRIANDETECTOR = PedestrianDetector(hitThreshold=-1.5)
+        else:
+            PEDESTRIANDETECTOR = PedestrianDetector()
         if verbose:
             print("Instantiated a PedestrianDetector object!")
 

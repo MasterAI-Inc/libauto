@@ -406,8 +406,8 @@ class PedestrianDetector(ObjectDetector):
     """
 
     def __init__(self, winStride=(4, 4),
-                       padding=(8, 8),
                        scale=1.05,
+                       hitThreshold=0,
                        box_color=[0, 0, 255],
                        box_line_thickness=3,
                        text_color=[0, 0, 255],
@@ -420,8 +420,8 @@ class PedestrianDetector(ObjectDetector):
         self.hog = cv2.HOGDescriptor()
         self.hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
         self.winStride = winStride
-        self.padding = padding
         self.scale = scale
+        self.hitThreshold = hitThreshold
         super().__init__(box_color, box_line_thickness, text_color,
                          text_str, text_scale, text_line_width)
 
@@ -452,8 +452,9 @@ class PedestrianDetector(ObjectDetector):
         # Call the OpenCV HOG model.
         rectangles, weights = self.hog.detectMultiScale(
                                             frame_rgb,
+                                            hitThreshold=self.hitThreshold,
                                             winStride=self.winStride,
-                                            padding=self.padding,
+                                            padding=(8, 8),
                                             scale=self.scale)
 
         # `rectangles` is a numpy ndarray, but we'd like it to be a list of tuples.

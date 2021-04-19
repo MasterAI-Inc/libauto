@@ -22,9 +22,7 @@ import numpy as np
 
 import auto
 from auto.capabilities import list_caps, acquire, release
-
-
-IS_VIRTUAL = os.environ.get('MAI_IS_VIRTUAL', 'False').lower() in ['true', 't', '1', 'yes', 'y']
+from auto import IS_VIRTUAL
 
 
 class _CameraRGB:
