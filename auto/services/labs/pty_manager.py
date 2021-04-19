@@ -314,12 +314,15 @@ async def _run_pty_cmd_background(cmd, system_user, env_override=None, start_dir
 
     env = {}
 
+    whitelist = ['MAI_IS_VIRTUAL']
+    blacklist_prefixes = ['MAI_', 'AWS_', 'ECS_']
+
     for k, v in os.environ.items():
-        for prefix in ['MAI_', 'AWS_', 'ECS_']:
-            if k.startswith(prefix):
-                break
-        else:
-            env[k] = v
+        if k not in whitelist:
+            for prefix in blacklist_prefixes:
+                if k.startswith(prefix):
+                    continue
+        env[k] = v
 
     env['TERM'] = 'xterm-256color'   # background info: https://unix.stackexchange.com/a/198949
 
