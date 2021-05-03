@@ -33,6 +33,7 @@ from auto.services.labs.dashboard import Dashboard
 from auto.services.labs.proxy import Proxy
 
 from auto.services.labs.util import set_hostname
+from auto.services.labs.settings import save_settings
 
 from auto.services.labs.rpc.server import init as init_rpc_server
 
@@ -88,6 +89,16 @@ def _is_hello(msg):
     if 'origin' in msg and msg['origin'] == 'server':
         if 'hello' in msg:
             info = msg['yourinfo']
+            if 'settings' not in info:
+                info['settings'] = {}
+            settings = info['settings']
+            if isinstance(settings, str):
+                settings = settings.strip()
+            if settings is None or settings == '':
+                info['settings'] = {}
+            elif isinstance(settings, str):
+                info['settings'] = json.loads(settings)
+            assert isinstance(info['settings'], dict)
             return info
     return None
 
@@ -186,7 +197,18 @@ async def _set_hostname(name):
     log.info("Set hostname, output is: {}".format(output.strip()))
 
 
-async def _handle_message(ws, msg, consumers, console, connected_sessions, send_func):
+async def _save_settings(settings, controller):
+    did_change = save_settings(settings)
+    if did_change:
+        log.info("Labs settings were updated, will reboot now.")
+        power = await controller.acquire('Power')
+        await power.reboot()
+        await controller.release(power)
+    else:
+        log.info("Labs settings did *not* change.")
+
+
+async def _handle_message(ws, msg, consumers, controller, console, connected_sessions, send_func):
     new_device_vin = _is_new_device_session(msg)
     departed_device_vin = _is_departed_device_session(msg)
     new_user_info = _is_new_user_session(msg)
@@ -214,6 +236,7 @@ async def _handle_message(ws, msg, consumers, console, connected_sessions, send_
             await console.write_text('Device VIN:  {}\n'.format(vin))
         asyncio.create_task(write())
         asyncio.create_task(_set_hostname(name))
+        asyncio.create_task(_save_settings(hello_info['settings'], controller))
 
     else:
         for c in consumers:
@@ -290,7 +313,7 @@ def _build_send_function(ws, connected_sessions):
     return smart_send
 
 
-async def _run(ws, consumers, console, rpc_interface, publish_func):
+async def _run(ws, consumers, controller, console, rpc_interface, publish_func):
     ping_task = asyncio.create_task(_ping_with_interval(ws))
 
     connected_sessions = ConnectedSessions(consumers)
@@ -329,7 +352,7 @@ async def _run(ws, consumers, console, rpc_interface, publish_func):
             await publish_func('messages', msg)
 
             start = loop.time()
-            await _handle_message(ws, msg, consumers, console, connected_sessions, send_func)
+            await _handle_message(ws, msg, consumers, controller, console, connected_sessions, send_func)
             end = loop.time()
 
             if end - start > 0.01:
@@ -430,7 +453,7 @@ async def init_and_create_forever_task(system_up_user):
                     log.info("Connected: {}...".format(WS_BASE_URL + '/' + auth_code[:4]))
                     await console.write_text('Connected to Labs. Standing by...\n')
                     was_connected = True
-                    await _run(ws, consumers, console, rpc_interface, publish_func)
+                    await _run(ws, consumers, controller, console, rpc_interface, publish_func)
 
             except WebSocketException as e:
                 log.info('Connection closed: {}'.format(e))
