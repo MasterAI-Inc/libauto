@@ -44,6 +44,8 @@ from . import imu
 
 import cio
 
+from auto.services.labs.settings import load_settings
+
 
 class CioRoot(cio.CioRoot):
     """

@@ -43,6 +43,8 @@ from . import reset
 
 import cio
 
+from auto.services.labs.settings import load_settings
+
 
 class CioRoot(cio.CioRoot):
     """
