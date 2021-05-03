@@ -75,6 +75,8 @@ def straight(throttle, sec, cm, invert_output=False):
         start_time = time.time()
         pid_steering.set_point(z)
         pid_steering.enable(invert_output=invert_output)
+    else:
+        start_time = time.time()
 
     if sec:
         while True:

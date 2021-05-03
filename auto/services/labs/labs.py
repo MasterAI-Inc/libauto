@@ -97,7 +97,10 @@ def _is_hello(msg):
             if settings is None or settings == '':
                 info['settings'] = {}
             elif isinstance(settings, str):
-                info['settings'] = json.loads(settings)
+                try:
+                    info['settings'] = json.loads(settings)
+                except json.JSONDecodeError:
+                    info['settings'] = {'failed': True}
             assert isinstance(info['settings'], dict)
             return info
     return None
