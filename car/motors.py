@@ -60,14 +60,21 @@ def straight(throttle, sec, cm, invert_output=False):
     This function is synchronous, thus it will not return until after the
     car has completed the desired motion.
     """
-    pid_steering = _get_pid_steering()
-    gyro_accum = _get_gyro_accum()
+    try:
+        pid_steering = _get_pid_steering()
+        gyro_accum = _get_gyro_accum()
+    except AttributeError:
+        pid_steering = None
+        gyro_accum = None
+
     set_steering(0.0)
     time.sleep(0.1)
-    _, _, z = gyro_accum.read()
-    start_time = time.time()
-    pid_steering.set_point(z)
-    pid_steering.enable(invert_output=invert_output)
+
+    if pid_steering is not None and gyro_accum is not None:
+        _, _, z = gyro_accum.read()
+        start_time = time.time()
+        pid_steering.set_point(z)
+        pid_steering.enable(invert_output=invert_output)
 
     if sec:
         while True:
@@ -75,6 +82,8 @@ def straight(throttle, sec, cm, invert_output=False):
             if curr_time - start_time >= sec:
                 break
             set_throttle(throttle)
+            if pid_steering is None:
+                set_steering(0.0)
             time.sleep(min(0.1, curr_time - start_time))
 
     elif cm:
@@ -86,10 +95,13 @@ def straight(throttle, sec, cm, invert_output=False):
             if curr_time - throttle_time > 0.75:
                 set_throttle(throttle)
                 throttle_time = curr_time
+                if pid_steering is None:
+                    set_steering(0.0)
 
     set_throttle(0.0)
     time.sleep(0.1)
-    pid_steering.disable()
+    if pid_steering is not None:
+        pid_steering.disable()
 
 
 def drive(angle, throttle, sec, deg):
