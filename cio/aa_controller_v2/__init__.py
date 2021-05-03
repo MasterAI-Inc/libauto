@@ -44,6 +44,8 @@ from . import imu
 
 import cio
 
+from auto.services.labs.settings import load_settings
+
 
 class CioRoot(cio.CioRoot):
     """
@@ -128,6 +130,16 @@ class CioRoot(cio.CioRoot):
                     self.caps = None
                     self.capability_ref_count = {}
                 raise
+
+            settings = load_settings()
+            if isinstance(settings, dict) and 'cio' in settings:
+                cio_settings = settings['cio']
+                if isinstance(cio_settings, dict) and 'disabled' in cio_settings:
+                    cio_disabled = cio_settings['disabled']
+                    if isinstance(cio_disabled, list):
+                        for disabled_component_name in cio_disabled:
+                            if disabled_component_name in self.caps:
+                                del self.caps[disabled_component_name]
 
             return list(self.caps.keys())
 
