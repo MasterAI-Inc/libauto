@@ -176,6 +176,8 @@ class Dashboard:
             return await self._get_battery_state()
         elif component == 'capture_one_frame':
             return await self._capture_one_frame(query_id, send_func, user_session)
+        elif component == 'list_caps':
+            return self.capabilities
         else:
             return 'unsupported'
 
