@@ -137,7 +137,7 @@ async def get_capabilities(fd, soft_reset_first=False, only_enabled=False):
                     'register_number': reg,
             }
 
-    for c in ['Credentials', 'Calibrator']:
+    for c in ['Credentials', 'Calibrator', 'Camera']:
         caps[c] = {
                 'fd': None,
                 'register_number': None,  # <-- this is a virtual component; it is implemented on the Python side, not the controller side

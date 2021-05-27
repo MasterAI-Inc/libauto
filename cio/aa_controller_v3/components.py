@@ -21,6 +21,9 @@ from .battery_discharge_curve import battery_map_millivolts_to_percentage
 
 from . import imu
 
+from .camera_async import CameraRGB_Async
+from .camera_pi import CameraRGB
+
 import cio
 
 import os
@@ -95,6 +98,22 @@ class Credentials(cio.CredentialsIface):   # TODO - store both in EEPROM and SD 
     def _set_jupyter_password(self, password):
         self._get_db().put('DEVICE_JUPYTER_PASSWORD', password)
         os.sync()
+
+
+class Camera(cio.CameraIface):
+    _camera = None
+
+    def __init__(self, fd, reg_num):
+        if Camera._camera is None:
+            loop = asyncio.get_running_loop()
+            Camera._camera = CameraRGB_Async(
+                    lambda: CameraRGB(width=320, height=240, fps=8),
+                    loop=loop,
+                    idle_timeout=30
+            )
+
+    async def capture(self):
+        return await Camera._camera.capture()
 
 
 class Power(cio.PowerIface):
@@ -713,6 +732,7 @@ class PidSteering(cio.PidSteeringIface):  # TODO
 KNOWN_COMPONENTS = {
     'VersionInfo':           VersionInfo,
     'Credentials':           Credentials,
+    'Camera':                Camera,
     'Power':                 Power,
     'Buzzer':                Buzzer,
     'Gyroscope':             Gyroscope,
