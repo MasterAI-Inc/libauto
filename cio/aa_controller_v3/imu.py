@@ -25,13 +25,15 @@ from math import sqrt, atan2, asin, pi, radians, degrees
 from itertools import count
 from threading import Thread, Condition
 
-from cio.aa_controller_v3.easyi2c_sync import (
+from .easyi2c_sync import (
     open_i2c,
     write_read_i2c,
     close_i2c,
     read_bits,
     write_bits,
 )
+
+from . import I2C_BUS_INDEX
 
 
 MPU6050_RA_WHO_AM_I = 0x75
@@ -235,7 +237,7 @@ def rotate_ahrs(accel, gyro):
 
 
 def run(verbose=False):
-    fd = open_i2c(1, 0x68)
+    fd = open_i2c(I2C_BUS_INDEX, 0x68)
 
     try:
         _handle_fd(fd, verbose)

@@ -32,6 +32,7 @@ N_I2C_TRIES = 10
 """
 For this particular controller, we talk to it via I2C.
 """
+I2C_BUS_INDEX = 1
 CONTROLLER_I2C_SLAVE_ADDRESS = 0x15
 
 
@@ -67,7 +68,7 @@ class CioRoot(cio.CioRoot):
                 return
 
             try:
-                self.fd = await easyi2c.open_i2c(1, CONTROLLER_I2C_SLAVE_ADDRESS)
+                self.fd = await easyi2c.open_i2c(I2C_BUS_INDEX, CONTROLLER_I2C_SLAVE_ADDRESS)
                 self.caps = await capabilities.get_capabilities(self.fd, soft_reset_first=True)
 
                 version_info = await capabilities.acquire_component_interface(self.caps, 'VersionInfo')
@@ -77,7 +78,7 @@ class CioRoot(cio.CioRoot):
                 if major != 3:
                     raise Exception('Controller is not version 3, thus this interface will not work.')
 
-                batt_fd = await easyi2c.open_i2c(1, 0x6a)   # TODO: clean this up, somehow
+                batt_fd = await easyi2c.open_i2c(I2C_BUS_INDEX, 0x6a)   # TODO: clean this up, somehow
                 self.caps['Power'] = {
                     'fd': batt_fd,
                     'register_number': None,
