@@ -10,12 +10,6 @@
 
 """
 This module talks to the IMU on the AutoAuto controller board.
-
-Good reference implementations:
-  - https://github.com/jrowberg/i2cdevlib/blob/master/Arduino/MPU6050/MPU6050.h
-  - https://github.com/jrowberg/i2cdevlib/blob/master/Arduino/MPU6050/MPU6050.cpp
-  - https://github.com/RPi-Distro/RTIMULib/blob/master/RTIMULib/IMUDrivers/RTIMUDefs.h
-  - https://github.com/RPi-Distro/RTIMULib/blob/master/RTIMULib/IMUDrivers/RTIMUMPU9150.cpp
 """
 
 import struct
@@ -25,7 +19,7 @@ from math import sqrt, atan2, asin, pi, radians, degrees
 from itertools import count
 from threading import Thread, Condition
 
-from .easyi2c_sync import (
+from cio.aa_controller_v3.easyi2c_sync import (
     open_i2c,
     write_read_i2c,
     close_i2c,
@@ -33,21 +27,53 @@ from .easyi2c_sync import (
     write_bits,
 )
 
-from . import I2C_BUS_INDEX
+from cio.aa_controller_v3 import I2C_BUS_INDEX
 
 
-MPU6050_RA_WHO_AM_I = 0x75
-MPU6050_WHO_AM_I_BIT = 6
-MPU6050_WHO_AM_I_LENGTH = 6
-MPU6050_RA_USER_CTRL = 0x6A
-MPU6050_USERCTRL_FIFO_EN_BIT = 6
-MPU6050_USERCTRL_FIFO_RESET_BIT = 2
-MPU6050_RA_FIFO_COUNTH = 0x72
-MPU6050_RA_FIFO_R_W = 0x74
+ICM20602_RA_WHO_AM_I = 0x75
+ICM20602_WHO_AM_I_BIT = 7
+ICM20602_WHO_AM_I_LENGTH = 8
+WHO_AM_I_VALUE = 0x12
 
-MPU6050_PACKET_SIZE = 12
-MPU6050_ACCEL_CNVT = 0.0001220740379
-MPU6050_GYRO_CNVT = 0.015259254738
+ICM20602_RA_USER_CTRL = 0x6A
+ICM20602_USERCTRL_FIFO_EN_BIT = 6
+ICM20602_USERCTRL_FIFO_RESET_BIT = 2
+ICM20602_RA_FIFO_COUNTH = 0x72
+ICM20602_RA_FIFO_R_W = 0x74
+ICM20602_PACKET_SIZE = 12               # TODO
+ICM20602_ACCEL_CNVT = 0.0001220740379   # TODO
+ICM20602_GYRO_CNVT = 0.015259254738     # TODO
+
+ICM20602_RA_PWR_MGMT_1 = 0x6B
+ICM20602_PWR1_DEVICE_RESET_BIT = 7
+
+ICM20602_RA_GYRO_CONFIG = 0x1B
+ICM20602_GCONFIG_FS_SEL_BIT = 4
+ICM20602_GYRO_FS_500 = 0x01
+ICM20602_FCHOICE_B_BIT = 1
+
+ICM20602_RA_ACCEL_CONFIG = 0x1C
+ICM20602_ACONFIG_AFS_SEL_BIT = 4
+ICM20602_ACCEL_FS_4 = 0x01
+
+ICM20602_RA_CONFIG = 0x1A
+ICM20602_CFG_DLPF_CFG_BIT = 2
+
+ICM20602_RA_SMPLRT_DIV = 0x19
+
+ICM20602_RA_INT_PIN_CFG = 0x37
+ICM20602_INTCFG_INT_LEVEL_BIT = 7
+ICM20602_INTCFG_INT_OPEN_BIT = 6
+ICM20602_INTCFG_LATCH_INT_EN_BIT = 5
+
+ICM20602_RA_INT_ENABLE = 0x38
+ICM20602_DATA_READY_BIT = 0
+
+ICM20602_RA_FIFO_EN = 0x23
+ICM20602_ACCEL_FIFO_EN_BIT = 3
+ICM20602_GYRO_FIFO_EN_BIT = 4
+
+#ICM20602_
 
 
 COND = Condition()
@@ -55,17 +81,17 @@ DATA = None
 
 
 def who_am_i(fd):
-    return read_bits(fd, MPU6050_RA_WHO_AM_I, MPU6050_WHO_AM_I_BIT, MPU6050_WHO_AM_I_LENGTH)
+    return read_bits(fd, ICM20602_RA_WHO_AM_I, ICM20602_WHO_AM_I_BIT, ICM20602_WHO_AM_I_LENGTH)
 
 
 def set_fifo_enabled(fd, is_enabled):
     val = 1 if is_enabled else 0
-    write_bits(fd, MPU6050_RA_USER_CTRL, MPU6050_USERCTRL_FIFO_EN_BIT, 1, val)
+    write_bits(fd, ICM20602_RA_USER_CTRL, ICM20602_USERCTRL_FIFO_EN_BIT, 1, val)
 
 
 def reset_fifo(fd):
     val = 1
-    write_bits(fd, MPU6050_RA_USER_CTRL, MPU6050_USERCTRL_FIFO_RESET_BIT, 1, val)
+    write_bits(fd, ICM20602_RA_USER_CTRL, ICM20602_USERCTRL_FIFO_RESET_BIT, 1, val)
 
 
 def reset_fifo_sequence(fd):
@@ -75,16 +101,76 @@ def reset_fifo_sequence(fd):
 
 
 def get_fifo_length(fd):
-    h, l = write_read_i2c(fd, bytes([MPU6050_RA_FIFO_COUNTH]), 2)
+    h, l = write_read_i2c(fd, bytes([ICM20602_RA_FIFO_COUNTH]), 2)
     return (h << 8) | l
 
 
 def read_fifo_packet(fd, fifo_length):
     buf = None
-    while fifo_length >= MPU6050_PACKET_SIZE:
-        buf = write_read_i2c(fd, bytes([MPU6050_RA_FIFO_R_W]), MPU6050_PACKET_SIZE)
-        fifo_length -= MPU6050_PACKET_SIZE
+    while fifo_length >= ICM20602_PACKET_SIZE:
+        buf = write_read_i2c(fd, bytes([ICM20602_RA_FIFO_R_W]), ICM20602_PACKET_SIZE)
+        fifo_length -= ICM20602_PACKET_SIZE
     return buf
+
+
+def reset_imu(fd):
+    """Resets all register on the IMU to their defaults"""
+    write_bits(fd, ICM20602_RA_PWR_MGMT_1, ICM20602_PWR1_DEVICE_RESET_BIT, 1, 1)
+
+
+def set_full_scale_range(fd):
+    gyro_fsr = ICM20602_GYRO_FS_500   # 500 deg/second
+    accel_fsr = ICM20602_ACCEL_FS_4   # +-4g
+    write_bits(fd, ICM20602_RA_GYRO_CONFIG, ICM20602_GCONFIG_FS_SEL_BIT, 2, gyro_fsr)
+    write_bits(fd, ICM20602_RA_ACCEL_CONFIG, ICM20602_ACONFIG_AFS_SEL_BIT, 2, accel_fsr)
+
+
+def set_digital_low_pass_filter(fd):
+    mode = 0
+    write_bits(fd, ICM20602_RA_GYRO_CONFIG, ICM20602_FCHOICE_B_BIT, 2, mode)
+    mode = 3
+    write_bits(fd, ICM20602_RA_CONFIG, ICM20602_CFG_DLPF_CFG_BIT, 3, mode)
+
+
+def set_sample_rate(fd):
+    denom = 10    # 100Hz sample rate (1kHz / denom)
+    write_bits(fd, ICM20602_RA_SMPLRT_DIV, 7, 8, denom - 1)
+
+
+def set_interrupt(fd):
+    mode = 1  # interrupt is active-low
+    write_bits(fd, ICM20602_RA_INT_PIN_CFG, ICM20602_INTCFG_INT_LEVEL_BIT, 1, mode)
+
+    mode = 1  # interrupt is open-drain
+    write_bits(fd, ICM20602_RA_INT_PIN_CFG, ICM20602_INTCFG_INT_OPEN_BIT, 1, mode)
+
+    mode = 0  # interrupt is latched for 50uS
+    write_bits(fd, ICM20602_RA_INT_PIN_CFG, ICM20602_INTCFG_LATCH_INT_EN_BIT, 1, mode)
+
+    mode = 1  # enable interrupts for "data ready"
+    write_bits(fd, ICM20602_RA_INT_ENABLE, ICM20602_DATA_READY_BIT, 1, mode)
+
+
+def enable_fifo(fd):
+    mode = 1  # enable accel data (6 bytes)
+    write_bits(fd, ICM20602_RA_FIFO_EN, ICM20602_ACCEL_FIFO_EN_BIT, 1, mode)
+
+    mode = 1  # enable gyro data (6 bytes)
+    write_bits(fd, ICM20602_RA_FIFO_EN, ICM20602_GYRO_FIFO_EN_BIT, 1, mode)
+
+
+def set_accel_offset(fd):
+    pass
+    #imu.setXAccelOffset(xAccelOffset)
+    #imu.setYAccelOffset(yAccelOffset)
+    #imu.setZAccelOffset(zAccelOffset)
+
+
+def set_gyro_offset(fd):
+    pass
+    #imu.setXGyroOffset(xGyroOffset)
+    #imu.setYGyroOffset(yGyroOffset)
+    #imu.setZGyroOffset(zGyroOffset)
 
 
 def madgwick_update(accel, gyro, q, deltat):
@@ -237,7 +323,13 @@ def rotate_ahrs(accel, gyro):
 
 
 def run(verbose=False):
+    if verbose:
+        print('Will open...')
+
     fd = open_i2c(I2C_BUS_INDEX, 0x68)
+
+    if verbose:
+        print('Did open!')
 
     try:
         _handle_fd(fd, verbose)
@@ -248,8 +340,16 @@ def run(verbose=False):
 def _handle_fd(fd, verbose):
     global DATA
 
-    if who_am_i(fd) != 0x34:
+    if who_am_i(fd) != WHO_AM_I_VALUE:
         raise Exception("WRONG WHO_AM_I!")
+
+    if verbose:
+        print('Will setup...')
+
+    _setup(fd)
+
+    if verbose:
+        print('Did setup!')
 
     curr_time = 0       # microseconds
     dt = 1000000 // 100  # data streams at 100Hz
@@ -271,7 +371,7 @@ def _handle_fd(fd, verbose):
         elif status == 'data':
             t = time.time()
             vals = struct.unpack('>6h', buf)
-            vals = [v * MPU6050_ACCEL_CNVT for v in vals[:3]] + [v * MPU6050_GYRO_CNVT for v in vals[3:]]
+            vals = [v * ICM20602_ACCEL_CNVT for v in vals[:3]] + [v * ICM20602_GYRO_CNVT for v in vals[3:]]
             if verbose:
                 print(f'{sleep:.4f}', ''.join([f'{v:10.3f}' for v in vals]))
             accel = vals[:3]
@@ -286,6 +386,8 @@ def _handle_fd(fd, verbose):
                     'gyro_accum': gyro_accum,
                     'ahrs': ahrs,
                 }
+                if verbose:
+                    print(DATA)
                 COND.notify_all()
             curr_time += dt
             s = dt_s - (time.time() - t) - sleep
@@ -301,10 +403,11 @@ def _get_buf(fd, status):
             return 'did_reset', None
         elif status in ('did_reset', 'waiting', 'data'):
             fifo_length = get_fifo_length(fd)
+            print(fifo_length)
             if fifo_length > 200:
                 reset_fifo_sequence(fd)
                 return 'did_reset', None
-            elif fifo_length >= MPU6050_PACKET_SIZE:
+            elif fifo_length >= ICM20602_PACKET_SIZE:
                 buf = read_fifo_packet(fd, fifo_length)
                 return 'data', buf
             else:
@@ -314,6 +417,19 @@ def _get_buf(fd, status):
     except OSError:
         print('IMU OSError', file=sys.stderr)
         return 'needs_reset', None
+
+
+def _setup(fd):
+    reset_imu(fd)
+    time.sleep(0.1)
+    set_full_scale_range(fd)
+    set_digital_low_pass_filter(fd)
+    set_sample_rate(fd)
+    set_interrupt(fd)
+    enable_fifo(fd)
+    set_accel_offset(fd)
+    set_gyro_offset(fd)
+    reset_fifo_sequence(fd)
 
 
 def start_thread():
