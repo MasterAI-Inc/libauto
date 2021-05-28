@@ -84,28 +84,22 @@ class CioRoot(cio.CioRoot):
                     'register_number': None,
                 }
 
-                # TODO
-                #imu.start_thread()
-                #loop = asyncio.get_running_loop()
-                #imu_start = loop.time()
-                #imu_working = True
-                #while imu.DATA is None:
-                #    if loop.time() - imu_start > 1.0:
-                #        imu_working = False
-                #        break
-                #    await asyncio.sleep(0.1)
+                imu.start_thread()
+                loop = asyncio.get_running_loop()
+                imu_start = loop.time()
+                imu_working = True
+                while imu.DATA is None:
+                    if loop.time() - imu_start > 1.0:
+                        imu_working = False
+                        break
+                    await asyncio.sleep(0.1)
 
-                #if imu_working:
-                #    for c in ['Gyroscope', 'Gyroscope_accum', 'Accelerometer', 'AHRS']:
-                #        self.caps[c] = {
-                #                'register_number': None,   # <-- this is a virtual component; it is implemented on the Python side, not the controller side
-                #        }
-                #    if 'CarMotors' in self.caps:
-                #        carmotors_regnum = self.caps['CarMotors']['register_number']
-                #        gyroaccum_regnum = self.caps['Gyroscope_accum']['register_number']
-                #        self.caps['PID_steering'] = {
-                #                'register_number': (carmotors_regnum, gyroaccum_regnum),
-                #        }
+                if imu_working:
+                    for c in ['Gyroscope', 'Gyroscope_accum', 'Accelerometer', 'AHRS', 'PID_steering']:
+                        self.caps[c] = {
+                            'fd': None,
+                            'register_number': None,
+                        }
 
             except:
                 if self.fd is not None:
