@@ -653,7 +653,7 @@ class CarMotors(cio.CarMotorsIface):
         pass
 
     async def released(self):
-        pass
+        await self.off()
 
     @i2c_retry(N_I2C_TRIES)
     async def on(self):

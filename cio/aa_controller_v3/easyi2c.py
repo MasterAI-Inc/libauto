@@ -126,15 +126,15 @@ async def write_read_i2c_with_integrity(fd, write_buf, read_len):
     """
     loop = asyncio.get_running_loop()
     read_len = integrity.read_len_with_integrity(read_len)
-    write_buf = integrity.put_integrity(write_buf)
-    read_buf = await loop.run_in_executor(
+    write_buf_with_integrity = integrity.put_integrity(write_buf)
+    read_buf_with_integrity = await loop.run_in_executor(
             None,
             _write_read_i2c,
-            fd, write_buf, read_len
+            fd, write_buf_with_integrity, read_len
     )
-    read_buf = integrity.check_integrity(read_buf)
+    read_buf = integrity.check_integrity(read_buf_with_integrity)
     if read_buf is None:
-        raise OSError(errno.ECOMM, os.strerror(errno.ECOMM) + ' - integrity error')
+        raise OSError(errno.ECOMM, os.strerror(errno.ECOMM) + ' - integrity error: ' + repr(read_buf_with_integrity))
     return read_buf
 
 
