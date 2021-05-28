@@ -22,10 +22,11 @@ async def run():
     power = await c.acquire('Power')
 
     for i in range(1000):
+        st = await power.state()
         mv = await power.millivolts()
         mi = await power.estimate_remaining()
         sd = await power.should_shut_down()
-        print(mv, mi, sd)
+        print(st, mv, mi, sd)
         await asyncio.sleep(0.1)
 
     await c.release(power)

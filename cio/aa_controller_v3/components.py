@@ -33,9 +33,8 @@ from collections import deque
 
 import RPi.GPIO as GPIO
 GPIO.setmode(GPIO.BOARD)   # GPIO.BOARD or GPIO.BCM
-POWER_BUTTON_PIN = 31
+POWER_BUTTON_PIN = 29
 GPIO.setup(POWER_BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-POWER_BUTTON_REQUIRED_PRESS_SECONDS = 1.5   # <-- TODO
 
 
 class VersionInfo(cio.VersionInfoIface):
@@ -156,17 +155,28 @@ class Power(cio.PowerIface):
     def _is_power_button_pressed():
         return GPIO.input(POWER_BUTTON_PIN) == 0  # active low
 
+    _did_init = False
+
     def __init__(self, fd, reg_num):
         self.fd = fd
 
     async def acquired(self):
-        pass
+        if not Power._did_init:
+            Power._did_init = True
+            # Start the battery voltage ADC:
+            v = await self._read_reg(self.fd, 0x02)
+            v |= (1 << 6)
+            await self._write_reg(self.fd, 0x02, v)
 
     async def released(self):
         pass
 
     async def state(self):
-        return 'battery'   # TODO
+        usbPluggedIn = (((await self._read_reg(self.fd, 0x11)) & (1 << 7)) != 0)
+        if usbPluggedIn:
+            isCharging = ((((await self._read_reg(self.fd, 0x0B)) >> 3) & 0x03) != 0)
+            return 'charging' if isCharging else 'wall'
+        return 'battery'
 
     async def millivolts(self):
         v = await self._read_reg(self.fd, 0x0E)
@@ -176,7 +186,7 @@ class Power(cio.PowerIface):
     async def estimate_remaining(self, millivolts=None):
         if millivolts is None:
             millivolts = await self.millivolts()
-        percentage = battery_map_millivolts_to_percentage(millivolts)   # TODO: create a new discharge curve, with the new battery, once finalized
+        percentage = battery_map_millivolts_to_percentage(millivolts)
         minutes = 4.0 * 60.0 * (percentage / 100.0)  # Assumes the full battery lasts 4 hours.
         return floor(minutes), floor(percentage)
 
