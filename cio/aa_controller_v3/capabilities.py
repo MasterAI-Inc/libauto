@@ -12,7 +12,6 @@ from .easyi2c import (write_read_i2c_with_integrity,
                       i2c_retry,
                       i2c_poll_until)
 from . import N_I2C_TRIES
-from .components import KNOWN_COMPONENTS
 
 from auto import logger
 log = logger.init(__name__, terminal=True)
@@ -38,9 +37,6 @@ CAPABILITIES_LIST = [
 async def soft_reset(fd):
     """
     Instruct the controller's capabilities module to do a soft-reset.
-    This means that the list of enabled components will be reverted to
-    the default list of enabled components and the list of available
-    components will be repopulated.
     """
     await write_read_i2c_with_integrity(fd, [CAPABILITIES_REG_NUM, 0x00], 0)
 
@@ -133,46 +129,15 @@ async def get_capabilities(fd, soft_reset_first=False, only_enabled=False):
     for reg, name in CAPABILITIES_LIST:
         if name != "Capabilities":
             caps[name] = {
-                    'fd': fd,
-                    'register_number': reg,
+                'fd': fd,
+                'register_number': reg,
             }
 
     for c in ['Credentials', 'Calibrator', 'Camera']:
         caps[c] = {
-                'fd': None,
-                'register_number': None,  # <-- this is a virtual component; it is implemented on the Python side, not the controller side
+            'fd': None,
+            'register_number': None,
         }
 
     return caps
-
-
-async def acquire_component_interface(caps, component_name):
-    """
-    Acquire the interface to the component having the name `component_name`.
-    This is a helper function which will:
-        1. Enable the component.
-        2. Wait for the controller to be ready.
-        3. Lookup, build, and return the interface object for the component.
-    Note, when you are finished using the components interface, you should
-    call `release_component_interface`.
-    """
-    fd = caps[component_name]['fd']
-    register_number = caps[component_name]['register_number']
-    interface = KNOWN_COMPONENTS[component_name](fd, register_number)
-    interface.__fd__ = fd
-    interface.__reg__ = register_number
-    interface.__component_name__ = component_name
-    return interface
-
-
-async def release_component_interface(interface):
-    """
-    Release the component `interface` by disabling the underlying component.
-    This function only works for interfaces returned by `acquire_component_interface`.
-    """
-    fd = interface.__fd__
-    register_number = interface.__reg__
-    component_name = interface.__component_name__
-
-    # Nothing to do here, since we don't disable components in this controller and we don't do ref counting...
 

@@ -14,8 +14,6 @@ from .easyi2c import (write_read_i2c_with_integrity,
 
 from . import N_I2C_TRIES
 
-from .timers import Timer1PWM, Timer3PWM
-
 from .db import default_db
 from .battery_discharge_curve import battery_map_millivolts_to_percentage
 
@@ -27,26 +25,29 @@ from .camera_pi import CameraRGB
 import cio
 
 import os
-import time
 import struct
 import asyncio
 import subprocess
 from math import floor, isnan
 from collections import deque
 
-import numpy as np
-
 import RPi.GPIO as GPIO
 GPIO.setmode(GPIO.BOARD)   # GPIO.BOARD or GPIO.BCM
 POWER_BUTTON_PIN = 31
 GPIO.setup(POWER_BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-POWER_BUTTON_REQUIRED_PRESS_SECONDS = 1.5
+POWER_BUTTON_REQUIRED_PRESS_SECONDS = 1.5   # <-- TODO
 
 
 class VersionInfo(cio.VersionInfoIface):
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
+
+    async def acquired(self):
+        pass
+
+    async def released(self):
+        pass
 
     async def name(self):
         return "AutoAuto v3 Controller"
@@ -61,6 +62,12 @@ class Credentials(cio.CredentialsIface):   # TODO - store both in EEPROM and SD 
     def __init__(self, fd, reg_num):
         self.db = None
         self.loop = asyncio.get_running_loop()
+
+    async def acquired(self):
+        pass
+
+    async def released(self):
+        pass
 
     async def get_labs_auth_code(self):
         return await self.loop.run_in_executor(None, self._get_labs_auth_code)
@@ -112,6 +119,12 @@ class Camera(cio.CameraIface):
                     idle_timeout=30
             )
 
+    async def acquired(self):
+        pass
+
+    async def released(self):
+        pass
+
     async def capture(self):
         return await Camera._camera.capture()
 
@@ -145,6 +158,12 @@ class Power(cio.PowerIface):
 
     def __init__(self, fd, reg_num):
         self.fd = fd
+
+    async def acquired(self):
+        pass
+
+    async def released(self):
+        pass
 
     async def state(self):
         return 'battery'   # TODO
@@ -180,6 +199,12 @@ class Buzzer(cio.BuzzerIface):   # TODO
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
+
+    async def acquired(self):
+        pass
+
+    async def released(self):
+        pass
 
     @i2c_retry(N_I2C_TRIES)
     async def is_currently_playing(self):
@@ -229,6 +254,12 @@ class Gyroscope(cio.GyroscopeIface):  # TODO
     def __init__(self, fd, reg_num):
         self.loop = asyncio.get_running_loop()
 
+    async def acquired(self):
+        pass
+
+    async def released(self):
+        pass
+
     def _read(self):
         with imu.COND:
             imu.COND.wait()
@@ -250,6 +281,12 @@ class GyroscopeAccum(cio.GyroscopeAccumIface):  # TODO
     def __init__(self, fd, reg_num):
         self.loop = asyncio.get_running_loop()
         self.offsets = None
+
+    async def acquired(self):
+        pass
+
+    async def released(self):
+        pass
 
     def _reset(self):
         self.offsets = self._read_raw()[1:]
@@ -282,6 +319,12 @@ class Accelerometer(cio.AccelerometerIface):  # TODO
     def __init__(self, fd, reg_num):
         self.loop = asyncio.get_running_loop()
 
+    async def acquired(self):
+        pass
+
+    async def released(self):
+        pass
+
     def _read(self):
         with imu.COND:
             imu.COND.wait()
@@ -302,6 +345,12 @@ class Accelerometer(cio.AccelerometerIface):  # TODO
 class Ahrs(cio.AhrsIface):  # TODO
     def __init__(self, fd, reg_num):
         self.loop = asyncio.get_running_loop()
+
+    async def acquired(self):
+        pass
+
+    async def released(self):
+        pass
 
     def _read(self):
         with imu.COND:
@@ -327,6 +376,12 @@ class PushButtons(cio.PushButtonsIface):  # TODO
         self.n = None
         self.states = None
         self.event_queue = deque()
+
+    async def acquired(self):
+        pass
+
+    async def released(self):
+        pass
 
     @i2c_retry(N_I2C_TRIES)
     async def num_buttons(self):
@@ -408,6 +463,12 @@ class LEDs(cio.LEDsIface):
         self.NUM_LEDS = 6
         self.vals = [None for index in range(self.NUM_LEDS)]  # using `None`, so that fist call to _set() actually sets it, no matter what the value
 
+    async def acquired(self):
+        pass
+
+    async def released(self):
+        pass
+
     async def led_map(self):
         return {index: 'RGB LED at index {}'.format(index) for index in range(self.NUM_LEDS)}
 
@@ -480,6 +541,12 @@ class ADC(cio.AdcIface):
         self.fd = fd
         self.reg_num = reg_num
 
+    async def acquired(self):
+        pass
+
+    async def released(self):
+        pass
+
     async def num_pins(self):
         return 1
 
@@ -495,6 +562,12 @@ class ADC(cio.AdcIface):
 class Photoresistor(cio.PhotoresistorIface):
     def __init__(self, fd, reg_num):
         self.adc = ADC(fd, reg_num)
+
+    async def acquired(self):
+        pass
+
+    async def released(self):
+        pass
 
     async def read(self):
         volts = await self.adc.read(0)
@@ -576,6 +649,12 @@ class CarMotors(cio.CarMotorsIface):
         self.fd = fd
         self.reg_num = reg_num
 
+    async def acquired(self):
+        pass
+
+    async def released(self):
+        pass
+
     @i2c_retry(N_I2C_TRIES)
     async def on(self):
         status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x00], 1)
@@ -620,6 +699,12 @@ class Calibrator(cio.CalibratorIface):  # TODO
     def __init__(self, fd, reg_num):
         pass
 
+    async def acquired(self):
+        pass
+
+    async def released(self):
+        pass
+
     async def start(self):
         pass  # no-op
 
@@ -644,6 +729,12 @@ class PidSteering(cio.PidSteeringIface):  # TODO
         self.carmotors = CarMotors(fd, carmotors_regnum)
         self.gyroaccum = GyroscopeAccum(fd, gyroaccum_regnum)
         self.task = None
+
+    async def acquired(self):
+        pass
+
+    async def released(self):
+        pass
 
     async def set_pid(self, p, i, d, error_accum_max=0.0, save=False):
         self.p = p
@@ -741,6 +832,7 @@ KNOWN_COMPONENTS = {
     'AHRS':                  Ahrs,
     'PushButtons':           PushButtons,
     'LEDs':                  LEDs,
+    'ADC':                   ADC,
     'Photoresistor':         Photoresistor,
     'CarMotors':             CarMotors,
     'Calibrator':            Calibrator,

@@ -21,6 +21,8 @@ DATA = None
 
 
 def run(verbose=False):
+    global DATA
+
     curr_time = 0        # microseconds
     dt = 1000000 // 100  # data streams at 100Hz
 
