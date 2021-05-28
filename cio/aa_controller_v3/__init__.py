@@ -55,6 +55,7 @@ class CioRoot(cio.CioRoot):
 
     def __init__(self):
         self.fd = None
+        self.batt_fd = None
         self.caps = None
         self.lock = asyncio.Lock()
 
@@ -78,9 +79,9 @@ class CioRoot(cio.CioRoot):
                 if major != 3:
                     raise Exception('Controller is not version 3, thus this interface will not work.')
 
-                batt_fd = await easyi2c.open_i2c(I2C_BUS_INDEX, 0x6a)   # TODO: clean this up, somehow
+                self.batt_fd = await easyi2c.open_i2c(I2C_BUS_INDEX, 0x6a)
                 self.caps['Power'] = {
-                    'fd': batt_fd,
+                    'fd': self.batt_fd,
                     'register_number': None,
                 }
 
@@ -106,6 +107,9 @@ class CioRoot(cio.CioRoot):
                     await easyi2c.close_i2c(self.fd)
                     self.fd = None
                     self.caps = None
+                if self.batt_fd is not None:
+                    await easyi2c.close_i2c(self.batt_fd)
+                    self.batt_fd = None
                 raise
 
             settings = load_settings()
@@ -149,4 +153,8 @@ class CioRoot(cio.CioRoot):
             await easyi2c.close_i2c(self.fd)
             self.fd = None
             self.caps = None
+
+            if self.batt_fd is not None:
+                await easyi2c.close_i2c(self.batt_fd)
+                self.batt_fd = None
 
