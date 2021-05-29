@@ -21,7 +21,7 @@ async def run():
     caps = await c.init()
     pprint(caps)
 
-    fd = c.fd
+    fd = c.ctlr_fd
 
     buf = await eeprom_query(fd, 0xA0, 4)
     print(buf)
@@ -49,6 +49,31 @@ async def run():
     buf = await eeprom_query(fd, 0xA0, 4)
     print(buf)
     assert buf == b'1234'
+
+    buf = await eeprom_query(fd, 0x0F, 5)
+    print(buf)
+
+    await eeprom_store(fd, 0x0F, b'12345')
+
+    buf = await eeprom_query(fd, 0x10, 4)
+    print(buf)
+    assert buf == b'2345'
+
+    buf = await eeprom_query(fd, 0x11, 3)
+    print(buf)
+    assert buf == b'345'
+
+    buf = await eeprom_query(fd, 0x12, 2)
+    print(buf)
+    assert buf == b'45'
+
+    buf = await eeprom_query(fd, 0x13, 1)
+    print(buf)
+    assert buf == b'5'
+
+    buf = await eeprom_query(fd, 0x0F, 5)
+    print(buf)
+    assert buf == b'12345'
 
 
 if __name__ == '__main__':

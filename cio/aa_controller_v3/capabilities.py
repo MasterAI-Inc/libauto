@@ -30,6 +30,9 @@ CAPABILITIES_LIST = [
     (3, 'ADC'),
     (3, 'Photoresistor'),
     (4, 'CarMotors'),
+    (None, 'Credentials'),
+    (None, 'Calibrator'),
+    (None, 'Camera'),
 ]
 
 
@@ -100,18 +103,28 @@ async def _retrieve_eeprom_query_buf(fd, length):
 
 
 async def eeprom_store(fd, addr, buf):
-    await _eeprom_store(fd, addr, buf)
-    async def is_eeprom_store_finished():
-        return await _is_eeprom_store_finished(fd)
-    await i2c_poll_until(is_eeprom_store_finished, True, timeout_ms=1000)
+    for i in range(0, len(buf), 4):
+        buf_here = buf[i:i+4]
+        await _eeprom_store(fd, addr + i, buf_here)
+        async def is_eeprom_store_finished():
+            return await _is_eeprom_store_finished(fd)
+        await i2c_poll_until(is_eeprom_store_finished, True, timeout_ms=1000)
 
 
 async def eeprom_query(fd, addr, length):
-    await _eeprom_query(fd, addr, length)
-    async def is_eeprom_query_finished():
-        return await _is_eeprom_query_finished(fd)
-    await i2c_poll_until(is_eeprom_query_finished, True, timeout_ms=1000)
-    return await _retrieve_eeprom_query_buf(fd, length)
+    bufs = []
+    i = 0
+    while length > 0:
+        length_here = min(length, 4)
+        await _eeprom_query(fd, addr + i, length_here)
+        async def is_eeprom_query_finished():
+            return await _is_eeprom_query_finished(fd)
+        await i2c_poll_until(is_eeprom_query_finished, True, timeout_ms=1000)
+        buf_here = await _retrieve_eeprom_query_buf(fd, length_here)
+        bufs.append(buf_here)
+        length -= length_here
+        i += length_here
+    return b''.join(bufs)
 
 
 async def get_capabilities(fd, soft_reset_first=False, only_enabled=False):
@@ -132,12 +145,6 @@ async def get_capabilities(fd, soft_reset_first=False, only_enabled=False):
                 'fd': fd,
                 'register_number': reg,
             }
-
-    for c in ['Credentials', 'Calibrator', 'Camera']:
-        caps[c] = {
-            'fd': None,
-            'register_number': None,
-        }
 
     return caps
 

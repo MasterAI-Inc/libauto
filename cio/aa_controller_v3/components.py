@@ -24,6 +24,9 @@ from .camera_pi import CameraRGB
 
 import cio
 
+from auto import logger
+log = logger.init(__name__, terminal=True)
+
 import os
 import struct
 import asyncio
@@ -57,8 +60,9 @@ class VersionInfo(cio.VersionInfoIface):
         return major, minor
 
 
-class Credentials(cio.CredentialsIface):   # TODO - store both in EEPROM and SD card
+class Credentials(cio.CredentialsIface):
     def __init__(self, fd, reg_num):
+        self.fd = fd
         self.db = None
         self.loop = asyncio.get_running_loop()
 
@@ -69,41 +73,95 @@ class Credentials(cio.CredentialsIface):   # TODO - store both in EEPROM and SD 
         pass
 
     async def get_labs_auth_code(self):
-        return await self.loop.run_in_executor(None, self._get_labs_auth_code)
+        db_record = await self.loop.run_in_executor(None, self._db_get_labs_auth_code)
+        if db_record is not None:
+            log.info('Querying labs auth code; found in database.')
+            return db_record
+        eeprom_record = await self._eeprom_get_labs_auth_code()
+        if eeprom_record is not None:
+            # It's in the EEPROM, but not the DB. So, copy it over to the DB so we find it there next time.
+            log.info('Querying labs auth code; found in eeprom; copying to database.')
+            await self.loop.run_in_executor(None, self._db_set_labs_auth_code, eeprom_record)
+            return eeprom_record
+        log.info('Querying labs auth code; not found.')
+        return None
 
     async def set_labs_auth_code(self, auth_code):
         if (await self.get_labs_auth_code()) is None:
-            await self.loop.run_in_executor(None, self._set_labs_auth_code, auth_code)
+            log.info('Storing labs auth code...')
+            await self.loop.run_in_executor(None, self._db_set_labs_auth_code, auth_code)
+            await self._eeprom_set_labs_auth_code(auth_code)
             return True
-        return False
+        else:
+            log.info('Will NOT storing labs auth code; it already exits.')
+            return False
 
     async def get_jupyter_password(self):
-        return await self.loop.run_in_executor(None, self._get_jupyter_password)
+        db_record = await self.loop.run_in_executor(None, self._db_get_jupyter_password)
+        if db_record is not None:
+            log.info('Querying Jupyter password; found in database.')
+            return db_record
+        eeprom_record = await self._eeprom_get_jupyter_password()
+        if eeprom_record is not None:
+            # It's in the EEPROM, but not the DB. So, copy it over to the DB so we find it there next time.
+            log.info('Querying Jupyter password; found in eeprom; copying to database.')
+            await self.loop.run_in_executor(None, self._db_set_jupyter_password, eeprom_record)
+            return eeprom_record
+        log.info('Querying Jupyter password; not found.')
+        return None
 
     async def set_jupyter_password(self, password):
         if (await self.get_jupyter_password()) is None:
-            await self.loop.run_in_executor(None, self._set_jupyter_password, password)
+            log.info('Storing Jupyter password...')
+            await self.loop.run_in_executor(None, self._db_set_jupyter_password, password)
+            await self._eeprom_set_jupyter_password(password)
             return True
-        return False
+        else:
+            log.info('Will NOT storing Jupyter password; it already exits.')
+            return False
 
     def _get_db(self):
         if self.db is None:
             self.db = default_db()
         return self.db
 
-    def _get_labs_auth_code(self):
+    def _db_get_labs_auth_code(self):
         return self._get_db().get('DEVICE_LABS_AUTH_CODE', None)
 
-    def _set_labs_auth_code(self, auth_code):
+    def _db_set_labs_auth_code(self, auth_code):
         self._get_db().put('DEVICE_LABS_AUTH_CODE', auth_code)
         os.sync()
 
-    def _get_jupyter_password(self):
+    def _db_get_jupyter_password(self):
         return self._get_db().get('DEVICE_JUPYTER_PASSWORD', None)
 
-    def _set_jupyter_password(self, password):
+    def _db_set_jupyter_password(self, password):
         self._get_db().put('DEVICE_JUPYTER_PASSWORD', password)
         os.sync()
+
+    async def _eeprom_read_string(self, addr):
+        length = (await capabilities.eeprom_query(self.fd, addr, 1))[0]
+        if length == 0xFF:
+            # Empty record!
+            return None
+        buf = await capabilities.eeprom_query(self.fd, addr + 1, length)
+        return buf.decode()
+
+    async def _eeprom_write_string(self, addr, s):
+        buf = bytes([len(s)]) + s.encode()
+        await capabilities.eeprom_store(self.fd, addr, buf)
+
+    async def _eeprom_get_labs_auth_code(self):
+        return await self._eeprom_read_string(0x00)
+
+    async def _eeprom_set_labs_auth_code(self, auth_code):
+        await self._eeprom_write_string(0x00, auth_code)
+
+    async def _eeprom_get_jupyter_password(self):
+        return await self._eeprom_read_string(0x30)
+
+    async def _eeprom_set_jupyter_password(self, password):
+        await self._eeprom_write_string(0x30, password)
 
 
 class Camera(cio.CameraIface):
