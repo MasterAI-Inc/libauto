@@ -129,16 +129,16 @@ class Camera(cio.CameraIface):
 
 
 class Power(cio.PowerIface):
-    @staticmethod
-    async def _write_reg(fd, reg, v):
+    @i2c_retry(N_I2C_TRIES)
+    async def _write_reg(self, reg, v):
         buf = bytes([reg, v])
-        await write_read_i2c(fd, buf, 0)
+        await write_read_i2c(self.fd, buf, 0)
 
-    @staticmethod
-    async def _read_reg(fd, reg):
+    @i2c_retry(N_I2C_TRIES)
+    async def _read_reg(self, reg):
         buf = bytes([reg])
         readlen = 1
-        r = await write_read_i2c(fd, buf, readlen)
+        r = await write_read_i2c(self.fd, buf, readlen)
         v = r[0]
         return v
 
@@ -152,34 +152,56 @@ class Power(cio.PowerIface):
         return millivolts
 
     @staticmethod
+    def _input_convert_millivolts(v):
+        millivolts = 2600
+        bit_vals = [100, 200, 400, 800, 1600, 3200, 6400]
+        for i in range(7):
+            if v & (1 << i):
+                millivolts += bit_vals[i]
+        return millivolts
+
+    @staticmethod
+    def _charge_current_convert(v):
+        milliamps = 0
+        bit_vals = [50, 100, 200, 400, 800, 1600, 3200]
+        for i in range(7):
+            if v & (1 << i):
+                milliamps += bit_vals[i]
+        return milliamps
+
+    @staticmethod
+    def _input_limit_convert(v):
+        milliamps = 100
+        bit_vals = [50, 100, 200, 400, 800, 1600]
+        for i in range(6):
+            if v & (1 << i):
+                milliamps += bit_vals[i]
+        return milliamps
+
+    @staticmethod
     def _is_power_button_pressed():
         return GPIO.input(POWER_BUTTON_PIN) == 0  # active low
-
-    _did_init = False
 
     def __init__(self, fd, reg_num):
         self.fd = fd
 
     async def acquired(self):
-        if not Power._did_init:
-            Power._did_init = True
-            # Start the battery voltage ADC:
-            v = await self._read_reg(self.fd, 0x02)
-            v |= (1 << 6)
-            await self._write_reg(self.fd, 0x02, v)
+        pass
 
     async def released(self):
         pass
 
     async def state(self):
-        usbPluggedIn = (((await self._read_reg(self.fd, 0x11)) & (1 << 7)) != 0)
-        if usbPluggedIn:
-            isCharging = ((((await self._read_reg(self.fd, 0x0B)) >> 3) & 0x03) != 0)
-            return 'charging' if isCharging else 'wall'
-        return 'battery'
+        usb_plugged_in = (((await self._read_reg(0x11)) & (1 << 7)) != 0)
+        if usb_plugged_in:
+            milliamps = await self._read_reg(0x12)
+            milliamps = self._charge_current_convert(milliamps)
+            return 'charging' if milliamps > 0 else 'wall'
+        else:
+            return 'battery'
 
     async def millivolts(self):
-        v = await self._read_reg(self.fd, 0x0E)
+        v = await self._read_reg(0x0E)
         millivolts = self._batt_convert_millivolts(v)
         return millivolts
 
@@ -190,15 +212,31 @@ class Power(cio.PowerIface):
         minutes = 4.0 * 60.0 * (percentage / 100.0)  # Assumes the full battery lasts 4 hours.
         return floor(minutes), floor(percentage)
 
+    async def charging_info(self):
+        """This is a non-standard method."""
+        milliamps = await self._read_reg(0x12)
+        milliamps = self._charge_current_convert(milliamps)
+        input_millivolts = await self._read_reg(0x11)
+        input_millivolts = self._input_convert_millivolts(input_millivolts)
+        input_milliamps_limit = await self._read_reg(0x00)
+        input_milliamps_limit = self._input_limit_convert(input_milliamps_limit)
+        return {
+            'milliamps': milliamps,
+            'input': {
+                'millivolts': input_millivolts,
+                'milliamps_limit': input_milliamps_limit,
+            }
+        }
+
     async def should_shut_down(self):
         curr_state = self._is_power_button_pressed()
         return curr_state
 
     async def shut_down(self):
-        v = await self._read_reg(self.fd, 0x09)
+        v = await self._read_reg(0x09)
         v |= (1 << 3)
         v |= (1 << 5)
-        await self._write_reg(self.fd, 0x09, v)   # <-- tell charger chip to shutdown after a 10-15 second delay
+        await self._write_reg(0x09, v)   # <-- tell charger chip to shutdown after a 10-15 second delay
         subprocess.run(['/sbin/poweroff'])
 
     async def reboot(self):
