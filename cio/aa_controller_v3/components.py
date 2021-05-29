@@ -301,7 +301,7 @@ class Power(cio.PowerIface):
         subprocess.run(['/sbin/reboot'])
 
 
-class Buzzer(cio.BuzzerIface):   # TODO
+class Buzzer(cio.BuzzerIface):
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
@@ -312,51 +312,17 @@ class Buzzer(cio.BuzzerIface):   # TODO
     async def released(self):
         pass
 
-    @i2c_retry(N_I2C_TRIES)
     async def is_currently_playing(self):
-        can_play, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x00], 1)
-        return can_play == 0
+        pass   # TODO
 
     async def wait(self):
-        await i2c_poll_until(self.is_currently_playing, False, timeout_ms=100000)
+        pass   # TODO
 
     async def play(self, notes="o4l16ceg>c8"):
-        notes = notes.replace(' ', '')  # remove spaces from the notes (they don't hurt, but they take up space and the microcontroller doesn't have a ton of space)
-
-        @i2c_retry(N_I2C_TRIES)
-        async def send_new_notes(notes, pos):
-            buf = list(notes.encode())
-            can_play, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01, pos] + buf, 1)
-            if can_play != 1:
-                raise Exception("failed to send notes to play")
-            return len(buf)
-
-        @i2c_retry(N_I2C_TRIES)
-        async def start_playback():
-            can_play, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x02], 1)
-            # Ignore return value. Why? Because this call commonly requires multiple retries
-            # (as done by `i2c_retry`) thus if we retry, then the playback will have already
-            # started and we'll be (wrongly) informed that it cannot start (because it already
-            # started!). Thus, the check below has been disabled:
-            #
-            #if can_play != 1:
-            #    raise Exception("failed to start playback")
-
-        def chunkify(seq, n):
-            """Split `seq` into sublists of size `n`"""
-            return [seq[i * n:(i + 1) * n] for i in range((len(seq) + n - 1) // n)]
-
-        await self.wait()
-
-        pos = 0
-        for chunk in chunkify(notes, 4):
-            chunk_len = await send_new_notes(chunk, pos)
-            pos += chunk_len
-
-        await start_playback()
+        pass   # TODO
 
 
-class Gyroscope(cio.GyroscopeIface):  # TODO
+class Gyroscope(cio.GyroscopeIface):
     def __init__(self, fd, reg_num):
         self.loop = asyncio.get_running_loop()
 
@@ -383,7 +349,7 @@ class Gyroscope(cio.GyroscopeIface):  # TODO
         return vals
 
 
-class GyroscopeAccum(cio.GyroscopeAccumIface):  # TODO
+class GyroscopeAccum(cio.GyroscopeAccumIface):
     def __init__(self, fd, reg_num):
         self.loop = asyncio.get_running_loop()
         self.offsets = None
@@ -421,7 +387,7 @@ class GyroscopeAccum(cio.GyroscopeAccumIface):  # TODO
         return (t,) + new_vals
 
 
-class Accelerometer(cio.AccelerometerIface):  # TODO
+class Accelerometer(cio.AccelerometerIface):
     def __init__(self, fd, reg_num):
         self.loop = asyncio.get_running_loop()
 
@@ -448,7 +414,7 @@ class Accelerometer(cio.AccelerometerIface):  # TODO
         return vals
 
 
-class Ahrs(cio.AhrsIface):  # TODO
+class Ahrs(cio.AhrsIface):
     def __init__(self, fd, reg_num):
         self.loop = asyncio.get_running_loop()
 
