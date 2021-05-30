@@ -18,11 +18,11 @@ async def run():
 
     for percentage in range(0, 101):
         minutes = 2 * percentage
-        await c.set_battery(minutes, percentage)
+        await c.set_battery(state, minutes, percentage)
         await asyncio.sleep(0.01)
     for percentage in range(100, -1, -1):
         minutes = 2 * percentage
-        await c.set_battery(minutes, percentage)
+        await c.set_battery(state, minutes, percentage)
         await asyncio.sleep(0.01)
 
 

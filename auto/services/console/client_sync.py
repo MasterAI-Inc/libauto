@@ -57,8 +57,8 @@ class CuiRoot(cui.CuiRoot):
         future = asyncio.run_coroutine_threadsafe(self.cui_root.clear_image(), self.loop)
         return future.result()
 
-    def set_battery(self, minutes, percentage):
-        future = asyncio.run_coroutine_threadsafe(self.cui_root.set_battery(minutes, percentage), self.loop)
+    def set_battery(self, state, minutes, percentage):
+        future = asyncio.run_coroutine_threadsafe(self.cui_root.set_battery(state, minutes, percentage), self.loop)
         return future.result()
 
     def close(self):

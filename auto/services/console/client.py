@@ -66,10 +66,10 @@ class CuiRoot(cui.CuiRoot):
             raise Exception("You must first call `init()`.")
         return await self.proxy_interface.clear_image()
 
-    async def set_battery(self, minutes, percentage):
+    async def set_battery(self, state, minutes, percentage):
         if self.proxy_interface is None:
             raise Exception("You must first call `init()`.")
-        return await self.proxy_interface.set_battery(minutes, percentage)
+        return await self.proxy_interface.set_battery(state, minutes, percentage)
 
     async def close(self):
         # Don't call `close()` on the actual `proxy_interface`, because that in turn

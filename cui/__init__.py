@@ -96,8 +96,9 @@ class CuiRoot(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def set_battery(self, minutes, percentage):
+    async def set_battery(self, state, minutes, percentage):
         """
+        `state` should be one of "battery", "charging", or "wall".
         `minutes` should be an integer specifying how many minutes
         of battery life remain (estimated of course).
         `percentage` should be an integer in [0, 100] indicating the

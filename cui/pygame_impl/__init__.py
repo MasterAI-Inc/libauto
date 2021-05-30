@@ -81,12 +81,12 @@ class CuiPyGame(cui.CuiRoot):
                     console_ui.clear_image,
             )
 
-    async def set_battery(self, minutes, percentage):
+    async def set_battery(self, state, minutes, percentage):
         async with self.lock:
             return await self.loop.run_in_executor(
                     None,
                     console_ui.set_battery,
-                    minutes, percentage
+                    state, minutes, percentage
             )
 
     async def close(self):
