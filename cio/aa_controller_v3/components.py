@@ -797,7 +797,7 @@ class CarMotors(cio.CarMotorsIface):
         return ['get_steering_params', 'set_steering_params']
 
 
-class Calibrator(cio.CalibratorIface):  # TODO
+class Calibrator(cio.CalibratorIface):
     def __init__(self, fd, reg_num):
         pass
 
@@ -808,13 +808,13 @@ class Calibrator(cio.CalibratorIface):  # TODO
         pass
 
     async def start(self):
-        pass  # no-op
+        pass  # TODO
 
     async def status(self):
-        pass  # no-op
+        pass  # TODO
 
     async def script_name(self):
-        return "calibrate_car_v3"
+        return "calibrate_car_v3"   # TODO
 
 
 class PidSteering(cio.PidSteeringIface):  # TODO

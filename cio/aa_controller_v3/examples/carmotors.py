@@ -23,9 +23,15 @@ async def run():
 
     await motors.on()
 
+    #safe = await motors.get_safe_throttle()
+    #print(safe)
+    #await motors.set_safe_throttle(safe[0] + 1, safe[1] + 1)
+    safe = await motors.get_safe_throttle()
+    print(safe)
+
     await asyncio.sleep(1)
 
-    t = 70
+    t = safe[1]
 
     for i in range(2):
         for v in range(-45, 45):
