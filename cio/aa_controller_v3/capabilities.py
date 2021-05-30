@@ -33,6 +33,7 @@ CAPABILITIES_LIST = [
     (None, 'Credentials'),
     (None, 'Calibrator'),
     (None, 'Camera'),
+    (None, 'PushButtons'),
 ]
 
 

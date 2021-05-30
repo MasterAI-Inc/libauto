@@ -28,16 +28,23 @@ from auto import logger
 log = logger.init(__name__, terminal=True)
 
 import os
+import time
 import struct
 import asyncio
 import subprocess
 from math import floor, isnan
 from collections import deque
 
+
 import RPi.GPIO as GPIO
 GPIO.setmode(GPIO.BOARD)   # GPIO.BOARD or GPIO.BCM
+
 POWER_BUTTON_PIN = 29
 GPIO.setup(POWER_BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+PUSH_BUTTON_PINS = [32, 33, 36]
+for pin in PUSH_BUTTON_PINS:
+    GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 
 class VersionInfo(cio.VersionInfoIface):
@@ -441,31 +448,48 @@ class Ahrs(cio.AhrsIface):
         return vals
 
 
-class PushButtons(cio.PushButtonsIface):  # TODO
+class PushButtons(cio.PushButtonsIface):
+    _pin_map = None
+    _states = None
+
+    @staticmethod
+    def _button_edge_callback(pin):
+        button_index = PushButtons._pin_map[pin]
+        presses, releases, is_pressed, prev_time = PushButtons._states[button_index]
+        curr_time = time.time()
+        if curr_time - prev_time < 0.05:
+            # Debounced!
+            return
+        curr_is_pressed = (GPIO.input(pin) == GPIO.LOW)
+        if is_pressed == curr_is_pressed:
+            # Ignore this... why are we being called when the state has not changed?
+            return
+        if curr_is_pressed:
+            presses += 1
+        else:
+            releases += 1
+        PushButtons._states[button_index] = presses, releases, curr_is_pressed, curr_time
+
     def __init__(self, fd, reg_num):
-        self.fd = fd
-        self.reg_num = reg_num
         self.n = None
         self.states = None
         self.event_queue = deque()
 
     async def acquired(self):
-        pass
+        if PushButtons._pin_map is None:
+            PushButtons._pin_map = {pin: i for i, pin in enumerate(PUSH_BUTTON_PINS)}
+            PushButtons._states = [[0, 0, False, 0] for _ in range(len(PUSH_BUTTON_PINS))]
+            for pin in PUSH_BUTTON_PINS:
+                GPIO.add_event_detect(pin, GPIO.BOTH, callback=self._button_edge_callback)
 
     async def released(self):
         pass
 
-    @i2c_retry(N_I2C_TRIES)
     async def num_buttons(self):
-        n, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x00], 1)
-        return n
+        return len(PUSH_BUTTON_PINS)
 
-    @i2c_retry(N_I2C_TRIES)
     async def button_state(self, button_index):
-        buf = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x01+button_index], 3)
-        presses = int(buf[0])
-        releases = int(buf[1])
-        is_pressed = bool(buf[2])
+        presses, releases, is_pressed, last_event_time = PushButtons._states[button_index]
         return presses, releases, is_pressed
 
     async def get_events(self):
@@ -481,8 +505,8 @@ class PushButtons(cio.PushButtonsIface):  # TODO
             if state == prev_state:
                 continue
 
-            diff_presses  = (state[0] - prev_state[0]) % 256
-            diff_releases = (state[1] - prev_state[1]) % 256
+            diff_presses  = state[0] - prev_state[0]
+            diff_releases = state[1] - prev_state[1]
 
             if diff_presses == 0 and diff_releases == 0:
                 continue
