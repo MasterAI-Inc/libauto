@@ -556,14 +556,14 @@ class LEDs(cio.LEDsIface):
     def __init__(self, fd, reg_num):
         self.fd = fd
         self.reg_num = reg_num
-        self.NUM_LEDS = 6
+        self.NUM_LEDS = 20
         self.vals = [None for index in range(self.NUM_LEDS)]  # using `None`, so that fist call to _set() actually sets it, no matter what the value
 
     async def acquired(self):
         pass
 
     async def released(self):
-        pass
+        await self._reset()
 
     async def led_map(self):
         return {index: 'RGB LED at index {}'.format(index) for index in range(self.NUM_LEDS)}
@@ -590,6 +590,12 @@ class LEDs(cio.LEDsIface):
     @i2c_retry(N_I2C_TRIES)
     async def _show(self):
         status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x02], 1)
+        if status != 72:
+            raise Exception("failed to set LED state")
+
+    @i2c_retry(N_I2C_TRIES)
+    async def _reset(self):
+        status, = await write_read_i2c_with_integrity(self.fd, [self.reg_num, 0x04], 1)
         if status != 72:
             raise Exception("failed to set LED state")
 
