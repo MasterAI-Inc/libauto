@@ -13,6 +13,7 @@ This module provides a simple helper to use the buzzer.
 """
 
 from auto.capabilities import list_caps, acquire
+from auto import IS_VIRTUAL
 
 
 def buzz(notes):
@@ -37,6 +38,22 @@ def honk(count=1):
     """
     MAX_HONKS = 5
     count = min(MAX_HONKS, count)
-    for _ in range(count - 1):
-        buzz('!T95 O4 G#16 R16') # short honk
-    buzz('!T95 O4 G#4') # final long honk
+    if IS_VIRTUAL:
+        _physics_honk(count)
+    else:
+        for _ in range(count - 1):
+            buzz('!T95 O4 G#16 R16') # short honk
+        buzz('!T95 O4 G#4') # final long honk
+
+
+def _physics_honk(count):
+    global _PHYSICS
+    try:
+        _PHYSICS
+    except NameError:
+        _PHYSICS = acquire('PhysicsClient')
+    _PHYSICS.control({
+        'type': 'honk',
+        'count': count,
+    })
+
