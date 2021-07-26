@@ -32,7 +32,7 @@ def buzz(notes):
     _BUZZER.wait()
 
 
-def honk(count=1):
+def honk(count=2):
     """
     Make a car horn ("HONK") sound.
     """

@@ -376,7 +376,7 @@ def buzz(notes):
     buzzer.buzz(notes)
 
 
-def honk(count=1):
+def honk(count=2):
     """
     Make a car horn ("HONK") sound.
     """
