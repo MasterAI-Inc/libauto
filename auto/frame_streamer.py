@@ -16,7 +16,7 @@ This is a **synchronous** interface.
 """
 
 from auto import console
-from auto import print_all
+from auto import _ctx_print_all
 from auto.labs import send_message_to_labs
 from auto.camera import base64_encode_image
 
@@ -57,7 +57,7 @@ def plot(frames, also_stream=True, verbose=False):
 
     if verbose:
         n = frames.shape[0]
-        print_all("Plotting {} frame{}...".format(n, 's' if n != 1 else ''))
+        _ctx_print_all("Plotting {} frame{}...".format(n, 's' if n != 1 else ''))
 
     montage = _create_montage(frames)
 
@@ -182,7 +182,7 @@ def stream(frame, to_console=True, to_labs=False, verbose=False):
 
     if verbose:
         h, w = frame.shape[:2]
-        print_all("Streamed frame of size {}x{}.".format(w, h))
+        _ctx_print_all("Streamed frame of size {}x{}.".format(w, h))
 
 
 def _add_white_bars(frame):

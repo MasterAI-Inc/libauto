@@ -24,6 +24,7 @@ do not print.
 """
 
 from auto import print_all as print  # override the build-in `print()`
+from auto import _ctx_print_all
 from auto import IS_VIRTUAL
 import time
 
@@ -36,7 +37,7 @@ def forward(sec=None, cm=None, verbose=True):
     from car import motors
 
     if sec is not None and cm is not None:
-        print("Error: Please specify duration (sec) OR distance (cm) - not both.")
+        _ctx_print_all("Error: Please specify duration (sec) OR distance (cm) - not both.")
         return
 
     if sec is None and cm is None:
@@ -44,21 +45,21 @@ def forward(sec=None, cm=None, verbose=True):
 
     if sec is not None:
         if sec > 5.0:
-            print("Error: The duration (sec) exceeds 5 seconds; will reset to 5 seconds.")
+            _ctx_print_all("Error: The duration (sec) exceeds 5 seconds; will reset to 5 seconds.")
             sec = 5.0
         if sec <= 0.0:
             return
         if verbose:
-            print("Driving forward for {} seconds.".format(sec))
+            _ctx_print_all("Driving forward for {} seconds.".format(sec))
 
     if cm is not None:
         if cm > 300.0:
-            print("Error: The distance (cm) exceeds 300 cm (~10 feet); will reset to 300 cm.")
+            _ctx_print_all("Error: The distance (cm) exceeds 300 cm (~10 feet); will reset to 300 cm.")
             cm = 300.0
         if cm <= 0.0:
             return
         if verbose:
-            print("Driving forward for {} centimeters.".format(cm))
+            _ctx_print_all("Driving forward for {} centimeters.".format(cm))
 
     motors.straight(motors.safe_forward_throttle(), sec, cm)
 
@@ -71,7 +72,7 @@ def reverse(sec=None, cm=None, verbose=True):
     from car import motors
 
     if sec is not None and cm is not None:
-        print("Error: Please specify duration (sec) OR distance (cm) - not both.")
+        _ctx_print_all("Error: Please specify duration (sec) OR distance (cm) - not both.")
         return
 
     if sec is None and cm is None:
@@ -79,21 +80,21 @@ def reverse(sec=None, cm=None, verbose=True):
 
     if sec is not None:
         if sec > 5.0:
-            print("Error: The duration (sec) exceeds 5 seconds; will reset to 5 seconds.")
+            _ctx_print_all("Error: The duration (sec) exceeds 5 seconds; will reset to 5 seconds.")
             sec = 5.0
         if sec <= 0.0:
             return
         if verbose:
-            print("Driving in reverse for {} seconds.".format(sec))
+            _ctx_print_all("Driving in reverse for {} seconds.".format(sec))
 
     if cm is not None:
         if cm > 300.0:
-            print("Error: The distance (cm) exceeds 300 cm (~10 feet); will reset to 300 cm.")
+            _ctx_print_all("Error: The distance (cm) exceeds 300 cm (~10 feet); will reset to 300 cm.")
             cm = 300.0
         if cm <= 0.0:
             return
         if verbose:
-            print("Driving in reverse for {} centimeters.".format(cm))
+            _ctx_print_all("Driving in reverse for {} centimeters.".format(cm))
 
     motors.straight(motors.safe_reverse_throttle(), sec, cm, invert_output=True)
 
@@ -106,7 +107,7 @@ def left(sec=None, deg=None, verbose=True):
     from car import motors
 
     if sec is not None and deg is not None:
-        print("Error: Please specify duration (sec) OR degrees (deg) - not both.")
+        _ctx_print_all("Error: Please specify duration (sec) OR degrees (deg) - not both.")
         return
 
     if sec is None and deg is None:
@@ -114,21 +115,21 @@ def left(sec=None, deg=None, verbose=True):
 
     if sec is not None:
         if sec > 5.0:
-            print("Error: The duration (sec) exceeds 5 seconds; will reset to 5 seconds.")
+            _ctx_print_all("Error: The duration (sec) exceeds 5 seconds; will reset to 5 seconds.")
             sec = 5.0
         if sec <= 0.0:
             return
         if verbose:
-            print("Driving left for {} seconds.".format(sec))
+            _ctx_print_all("Driving left for {} seconds.".format(sec))
 
     if deg is not None:
         if deg > 360.0:
-            print("Error: The degrees (deg) exceeds 360; will reset to 360.")
+            _ctx_print_all("Error: The degrees (deg) exceeds 360; will reset to 360.")
             deg = 360.0
         if deg <= 0.0:
             return
         if verbose:
-            print("Driving left for {} degrees.".format(deg))
+            _ctx_print_all("Driving left for {} degrees.".format(deg))
 
     motors.drive(45.0, motors.safe_forward_throttle(), sec, deg)
 
@@ -141,7 +142,7 @@ def right(sec=None, deg=None, verbose=True):
     from car import motors
 
     if sec is not None and deg is not None:
-        print("Error: Please specify duration (sec) OR degrees (deg) - not both.")
+        _ctx_print_all("Error: Please specify duration (sec) OR degrees (deg) - not both.")
         return
 
     if sec is None and deg is None:
@@ -149,21 +150,21 @@ def right(sec=None, deg=None, verbose=True):
 
     if sec is not None:
         if sec > 5.0:
-            print("Error: The duration (sec) exceeds 5 seconds; will reset to 5 seconds.")
+            _ctx_print_all("Error: The duration (sec) exceeds 5 seconds; will reset to 5 seconds.")
             sec = 5.0
         if sec <= 0.0:
             return
         if verbose:
-            print("Driving right for {} seconds.".format(sec))
+            _ctx_print_all("Driving right for {} seconds.".format(sec))
 
     if deg is not None:
         if deg > 360.0:
-            print("Error: The degrees (deg) exceeds 360; will reset to 360.")
+            _ctx_print_all("Error: The degrees (deg) exceeds 360; will reset to 360.")
             deg = 360.0
         if deg <= 0.0:
             return
         if verbose:
-            print("Driving right for {} degrees.".format(deg))
+            _ctx_print_all("Driving right for {} degrees.".format(deg))
 
     motors.drive(-45.0, motors.safe_forward_throttle(), sec, deg)
 
@@ -173,7 +174,7 @@ def pause(sec=1.0, verbose=True):
     Pause the car's code for `sec` seconds.
     """
     if verbose:
-        print("Pausing for {} seconds.".format(sec))
+        _ctx_print_all("Pausing for {} seconds.".format(sec))
     time.sleep(sec)
 
 
@@ -184,7 +185,7 @@ def capture(num_frames=1, verbose=True):
     """
     MAX_FRAMES = 4
     if num_frames > MAX_FRAMES:
-        print(f"Warning: You may capture at most {MAX_FRAMES} frames with this function.")
+        _ctx_print_all(f"Warning: You may capture at most {MAX_FRAMES} frames with this function.")
         num_frames = MAX_FRAMES
     from auto import camera
     return camera.capture(num_frames, verbose)
@@ -240,11 +241,11 @@ def classify_color(frame, annotate=True, verbose=True):
         from auto.models import ColorClassifier
         COLORCLASSIFIER = ColorClassifier()
         if verbose:
-            print("Instantiated a ColorClassifier object!")
+            _ctx_print_all("Instantiated a ColorClassifier object!")
 
     p1, p2, classific = COLORCLASSIFIER.classify(frame, annotate=annotate)
     if verbose:
-        print("Classified color as '{}'.".format(classific))
+        _ctx_print_all("Classified color as '{}'.".format(classific))
     return classific
 
 
@@ -264,12 +265,12 @@ def detect_faces(frame, annotate=True, verbose=True):
         from auto.models import FaceDetector
         FACEDETECTOR = FaceDetector()
         if verbose:
-            print("Instantiated a FaceDetector object!")
+            _ctx_print_all("Instantiated a FaceDetector object!")
 
     faces = FACEDETECTOR.detect(frame, annotate=annotate)
     n = len(faces)
     if verbose:
-        print("Found {} face{}.".format(n, 's' if n != 1 else ''))
+        _ctx_print_all("Found {} face{}.".format(n, 's' if n != 1 else ''))
     return faces
 
 
@@ -289,12 +290,12 @@ def detect_stop_signs(frame, annotate=True, verbose=True):
         from auto.models import StopSignDetector
         STOPSIGNDETECTOR = StopSignDetector()
         if verbose:
-            print("Instantiated a StopSignDetector object!")
+            _ctx_print_all("Instantiated a StopSignDetector object!")
 
     rects = STOPSIGNDETECTOR.detect(frame, annotate=annotate)
     n = len(rects)
     if verbose:
-        print("Found {} stop sign{}.".format(n, 's' if n != 1 else ''))
+        _ctx_print_all("Found {} stop sign{}.".format(n, 's' if n != 1 else ''))
     return rects
 
 
@@ -317,12 +318,12 @@ def detect_pedestrians(frame, annotate=True, verbose=True):
         else:
             PEDESTRIANDETECTOR = PedestrianDetector()
         if verbose:
-            print("Instantiated a PedestrianDetector object!")
+            _ctx_print_all("Instantiated a PedestrianDetector object!")
 
     rects = PEDESTRIANDETECTOR.detect(frame, annotate=annotate)
     n = len(rects)
     if verbose:
-        print("Found {} pedestrian{}.".format(n, 's' if n != 1 else ''))
+        _ctx_print_all("Found {} pedestrian{}.".format(n, 's' if n != 1 else ''))
     return rects
 
 
@@ -334,7 +335,7 @@ def object_location(object_list, frame_shape, verbose=True):
     """
     if not object_list:
         if verbose:
-            print("Object location is None.")
+            _ctx_print_all("Object location is None.")
         return None
     import numpy as np
     areas = [w*h for x, y, w, h in object_list]
@@ -349,7 +350,7 @@ def object_location(object_list, frame_shape, verbose=True):
     else:
         location = 'frame_right'
     if verbose:
-        print("Object location is '{}'.".format(location))
+        _ctx_print_all("Object location is '{}'.".format(location))
     return location
 
 
@@ -359,12 +360,12 @@ def object_size(object_list, frame_shape, verbose=True):
     """
     if not object_list:
         if verbose:
-            print("Object area is 0.")
+            _ctx_print_all("Object area is 0.")
         return 0.0
     areas = [w*h for x, y, w, h in object_list]
     ratio = max(areas) / (frame_shape[0] * frame_shape[1])
     if verbose:
-        print("Object area is {}.".format(ratio))
+        _ctx_print_all("Object area is {}.".format(ratio))
     return ratio
 
 

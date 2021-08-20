@@ -68,7 +68,7 @@ def global_camera(verbose=False):
         camera = acquire('Camera')
         GLOBAL_CAMERA = _CameraRGB(camera)
         if verbose:
-            auto.print_all("Instantiated a global camera object!")
+            auto._ctx_print_all("Instantiated a global camera object!")
     return GLOBAL_CAMERA
 
 
@@ -80,7 +80,7 @@ def close_global_camera(verbose=False):
     try:
         GLOBAL_CAMERA   # <-- just to see if it exists
         if verbose:
-            auto.print_all("Closing the global camera object...")
+            auto._ctx_print_all("Closing the global camera object...")
         release(GLOBAL_CAMERA._camera)
         del GLOBAL_CAMERA
     except NameError:
@@ -100,12 +100,12 @@ def capture(num_frames=1, verbose=False):
     if num_frames > 1:
         frames = np.array([frame for _, frame in zip(range(num_frames), camera.stream())])
         if verbose:
-            auto.print_all("Captured {} frames.".format(num_frames))
+            auto._ctx_print_all("Captured {} frames.".format(num_frames))
         return frames
     else:
         frame = camera.capture()
         if verbose:
-            auto.print_all("Captured 1 frame.")
+            auto._ctx_print_all("Captured 1 frame.")
         return frame
 
 
