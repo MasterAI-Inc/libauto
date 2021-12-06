@@ -892,6 +892,32 @@ class LidarIface(abc.ABC):
         pass
 
 
+class GpsIface(abc.ABC):
+    """
+    Query your device's GPS sensor!
+
+    Required: False
+
+    Capability Identifier: 'GPS'
+    """
+
+    @abc.abstractmethod
+    async def query(self):
+        """
+        Query the GPS sensor. The return value depends on the type of device
+        you are using:
+
+        For *physical* devices, the return value is a point using the
+        *Geographic coordinate system*, thus it is a three-tuple:
+            (`latitude`, `longitude`, `altitude`)
+
+        For *virtual* devices, the return value is a point using the
+        *Cartesian coordinate system*, thus it is a three-tuple:
+            (`x`, `y`, `z`)
+        """
+        pass
+
+
 class PhysicsClientIface(abc.ABC):
     """
     Instruct the physics client. This is only used for virtual devices.
