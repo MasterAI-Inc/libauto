@@ -867,8 +867,8 @@ class LidarIface(abc.ABC):
            moves off the vertical axis; `phi=90` lies on the horizontal
            plane; `phi=180` points opposite the vertical axis ("down").
 
-        Returns `r` which is the distance to the closest object in
-        the direction denoted by `theta` and `phi`. Returns `r=None`
+        Returns `r` which is the distance (in meters) to the closest object
+        in the direction denoted by `theta` and `phi`. Returns `r = None`
         if no object was detected.
         """
         pass
@@ -914,6 +914,54 @@ class GpsIface(abc.ABC):
         For *virtual* devices, the return value is a point using the
         *Cartesian coordinate system*, thus it is a three-tuple:
             (`x`, `y`, `z`)
+        """
+        pass
+
+
+class ReconIface(abc.ABC):
+    """
+    Your device's Reconnaissance sensor (*virtual* devices only)
+
+    Required: False
+
+    Capability Identifier: 'Recon'
+    """
+
+    @abc.abstractmethod
+    async def query(self, theta_1=90, theta_2=-90, r=100):
+        """
+        Detect enemy devices within a certain space around your
+        device, as defined by `theta_1`, `theta_2`, and `r`.
+
+        The space queried ranges in your device's horizontal
+        plane from `theta_1` to `theta_2` (both in degrees)
+        and extends `r` meters away from your device.
+
+        These "theta" values (in degrees) affect the sensor's
+        detection space around your device's horizontal plane:
+         - `theta = 0` is "forward" of your device
+         - `theta = 90` is "directly left"
+         - `theta = -90` is "directly right"
+
+        For example, querying with `theta_1 = 45` and `theta_2 = -45`
+        will query a 90-degree circular sector in front of your device.
+
+        Another example, querying with `theta_1 = 0` and `theta_2 = 360`
+        will query for *all* devices near you, no matter what angle they
+        are from you.
+
+        Another example, querying with `theta_1 = 90` and `theta_2 = 270`
+        will query in the half-circle space "behind" your device.
+
+        The `r` value (a distance in meters) affects the sensor's query
+        radius from your device. E.g. `r = 100` will detect enemy devices
+        within 100 meters of your device.
+
+        Note: To precisely locate an enemy, you can binary search the
+              `theta_*` space, then binary search the `r` space.
+
+        This query returns a list of device VINs which were found in the
+        queried space. An empty list is returned if no devices are found.
         """
         pass
 
