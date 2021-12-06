@@ -966,6 +966,28 @@ class ReconIface(abc.ABC):
         pass
 
 
+class WeaponsIface(abc.ABC):
+    """
+    Your device's Weapons system (*virtual* devices only)
+
+    Required: False
+
+    Capability Identifier: 'Weapons'
+    """
+
+    @abc.abstractmethod
+    async def fire(self, theta=0, phi=90, velocity=5):
+        """
+        Fire your device's default weapon in the direction
+        defined by `theta` and `phi` (both in degrees) and
+        with a velocity of `velocity` (in meters/second).
+
+        See `LidarIface.single()` for a description of `theta`
+        and `phi`.
+        """
+        pass
+
+
 class PhysicsClientIface(abc.ABC):
     """
     Instruct the physics client. This is only used for virtual devices.
