@@ -892,6 +892,49 @@ class LidarIface(abc.ABC):
         pass
 
 
+class CompassIface(abc.ABC):
+    """
+    Query your device's Compass!
+
+    Required: False
+
+    Capability Identifier: 'Compass'
+    """
+
+    @abc.abstractmethod
+    async def query(self):
+        """
+        Query the Compass sensor.
+
+        Returns `theta`, a single angle (in degrees) representing your
+        device's deviation from magnetic north.
+         - `theta = 0` means your device is pointing directly north.
+         - `theta = 90` means your device is pointing directly west.
+         - `theta = 180` means your device is pointing directly south.
+         - `theta = 270` means your device is pointing directly east.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def heading(self):
+        """
+        Query the Compass sensor and return a true heading of your device.
+
+        **ONLY AVAILABLE ON VIRTUAL DEVICES!**
+
+        Real-world compasses cannot give you this information, but the
+        "virtual" compass can. :)
+
+        Returns a tuple (`theta`, `phi`) describing the true heading of
+        your device. `theta` is an angle (in degrees) of your device's
+        rotation in the world's horizontal plane. `phi` is an angle (in
+        degrees) of your device's rotation away from the vertical axis.
+        See `Lidar.single()` for more info on the concept of `theta` and
+        `phi` and on the concept of spherical coordinates.
+        """
+        pass
+
+
 class GpsIface(abc.ABC):
     """
     Query your device's GPS sensor!
