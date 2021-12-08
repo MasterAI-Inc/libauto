@@ -971,7 +971,7 @@ class ReconIface(abc.ABC):
     """
 
     @abc.abstractmethod
-    async def query(self, theta_1=90, theta_2=-90, r=100):
+    async def query(self, theta_1=90, theta_2=-90, r=10000):
         """
         Detect enemy devices within a certain space around your
         device, as defined by `theta_1`, `theta_2`, and `r`.
@@ -1019,7 +1019,7 @@ class WeaponsIface(abc.ABC):
     """
 
     @abc.abstractmethod
-    async def fire(self, theta=0, phi=90, velocity=5):
+    async def fire(self, theta=0, phi=90, velocity=40):
         """
         Fire your device's default weapon in the direction
         defined by `theta` and `phi` (both in degrees) and
