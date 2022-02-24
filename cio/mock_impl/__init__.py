@@ -13,6 +13,7 @@ This package contains a mock CIO interface implementing only the required
 components.
 """
 
+import asyncio
 import random
 import subprocess
 
@@ -20,6 +21,9 @@ import numpy as np
 
 import cio
 from cio.aa_controller_v1.components import Credentials
+
+from cio.aa_controller_v1.camera_async import CameraRGB_Async
+from cio.aa_controller_v1.camera_pi import CameraRGB
 
 
 class CioRoot(cio.CioRoot):
@@ -63,14 +67,19 @@ class VersionInfo(cio.VersionInfoIface):
 
 
 class Camera(cio.CameraIface):
+    _camera = None
 
     def __init__(self):
-        self.width = 320
-        self.height = 240
+        if Camera._camera is None:
+            loop = asyncio.get_running_loop()
+            Camera._camera = CameraRGB_Async(
+                    lambda: CameraRGB(width=320, height=240, fps=8),
+                    loop=loop,
+                    idle_timeout=30
+            )
 
     async def capture(self):
-        frame = np.random.randint(0, 255, (self.height, self.width, 3), np.uint8)
-        return frame.tobytes(), frame.shape
+        return await Camera._camera.capture()
 
 
 class Power(cio.PowerIface):
