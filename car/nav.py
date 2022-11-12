@@ -21,7 +21,7 @@ from auto import IS_VIRTUAL
 import math
 
 
-def goto(target_x, target_z, throttle, halt_threshold=2.5):
+def drive_to(target_x, target_z, throttle, halt_threshold=2.5):
     """
     Use the car's GPS and Compass to drive the car to the given (x, z) location.
 
@@ -65,14 +65,14 @@ def goto(target_x, target_z, throttle, halt_threshold=2.5):
     set_throttle(0.0)
 
 
-def gopath(xz_checkpoints, throttle, halt_threshold=2.5):
+def drive_route(xz_checkpoints, throttle, halt_threshold=2.5):
     """
     Go to each point in the list `xz_checkpoints`.
 
     Works for virtual cars only!
     """
     for x, z in xz_checkpoints:
-        goto(x, z, throttle, halt_threshold)
+        drive_to(x, z, throttle, halt_threshold)
 
 
 def _get_gps():

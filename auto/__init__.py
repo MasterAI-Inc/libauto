@@ -11,7 +11,7 @@
 import os
 
 
-__version__ = '2.8.3'
+__version__ = '2.8.4'
 
 IS_VIRTUAL = os.environ.get('MAI_IS_VIRTUAL', 'False').lower() in ['true', 't', '1', 'yes', 'y']
 

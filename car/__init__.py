@@ -178,7 +178,7 @@ def pause(sec=1.0, verbose=True):
     time.sleep(sec)
 
 
-def goto(x, z, verbose=True):
+def drive_to(x, z, verbose=True, throttle_factor=0.5):
     """
     For virtual cars, drives the car to the given (x, z) location in the
     virtual world.
@@ -189,16 +189,16 @@ def goto(x, z, verbose=True):
     if verbose:
         _ctx_print_all("Driving to point ({}, {})".format(x, z))
 
-    return nav.goto(x, z, motors.safe_forward_throttle())
+    return nav.drive_to(x, z, motors.safe_forward_throttle() * throttle_factor)
 
 
-def gopath(checkpoints, verbose=True):
+def drive_route(checkpoints, verbose=True, throttle_factor=0.5):
     """
     For virtual cars, drives the car to each of the locations in the given
     list of `checkpoints`.
     """
     for x, z in checkpoints:
-        goto(x, z, verbose)
+        drive_to(x, z, verbose, throttle_factor)
 
 
 def capture(num_frames=1, verbose=True):
