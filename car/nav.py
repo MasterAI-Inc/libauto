@@ -65,6 +65,16 @@ def goto(target_x, target_z, throttle, halt_threshold=2.5):
     set_throttle(0.0)
 
 
+def gopath(xz_checkpoints, throttle, halt_threshold=2.5):
+    """
+    Go to each point in the list `xz_checkpoints`.
+
+    Works for virtual cars only!
+    """
+    for x, z in xz_checkpoints:
+        goto(x, z, throttle, halt_threshold)
+
+
 def _get_gps():
     global _GPS
     try:

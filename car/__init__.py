@@ -192,6 +192,15 @@ def goto(x, z, verbose=True):
     return nav.goto(x, z, motors.safe_forward_throttle())
 
 
+def gopath(checkpoints, verbose=True):
+    """
+    For virtual cars, drives the car to each of the locations in the given
+    list of `checkpoints`.
+    """
+    for x, z in checkpoints:
+        goto(x, z, verbose)
+
+
 def capture(num_frames=1, verbose=True):
     """
     Capture `num_frames` frames from the car's camera and return
