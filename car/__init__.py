@@ -23,6 +23,7 @@ the beginners to see what is happening. The other modules of libauto
 do not print.
 """
 
+from auto import print_all as print  # override the build-in `print()`
 from auto import _ctx_print_all
 from auto import IS_VIRTUAL
 import time
