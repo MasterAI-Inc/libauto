@@ -1,6 +1,6 @@
 ###############################################################################
 #
-# Copyright (c) 2017-2020 Master AI, Inc.
+# Copyright (c) 2017-2022 Master AI, Inc.
 # ALL RIGHTS RESERVED
 #
 # Use of this library, in source or binary form, is prohibited without written
@@ -11,7 +11,7 @@
 import os
 
 
-__version__ = '2.8.1'
+__version__ = '2.8.2'
 
 IS_VIRTUAL = os.environ.get('MAI_IS_VIRTUAL', 'False').lower() in ['true', 't', '1', 'yes', 'y']
 

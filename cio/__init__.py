@@ -1,6 +1,6 @@
 ###############################################################################
 #
-# Copyright (c) 2017-2020 Master AI, Inc.
+# Copyright (c) 2017-2022 Master AI, Inc.
 # ALL RIGHTS RESERVED
 #
 # Use of this library, in source or binary form, is prohibited without written
@@ -1044,6 +1044,20 @@ class PhysicsClientIface(abc.ABC):
     async def control(self, msg):
         """
         Pass this control-message to the physics client.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def wait_tick(self):
+        """
+        Wait until the next physics engine "tick". The physics
+        engine does 20 updates per second (each is called a "tick"),
+        and it sends a message to us after each update. Thus, this
+        method simply waits for the next message to arrive and then
+        returns. You can use this method to do computation in lock-step
+        with the physics engine, as it is silly to do certain things
+        faster than the physics engine (e.g. querying GPS) since updates
+        only happen after each "tick".
         """
         pass
 

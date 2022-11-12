@@ -1,6 +1,6 @@
 ###############################################################################
 #
-# Copyright (c) 2017-2020 Master AI, Inc.
+# Copyright (c) 2017-2022 Master AI, Inc.
 # ALL RIGHTS RESERVED
 #
 # Use of this library, in source or binary form, is prohibited without written
@@ -23,7 +23,6 @@ the beginners to see what is happening. The other modules of libauto
 do not print.
 """
 
-from auto import print_all as print  # override the build-in `print()`
 from auto import _ctx_print_all
 from auto import IS_VIRTUAL
 import time
@@ -176,6 +175,20 @@ def pause(sec=1.0, verbose=True):
     if verbose:
         _ctx_print_all("Pausing for {} seconds.".format(sec))
     time.sleep(sec)
+
+
+def goto(x, z, verbose=True):
+    """
+    For virtual cars, drives the car to the given (x, z) location in the
+    virtual world.
+    """
+    from car import nav
+    from car import motors
+
+    if verbose:
+        _ctx_print_all("Driving to point ({}, {})".format(x, z))
+
+    return nav.goto(x, z, motors.safe_forward_throttle())
 
 
 def capture(num_frames=1, verbose=True):
