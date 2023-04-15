@@ -49,7 +49,7 @@ def drive_to(target_x, target_z, halt_threshold=2.5):
         theta *= math.pi / 180.0   # convert degrees to radians
         theta_target = math.atan2(dx, dz)
         theta_diff = theta_target - theta
-        theta_diff = math.asin(math.sin(theta_diff))  # normalize into [-pi, +pi]  (BUG HERE: when >pi, doesn't max out the steering)
+        theta_diff = math.atan2(math.sin(theta_diff), math.cos(theta_diff))  # normalize into [-pi, +pi]
         steering_angle = theta_diff * 180.0 / math.pi
 
         set_steering(steering_angle)
