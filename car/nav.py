@@ -16,12 +16,12 @@ car.
 """
 
 from auto.capabilities import list_caps, acquire
-from .motors import set_steering, set_throttle
+from .motors import set_steering
 from auto import IS_VIRTUAL
 import math
 
 
-def drive_to(target_x, target_z, throttle, halt_threshold=2.5):
+def drive_to(target_x, target_z, halt_threshold=2.5):
     """
     Use the car's GPS and Compass to drive the car to the given (x, z) location.
 
@@ -53,7 +53,6 @@ def drive_to(target_x, target_z, throttle, halt_threshold=2.5):
         steering_angle = theta_diff * 180.0 / math.pi
 
         set_steering(steering_angle)
-        set_throttle(throttle)
 
         # All calls above are non-blocking, but there's no need to loop
         # until we have new data from the physics engine, so below block
@@ -62,17 +61,16 @@ def drive_to(target_x, target_z, throttle, halt_threshold=2.5):
         physics.wait_tick()
 
     set_steering(0.0)
-    set_throttle(0.0)
 
 
-def drive_route(xz_checkpoints, throttle, halt_threshold=2.5):
+def drive_route(xz_checkpoints, halt_threshold=2.5):
     """
     Go to each point in the list `xz_checkpoints`.
 
     Works for virtual cars only!
     """
     for x, z in xz_checkpoints:
-        drive_to(x, z, throttle, halt_threshold)
+        drive_to(x, z, halt_threshold)
 
 
 def _get_gps():

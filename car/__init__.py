@@ -189,7 +189,13 @@ def drive_to(x, z, verbose=True, throttle_factor=0.5):
     if verbose:
         _ctx_print_all("Driving to point ({}, {})".format(x, z))
 
-    return nav.drive_to(x, z, motors.safe_forward_throttle() * throttle_factor)
+    throttle = motors.safe_forward_throttle() * throttle_factor
+
+    motors.set_throttle(throttle)
+
+    nav.drive_to(x, z)
+
+    motors.set_throttle(0.0)
 
 
 def drive_route(checkpoints, verbose=True, throttle_factor=0.5):
@@ -197,8 +203,19 @@ def drive_route(checkpoints, verbose=True, throttle_factor=0.5):
     For virtual cars, drives the car to each of the locations in the given
     list of `checkpoints`.
     """
+    from car import nav
+    from car import motors
+
+    throttle = motors.safe_forward_throttle() * throttle_factor
+
+    motors.set_throttle(throttle)
+
     for x, z in checkpoints:
-        drive_to(x, z, verbose, throttle_factor)
+        if verbose:
+            _ctx_print_all("Driving to point ({}, {})".format(x, z))
+        nav.drive_to(x, z)
+
+    motors.set_throttle(0.0)
 
 
 def capture(num_frames=1, verbose=True):
