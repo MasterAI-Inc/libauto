@@ -198,24 +198,42 @@ def drive_to(x, z, verbose=True, throttle_factor=0.5):
     motors.set_throttle(0.0)
 
 
-def drive_route(checkpoints, verbose=True, throttle_factor=0.5):
+def drive_route(
+    checkpoints,
+    verbose=True,
+    throttle_factor=0.5,
+    num_laps=1,
+    background=False,
+):
     """
     For virtual cars, drives the car to each of the locations in the given
     list of `checkpoints`.
     """
-    from car import nav
-    from car import motors
+    def inner():
+        from car import nav
+        from car import motors
 
-    throttle = motors.safe_forward_throttle() * throttle_factor
+        throttle = motors.safe_forward_throttle() * throttle_factor
 
-    motors.set_throttle(throttle)
+        motors.set_throttle(throttle)
 
-    for x, z in checkpoints:
-        if verbose:
-            _ctx_print_all("Driving to point ({}, {})".format(x, z))
-        nav.drive_to(x, z)
+        for lap_index in range(num_laps):
+            if verbose and num_laps > 1:
+                _ctx_print_all("Starting lap #{}".format(lap_index + 1))
+            for x, z in checkpoints:
+                if verbose:
+                    _ctx_print_all("Driving to point ({}, {})".format(x, z))
+                nav.drive_to(x, z)
 
-    motors.set_throttle(0.0)
+        motors.set_throttle(0.0)
+
+    if background:
+        from threading import Thread
+        thread = Thread(target=inner, daemon=False)
+        thread.start()
+
+    else:
+        inner()
 
 
 def capture(num_frames=1, verbose=True):
