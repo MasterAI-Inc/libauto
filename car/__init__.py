@@ -261,6 +261,10 @@ def throw_ball(theta=0, velocity=40, verbose=True):
     """
     Throw a ball in the direction of `theta` and with `velocity`.
     """
+    if theta is None:
+        if verbose:
+            _ctx_print_all(f"Cannot throw ball when `theta = None`...")
+        return
     if verbose:
         _ctx_print_all(f"Throwing a ball at {theta:.1f}° with velocity {velocity}...")
     from car import recon_weapons
