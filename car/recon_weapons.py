@@ -36,6 +36,16 @@ def naive_recon(theta_1, theta_2, slice_size, max_distance):
             return (a + a + slice_size) / 2
 
 
+def throw_ball(theta, velocity):
+    """
+    Simple weapons function.
+    """
+    if not IS_VIRTUAL:
+        raise NotImplemented('This function only work on virtual cars.')
+    weapons = _get_weapons()
+    weapons.fire(theta=theta, phi=90, velocity=velocity)
+
+
 def _get_recon():
     global _RECON
     try:
@@ -47,3 +57,14 @@ def _get_recon():
         _RECON = acquire('Recon')
     return _RECON
 
+
+def _get_weapons():
+    global _WEAPONS
+    try:
+        _WEAPONS
+    except NameError:
+        caps = list_caps()
+        if 'Weapons' not in caps:
+            raise AttributeError('This device has no Weapons system!')
+        _WEAPONS = acquire('Weapons')
+    return _WEAPONS
