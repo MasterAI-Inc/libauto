@@ -236,6 +236,27 @@ def drive_route(
         inner()
 
 
+def recon_cars(theta_1=0, theta_2=360, slice_size=20, max_distance=10000, verbose=True):
+    """
+    This function does "reconnaissance" to find enemy cars.
+
+    Its implementation does a naive linear search pattern, which is
+    suboptimal!
+
+    If you can find a better search pattern (and directly use the
+    underlying "Recon" sensor), then you can outperform anyone who is
+    using *this* function.
+
+    Upon finding *any* enemy, this function halts and returns the
+    approximate angle to that first-found enemy. It returns `None`
+    if no enemy was found.
+    """
+    if verbose:
+        _ctx_print_all(f"Querying the Recon sensor in range: [{theta_1}, {theta_2}]")
+    from car import recon_weapons
+    return recon_weapons.naive_recon(theta_1, theta_2, slice_size, max_distance)
+
+
 def capture(num_frames=1, verbose=True):
     """
     Capture `num_frames` frames from the car's camera and return
