@@ -32,6 +32,9 @@ log = logger.init(__name__, terminal=True)
 READ_BUF_SIZE = 4096*8
 
 
+CONTEST_SESSION_NAME = 'contest_session'
+
+
 class PtyManager:
 
     def __init__(self, system_up_user, console):
@@ -102,6 +105,17 @@ class PtyManager:
                 coro = _clear_console(self.console)
                 asyncio.create_task(coro)
 
+        elif 'origin' in msg and msg['origin'] == 'server' and 'type' in msg:
+            type_ = msg['type']
+
+            if type_ == 'start_contest':
+                coro = self._start_contest(msg, send_func)
+                asyncio.create_task(coro)
+
+            elif type_ == 'end_contest':
+                coro = self._end_contest(msg, send_func)
+                asyncio.create_task(coro)
+
     async def end_device_session(self, vin):
         pass
 
@@ -142,6 +156,37 @@ class PtyManager:
             'curtime': time.time(),
             'to_user_session': user_session,
         })
+
+    async def _start_contest(self, msg, send_func):
+        uid, gid, home = await _user_uid_gid_home(self.system_up_user)
+        filepath = os.path.join(home, 'contest.py')
+        if 'submission' in msg:
+            with open(filepath, 'w') as f:
+                f.write(msg['submission'])
+        else:
+            try:
+                os.remove(filepath)
+            except FileNotFoundError:
+                pass
+        cmds = [
+            f"tmux kill-session -t {CONTEST_SESSION_NAME}".split(),
+            f"tmux new-session -d -s {CONTEST_SESSION_NAME}".split(),
+            f"tmux send-keys -t {CONTEST_SESSION_NAME} python3 SPACE {filepath} ENTER".split(),
+        ]
+        for cmd in cmds:
+            await _run_subprocess(cmd, self.system_up_user)
+        await send_func({
+            'type': 'contest_session_started',
+            'session_name': CONTEST_SESSION_NAME,
+            'contest_guid': msg.get('contest_guid', None),
+        })
+
+    async def _end_contest(self, msg, send_func):
+        cmds = [
+            f"tmux kill-session -t {CONTEST_SESSION_NAME}".split(),
+        ]
+        for cmd in cmds:
+            await _run_subprocess(cmd, self.system_up_user)
 
 
 async def _clear_console(console):

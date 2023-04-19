@@ -87,6 +87,11 @@ class Dashboard:
         if type_ == 'query_device_info':
             coro = self._send_device_info_to_server(send_func)
 
+        elif type_ == 'command':
+            command = msg['command']
+            command_id = msg['command_id']
+            coro = self._server_command(command, command_id, send_func, msg)
+
         else:
             return
 
@@ -122,6 +127,20 @@ class Dashboard:
             'query_id': query_id,
             'response': response,
             'to_user_session': user_session,
+        })
+
+    async def _server_command(self, command, command_id, send_func, msg):
+        if command == 'physics_control':
+            if self.physics is not None:
+                response = await self.physics.control(msg.get('payload'))
+            else:
+                response = None
+        else:
+            return
+        await send_func({
+            'type': 'command_response',
+            'command_id': command_id,
+            'response': response,
         })
 
     async def _command(self, command, command_id, user_session, send_func, msg):
