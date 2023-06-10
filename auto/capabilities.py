@@ -15,10 +15,11 @@ and provides a way to acquire and release those capabilities.
 This module provides a fully **synchronous** interface.
 """
 
-from auto.asyncio_tools import get_loop
+from auto.asyncio_tools import get_loop, thread_safe
 from auto.services.controller.client_sync import CioRoot
 
 
+@thread_safe
 def list_caps():
     """
     Return a sorted tuple of the hardware capabilities of this device.

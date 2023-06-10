@@ -17,7 +17,7 @@ This is a **synchronous** interface.
 import os
 from threading import Lock
 
-from auto.asyncio_tools import get_loop
+from auto.asyncio_tools import get_loop, thread_safe
 from auto.services.labs.rpc.client_sync import LabsService
 
 
@@ -54,6 +54,7 @@ receive = receive_message_from_labs
 _GLOBAL_LOCK = Lock()
 
 
+@thread_safe
 def _global_client():
     global _CLIENT
     with _GLOBAL_LOCK:

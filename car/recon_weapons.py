@@ -15,6 +15,7 @@ and the Weapons system.
 This only works on virtual cars!
 """
 
+from auto.asyncio_tools import thread_safe
 from auto.capabilities import list_caps, acquire
 from auto import IS_VIRTUAL
 
@@ -46,6 +47,7 @@ def throw_ball(theta, velocity):
     weapons.fire(theta=theta, phi=90, velocity=velocity)
 
 
+@thread_safe
 def _get_recon():
     global _RECON
     try:
@@ -58,6 +60,7 @@ def _get_recon():
     return _RECON
 
 
+@thread_safe
 def _get_weapons():
     global _WEAPONS
     try:

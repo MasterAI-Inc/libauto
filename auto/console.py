@@ -14,12 +14,13 @@ Module to interface with your AutoAuto device's front-panel console via RPC.
 This is a **synchronous** interface.
 """
 
-from auto.asyncio_tools import get_loop
+from auto.asyncio_tools import get_loop, thread_safe
 from auto.services.console.client_sync import CuiRoot
 
 _built_in_print = print
 
 
+@thread_safe
 def _get_console():
     global _CONSOLE
     try:

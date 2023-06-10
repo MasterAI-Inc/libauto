@@ -15,6 +15,7 @@ For beginners, it provides easy functions for forward, reverse, left, and right.
 """
 
 from auto.capabilities import list_caps, acquire
+from auto.asyncio_tools import thread_safe
 import time
 
 
@@ -192,12 +193,14 @@ def set_throttle(throttle):
     motors.set_throttle(throttle)
 
 
+@thread_safe
 def _get_motors():
     global _MOTORS
     try:
         _MOTORS
     except NameError:
         caps = list_caps()
+        print('!!!', caps)
         if 'CarMotors' not in caps:
             raise AttributeError('This device is not a car.')
         _MOTORS = acquire('CarMotors')
@@ -205,6 +208,7 @@ def _get_motors():
     return _MOTORS
 
 
+@thread_safe
 def _safe_throttle_range():
     global _SAFE_REVERSE, _SAFE_FORWARD
     try:
@@ -215,6 +219,7 @@ def _safe_throttle_range():
     return _SAFE_REVERSE, _SAFE_FORWARD
 
 
+@thread_safe
 def _get_pid_steering():
     global _PID_STEERING
     try:
@@ -227,6 +232,7 @@ def _get_pid_steering():
     return _PID_STEERING
 
 
+@thread_safe
 def _get_gyro_accum():
     global _GYRO_ACCUM
     try:
@@ -239,6 +245,7 @@ def _get_gyro_accum():
     return _GYRO_ACCUM
 
 
+@thread_safe
 def _get_encoder():
     global _ENCODER
     try:

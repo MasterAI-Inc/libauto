@@ -29,7 +29,8 @@ async methods. See `wrap_async_to_sync()`.
 
 import asyncio
 import inspect
-from threading import Thread
+import functools
+from threading import Thread, RLock
 
 from auto.rpc.serialize_interface import serialize_interface
 from auto.rpc.build_interface import build_interface
@@ -38,6 +39,19 @@ from auto.rpc.build_interface import build_interface
 DEBUG_ASYNCIO = False
 
 
+def thread_safe(wrapped=None, lock=None):
+    if wrapped is None:
+        return functools.partial(thread_safe, lock=lock)
+    if lock is None:
+        lock = RLock()
+    @functools.wraps(wrapped)
+    def _wrapper(*args, **kwargs):
+        with lock:
+            return wrapped(*args, **kwargs)
+    return _wrapper
+
+
+@thread_safe
 def get_loop():
     """
     Obtain the Python asyncio event loop which is running in a background thread.

@@ -16,6 +16,7 @@ car.
 """
 
 from auto.capabilities import list_caps, acquire
+from auto.asyncio_tools import thread_safe
 from .motors import set_steering
 from auto import IS_VIRTUAL
 import math
@@ -73,6 +74,7 @@ def drive_route(xz_checkpoints, halt_threshold=2.5):
         drive_to(x, z, halt_threshold)
 
 
+@thread_safe
 def _get_gps():
     global _GPS
     try:
@@ -85,6 +87,7 @@ def _get_gps():
     return _GPS
 
 
+@thread_safe
 def _get_compass():
     global _COMPASS
     try:
@@ -97,6 +100,7 @@ def _get_compass():
     return _COMPASS
 
 
+@thread_safe
 def _get_physics():
     global _PHYSICS
     try:

@@ -14,6 +14,7 @@ This module provides an easy way to control the LEDs on your device.
 This module provides a fully **synchronous** interface.
 """
 
+from auto.asyncio_tools import thread_safe
 from auto.capabilities import list_caps, acquire
 
 
@@ -69,6 +70,7 @@ def set_brightness(brightness):
     return _get_leds().set_brightness(brightness)
 
 
+@thread_safe
 def _get_leds():
     global _LEDs
     try:

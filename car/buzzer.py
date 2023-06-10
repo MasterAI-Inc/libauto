@@ -12,10 +12,12 @@
 This module provides a simple helper to use the buzzer.
 """
 
+from auto.asyncio_tools import thread_safe
 from auto.capabilities import list_caps, acquire
 from auto import IS_VIRTUAL
 
 
+@thread_safe
 def buzz(notes):
     """
     Play the given `notes` on the device's buzzer.
@@ -46,6 +48,7 @@ def honk(count=2):
         buzz('!T95 O4 G#4') # final long honk
 
 
+@thread_safe
 def _physics_honk(count):
     global _PHYSICS
     try:

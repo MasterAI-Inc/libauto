@@ -16,10 +16,12 @@ This module provides a fully **synchronous** interface.
 """
 
 
+from auto.asyncio_tools import thread_safe
 from auto.capabilities import list_caps, acquire
 import time
 
 
+@thread_safe
 def get_servo(servo_index, frequency=50, min_duty=0.025, max_duty=0.125):
     """
     Acquire the interface to the servo at index `servo_index`.

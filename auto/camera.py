@@ -21,6 +21,7 @@ import base64
 import numpy as np
 
 import auto
+from auto.asyncio_tools import thread_safe, RLock
 from auto.capabilities import list_caps, acquire, release
 from auto import IS_VIRTUAL
 
@@ -52,6 +53,10 @@ class _CameraRGB:
             yield frame
 
 
+_CAMERA_LOCK = RLock()
+
+
+@thread_safe(lock=_CAMERA_LOCK)
 def global_camera(verbose=False):
     """
     Creates (for the first call) or retrieves (for later calls) the
@@ -72,6 +77,7 @@ def global_camera(verbose=False):
     return GLOBAL_CAMERA
 
 
+@thread_safe(lock=_CAMERA_LOCK)
 def close_global_camera(verbose=False):
     """
     Close and delete the global camera object.
