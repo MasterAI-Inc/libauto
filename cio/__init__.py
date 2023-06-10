@@ -1061,3 +1061,12 @@ class PhysicsClientIface(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
+    async def sleep(self, seconds):
+        """
+        Sleeps for approximately `seconds` by counting "ticks" from the
+        physics engine. This provides a way to sleep in lock-step with
+        the physics engine to minimize drift.
+        """
+        pass
+

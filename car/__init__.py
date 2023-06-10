@@ -26,7 +26,7 @@ do not print.
 from auto import print_all as print  # override the build-in `print()`
 from auto import _ctx_print_all
 from auto import IS_VIRTUAL
-import time
+from auto.sleep import sleep as auto_sleep
 
 
 def forward(sec=None, cm=None, verbose=True):
@@ -175,7 +175,7 @@ def pause(sec=1.0, verbose=True):
     """
     if verbose:
         _ctx_print_all("Pausing for {} seconds.".format(sec))
-    time.sleep(sec)
+    auto_sleep(sec)
 
 
 def drive_to(x, z, verbose=True, throttle_factor=0.5):

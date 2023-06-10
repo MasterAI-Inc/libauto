@@ -17,6 +17,7 @@ car.
 
 from auto.capabilities import list_caps, acquire
 from auto.asyncio_tools import thread_safe
+from auto.sleep import _physics_client
 from .motors import set_steering
 from auto import IS_VIRTUAL
 import math
@@ -33,7 +34,7 @@ def drive_to(target_x, target_z, halt_threshold=2.5):
 
     gps = _get_gps()
     compass = _get_compass()
-    physics = _get_physics()
+    physics = _physics_client()
 
     halt_threshold_sqrd = halt_threshold * halt_threshold
 
@@ -98,17 +99,4 @@ def _get_compass():
             raise AttributeError('This device has no Compass.')
         _COMPASS = acquire('Compass')
     return _COMPASS
-
-
-@thread_safe
-def _get_physics():
-    global _PHYSICS
-    try:
-        _PHYSICS
-    except NameError:
-        caps = list_caps()
-        if 'PhysicsClient' not in caps:
-            raise AttributeError('This device has no Physics Client.')
-        _PHYSICS = acquire('PhysicsClient')
-    return _PHYSICS
 
