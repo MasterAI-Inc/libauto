@@ -200,7 +200,6 @@ def _get_motors():
         _MOTORS
     except NameError:
         caps = list_caps()
-        print('!!!', caps)
         if 'CarMotors' not in caps:
             raise AttributeError('This device is not a car.')
         _MOTORS = acquire('CarMotors')
