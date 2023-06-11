@@ -66,7 +66,8 @@ async def client(inet_addr='127.0.0.1', inet_port=7000):
 
         elif 'exception' in message:
             error_text = message['exception']
-            raise Exception(error_text)   # TODO: Rebuild the exception more precisely.
+            # TODO: Rebuild the exception more precisely.
+            raise Exception(error_text)
 
         elif 'iface' in message:
             sub_iface = message['iface']
