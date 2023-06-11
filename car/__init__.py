@@ -96,7 +96,7 @@ def reverse(sec=None, cm=None, verbose=True):
         if verbose:
             _ctx_print_all("Driving in reverse for {} centimeters.".format(cm))
 
-    motors.straight(motors.safe_reverse_throttle(), sec, cm, invert_output=True)
+    motors.straight(motors.safe_reverse_throttle(), sec, cm)
 
 
 def left(sec=None, deg=None, verbose=True):

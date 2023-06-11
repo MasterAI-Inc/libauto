@@ -24,6 +24,7 @@ from .camera_pi import CameraRGB
 import cio
 
 import os
+import time
 import struct
 import asyncio
 import subprocess
@@ -791,6 +792,94 @@ class PidSteering(cio.PidSteeringIface):
         await i2c_poll_until(is_saved, True, timeout_ms=1000)
 
 
+class CarControl(cio.CarControlIface):
+    def __init__(self, fd, reg_nums):
+        self.car_motors = CarMotors(fd, reg_nums[0])
+        self.gyro_accum = GyroscopeAccum(fd, reg_nums[1]) if reg_nums[1] is not None else None
+        self.pid_steering = PidSteering(fd, reg_nums[2]) if reg_nums[2] is not None else None
+
+    async def on(self):
+        await self.car_motors.on()
+
+    async def straight(self, throttle, sec=None, cm=None):
+        if cm is not None:
+            raise ValueError('This device does not have a wheel encoder, thus you may not pass `cm` to travel a specific distance.')
+
+        if sec is None:
+            raise ValueError('You must specify `sec`, the number of seconds to drive.')
+
+        await self.car_motors.set_steering(0.0)
+        await asyncio.sleep(0.1)
+
+        if self.pid_steering is not None and self.gyro_accum is not None:
+            _, _, z = await self.gyro_accum.read()
+            start_time = time.time()
+            await self.pid_steering.set_point(z)
+            await self.pid_steering.enable(invert_output=(throttle < 0))
+        else:
+            start_time = time.time()
+
+        while True:
+            curr_time = time.time()
+            if curr_time - start_time >= sec:
+                break
+            await self.car_motors.set_throttle(throttle)
+            if self.pid_steering is None:
+                await self.car_motors.set_steering(0.0)
+            await asyncio.sleep(min(0.1, curr_time - start_time))
+
+        await self.car_motors.set_throttle(0.0)
+        await asyncio.sleep(0.1)
+        if self.pid_steering is not None:
+            await self.pid_steering.disable()
+
+    async def drive(self, steering, throttle, sec=None, deg=None):
+        if sec is not None and deg is not None:
+            raise Exception('You may not specify both `sec` and `deg`.')
+
+        if sec is None and deg is None:
+            raise Exception('You must specify either `sec` or `deg`.')
+
+        if deg is not None and self.gyro_accum is None:
+            raise Exception('This device has no gyroscope, so you may not pass `deg`.')
+
+        if deg is not None and deg <= 0.0:
+            raise Exception('You must pass `deg` as a postive value.')
+
+        await self.car_motors.set_steering(steering)
+        await asyncio.sleep(0.1)
+        start_time = time.time()
+
+        if sec is not None:
+            while True:
+                curr_time = time.time()
+                if curr_time - start_time >= sec:
+                    break
+                await self.car_motors.set_throttle(throttle)
+                await self.car_motors.set_steering(steering)
+                await asyncio.sleep(min(0.1, curr_time - start_time))
+
+        elif deg is not None:
+            await self.gyro_accum.reset()  # Start the gyroscope reading at 0.
+            throttle_time = time.time()
+            await self.car_motors.set_throttle(throttle)
+            while True:
+                x, y, z = await self.gyro_accum.read()
+                if abs(z) >= deg:
+                    break
+                curr_time = time.time()
+                if curr_time - throttle_time > 0.75:
+                    await self.car_motors.set_throttle(throttle)
+                    await self.car_motors.set_steering(steering)
+                    throttle_time = curr_time
+
+        await self.car_motors.set_throttle(0.0)
+        await asyncio.sleep(0.1)
+
+    async def off(self):
+        await self.car_motors.off()
+
+
 KNOWN_COMPONENTS = {
     'VersionInfo':           VersionInfo,
     'Credentials':           Credentials,
@@ -809,5 +898,6 @@ KNOWN_COMPONENTS = {
     'PWMs':                  PWMs,
     'Calibrator':            Calibrator,
     'PID_steering':          PidSteering,
+    'CarControl':            CarControl,
 }
 

@@ -92,6 +92,15 @@ class CioRoot(cio.CioRoot):
                     'is_enabled': False
                 }
 
+                if 'CarMotors' in self.caps:
+                    reg_num_car_motors = self.caps['CarMotors']['register_number']
+                    reg_num_gyro_accum = self.caps.get('Gyroscope_accum', {}).get('register_number', None)
+                    reg_num_pid_steering = self.caps.get('PID_steering', {}).get('register_number', None)
+                    self.caps['CarControl'] = {
+                        'register_number': (reg_num_car_motors, reg_num_gyro_accum, reg_num_pid_steering),
+                        'is_enabled': False,
+                    }
+
             except:
                 if self.fd is not None:
                     await easyi2c.close_i2c(self.fd)

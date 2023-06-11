@@ -1,6 +1,6 @@
 ###############################################################################
 #
-# Copyright (c) 2017-2020 Master AI, Inc.
+# Copyright (c) 2017-2023 Master AI, Inc.
 # ALL RIGHTS RESERVED
 #
 # Use of this library, in source or binary form, is prohibited without written
@@ -16,14 +16,6 @@ For beginners, it provides easy functions for forward, reverse, left, and right.
 
 from auto.capabilities import list_caps, acquire
 from auto.asyncio_tools import thread_safe
-import time
-
-
-ENCODER_INDEX = 1               # PCB's index for the encoder
-ENCODER_CPR = 20                # Encoder's counts per revolution (CPR)
-MOTOR_RATIO = 100               # Motor's internal gearbox ratio; e.g. if "100:1", then just 100
-WHEEL_CIRCUMFERENCE = 197.92    # In millimeters
-INVERT_ENCODER = -1             # 1 or -1; specific to how the encoder is installed.
 
 
 def safe_forward_throttle():
@@ -53,7 +45,7 @@ def safe_reverse_throttle():
     return safe_reverse
 
 
-def straight(throttle, sec, cm, invert_output=False):
+def straight(throttle, sec, cm):
     """
     Drive the car "straight". This function uses the car's gyroscope to
     continually keep the car in the same direction in which it started.
@@ -61,50 +53,8 @@ def straight(throttle, sec, cm, invert_output=False):
     This function is synchronous, thus it will not return until after the
     car has completed the desired motion.
     """
-    try:
-        pid_steering = _get_pid_steering()
-        gyro_accum = _get_gyro_accum()
-    except AttributeError:
-        pid_steering = None
-        gyro_accum = None
-
-    set_steering(0.0)
-    time.sleep(0.1)
-
-    if pid_steering is not None and gyro_accum is not None:
-        _, _, z = gyro_accum.read()
-        start_time = time.time()
-        pid_steering.set_point(z)
-        pid_steering.enable(invert_output=invert_output)
-    else:
-        start_time = time.time()
-
-    if sec:
-        while True:
-            curr_time = time.time()
-            if curr_time - start_time >= sec:
-                break
-            set_throttle(throttle)
-            if pid_steering is None:
-                set_steering(0.0)
-            time.sleep(min(0.1, curr_time - start_time))
-
-    elif cm:
-        start_distance = current_distance_cm()
-        throttle_time = time.time()
-        set_throttle(throttle)
-        while abs(current_distance_cm() - start_distance) < cm:
-            curr_time = time.time()
-            if curr_time - throttle_time > 0.75:
-                set_throttle(throttle)
-                throttle_time = curr_time
-                if pid_steering is None:
-                    set_steering(0.0)
-
-    set_throttle(0.0)
-    time.sleep(0.1)
-    if pid_steering is not None:
-        pid_steering.disable()
+    car_control = _get_car_control()
+    return car_control.straight(throttle, sec, cm)
 
 
 def drive(angle, throttle, sec, deg):
@@ -120,53 +70,8 @@ def drive(angle, throttle, sec, deg):
           car's gyroscope. This is unlike the `straight()` function, which _does_
           use the car's gyroscope.
     """
-    set_steering(angle)
-    time.sleep(0.1)
-    start_time = time.time()
-
-    if sec:
-        while True:
-            curr_time = time.time()
-            if curr_time - start_time >= sec:
-                break
-            set_throttle(throttle)
-            set_steering(angle)
-            time.sleep(min(0.1, curr_time - start_time))
-
-    elif deg:
-        gyro = _get_gyro_accum()
-        gyro.reset()  # Start the gyroscope reading at 0.
-        throttle_time = time.time()
-        set_throttle(throttle)
-        while True:
-            x, y, z = gyro.read()
-            if abs(z) >= deg:
-                break
-            curr_time = time.time()
-            if curr_time - throttle_time > 0.75:
-                set_throttle(throttle)
-                set_steering(angle)
-                throttle_time = curr_time
-
-    set_throttle(0.0)
-    time.sleep(0.1)
-
-
-def current_distance_cm():
-    """
-    Use the encoder to calculate how far the car has travels
-    since bootup.
-    """
-    encoder = _get_encoder()
-    curr_count, _, _ = encoder.read_counts(ENCODER_INDEX)
-
-    # Convert `curr_count` to linear distance (in mm).
-    curr_distance = (curr_count / ENCODER_CPR) * (WHEEL_CIRCUMFERENCE / MOTOR_RATIO)
-
-    # mm to cm
-    curr_distance /= 10
-
-    return curr_distance * INVERT_ENCODER
+    car_control = _get_car_control()
+    return car_control.drive(angle, throttle, sec, deg)
 
 
 def set_steering(angle):
@@ -177,7 +82,7 @@ def set_steering(angle):
     THIS IS ASYNCHRONOUS. Commands sent with this function "expire" after 1 second.
     This is for safety reasons, so that the car stops if this program dies.
     """
-    motors = _get_motors()
+    motors = _get_car_motors()
     motors.set_steering(angle)
 
 
@@ -189,12 +94,26 @@ def set_throttle(throttle):
     THIS IS ASYNCHRONOUS. Commands sent with this function "expire" after 1 second.
     This is for safety reasons, so that the car stops if this program dies.
     """
-    motors = _get_motors()
+    motors = _get_car_motors()
     motors.set_throttle(throttle)
 
 
 @thread_safe
-def _get_motors():
+def _get_car_control():
+    global _CAR_CONTROL
+    try:
+        _CAR_CONTROL
+    except NameError:
+        caps = list_caps()
+        if 'CarControl' not in caps:
+            raise AttributeError('This device is not a car.')
+        _CAR_CONTROL = acquire('CarControl')
+        _CAR_CONTROL.on()
+    return _CAR_CONTROL
+
+
+@thread_safe
+def _get_car_motors():
     global _MOTORS
     try:
         _MOTORS
@@ -213,47 +132,7 @@ def _safe_throttle_range():
     try:
         _SAFE_REVERSE, _SAFE_FORWARD
     except NameError:
-        motors = _get_motors()
-        _SAFE_REVERSE, _SAFE_FORWARD = _MOTORS.get_safe_throttle()
+        motors = _get_car_motors()
+        _SAFE_REVERSE, _SAFE_FORWARD = motors.get_safe_throttle()
     return _SAFE_REVERSE, _SAFE_FORWARD
-
-
-@thread_safe
-def _get_pid_steering():
-    global _PID_STEERING
-    try:
-        _PID_STEERING
-    except NameError:
-        caps = list_caps()
-        if 'PID_steering' not in caps:
-            raise AttributeError('This device has no PID steering loop.')
-        _PID_STEERING = acquire('PID_steering')
-    return _PID_STEERING
-
-
-@thread_safe
-def _get_gyro_accum():
-    global _GYRO_ACCUM
-    try:
-        _GYRO_ACCUM
-    except NameError:
-        caps = list_caps()
-        if 'Gyroscope_accum' not in caps:
-            raise AttributeError('This device has no gyroscope.')
-        _GYRO_ACCUM = acquire('Gyroscope_accum')
-    return _GYRO_ACCUM
-
-
-@thread_safe
-def _get_encoder():
-    global _ENCODER
-    try:
-        _ENCODER
-    except NameError:
-        caps = list_caps()
-        if 'Encoders' not in caps:
-            raise AttributeError('This device has no encoder.')
-        _ENCODER = acquire('Encoders')
-        _ENCODER.enable(ENCODER_INDEX)
-    return _ENCODER
 

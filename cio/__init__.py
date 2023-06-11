@@ -625,9 +625,7 @@ class CarMotorsIface(abc.ABC):
     @abc.abstractmethod
     async def on(self):
         """
-        Tell the car to begin controlling the motors (the main motor and the servo).
-        The car will use the most recently set PWM signal parameters, or it will
-        read from its EEPROM to get those values.
+        Tell the car to begin powering its motors (the main motor and the servo).
         """
         pass
 
@@ -674,7 +672,7 @@ class CarMotorsIface(abc.ABC):
     @abc.abstractmethod
     async def off(self):
         """
-        Turn off the car's PWM motor control.
+        Turn off the car's motors.
         """
         pass
 
@@ -838,6 +836,73 @@ class PidSteeringIface(PidIface):
     Capability Identifier: 'PID_steering'
     """
     pass   # <-- See abstract methods of `PidIface`
+
+
+class CarControlIface(abc.ABC):
+    """
+    Uses `CarMotors`, `PID_steering`, `Gyroscope_accum`, and `Encoders`
+    to drive a car-form-factor robot with high-level commands.
+
+    Required: False
+
+    Capability Identifier: 'CarControl'
+    """
+
+    @abc.abstractmethod
+    async def on(self):
+        """
+        Tell the car to begin powering its motors (the main motor and the servo)
+        and active its other sensors (gyroscope, PID steering, encoders, if
+        present).
+        """
+        pass
+
+    @abc.abstractmethod
+    async def straight(self, throttle, sec=None, cm=None):
+        """
+        Drive the car *straight* at the given `throttle` value.
+
+        This function uses the car's gyroscope (if present) to continually keep
+        the car pointing in the same direction in which it started (aka, "active
+        steering stabilization").
+
+        If `sec` is provided (not None), then the car will drive for that many
+        seconds. Else, if `cm` is provided (not None), then the car will drive
+        for that many centimeters (only works on cars with wheel encoders). It
+        is an error to pass neither `sec` nor `cm`. It is also an error to pass
+        both `sec` and `cm`.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def drive(self, steering, throttle, sec=None, deg=None):
+        """
+        Drive the car at the given wheel `steering` and at the given `throttle`
+        value. See `CarMotorsIface`s `set_steering()` and `set_throttle()`
+        for details of the values these parameters can take.
+
+        If `sec` is provided (not None), then the car will drive for that many
+        seconds. Else, if `deg` is provided (not None), then the car will drive
+        until it rotates by that many degrees (if provided, `deg` must be a
+        positive value; this functionality only works for cars with gyroscopes).
+        It is an error to pass neither `sec` nor `deg`. It is also an error to
+        pass both `sec` and `deg`.
+
+        Note: If you use this function to drive the car *straight*
+              (i.e. `steering=0`), the car may still veer because this function
+              does _not_ actively stabilize for going straight. If you desire
+              active stabilization for going straight, use the `straight()`
+              method instead.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def off(self):
+        """
+        Turn off the car's motors and disable any other sensors that were being
+        used.
+        """
+        pass
 
 
 class LidarIface(abc.ABC):
