@@ -864,7 +864,7 @@ class CarControl(cio.CarControlIface):
     def __init__(self, fd, reg_nums):
         self.car_motors = CarMotors(fd, reg_nums[0])
         self.gyro_accum = GyroscopeAccum(fd, reg_nums[1]) if reg_nums[1] is not None else None
-        self.pid_steering = PidSteering(fd, reg_nums[2]) if reg_nums[2] is not None else None
+        self.pid_steering = PidSteering(fd, (reg_nums[0], reg_nums[1])) if reg_nums[1] is not None else None
 
     async def on(self):
         await self.car_motors.on()
