@@ -126,8 +126,9 @@ class CioRoot(cio.CioRoot):
                 if 'CarMotors' in self.caps:
                     reg_num_car_motors = self.caps['CarMotors']['register_number']
                     reg_num_gyro_accum = self.caps.get('Gyroscope_accum', {}).get('register_number', None)
+                    reg_nums = (reg_num_car_motors, reg_num_gyro_accum) if 'Gyroscope_accum' in self.caps else (reg_num_car_motors,)
                     self.caps['CarControl'] = {
-                        'register_number': (reg_num_car_motors, reg_num_gyro_accum),
+                        'register_number': reg_nums,
                         'is_enabled': False,
                     }
 
