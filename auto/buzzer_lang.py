@@ -1,3 +1,17 @@
+###############################################################################
+#
+# Copyright (c) 2017-2023 Master AI, Inc.
+# ALL RIGHTS RESERVED
+#
+# Use of this library, in source or binary form, is prohibited without written
+# approval from Master AI, Inc.
+#
+###############################################################################
+
+"""
+A small parser to be able to use the Buzzer language on the Fleet 2 and Virtual Cars.
+"""
+
 NOTE_NAMES = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
 LEN_MULTIPLIER = 2000
 TEMPO = 0
