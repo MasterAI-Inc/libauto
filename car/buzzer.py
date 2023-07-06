@@ -14,8 +14,6 @@ This module provides a simple helper to use the buzzer.
 
 from auto.asyncio_tools import thread_safe
 from auto.capabilities import list_caps, acquire
-from auto.sleep import _physics_client
-from auto import IS_VIRTUAL
 
 
 @thread_safe
@@ -41,18 +39,7 @@ def honk(count=2):
     """
     MAX_HONKS = 5
     count = min(MAX_HONKS, count)
-    if IS_VIRTUAL:
-        _physics_honk(count)
-    else:
-        for _ in range(count - 1):
-            buzz('!T95 O4 G#16 R16') # short honk
-        buzz('!T95 O4 G#4') # final long honk
-
-
-def _physics_honk(count):
-    physics = _physics_client()
-    physics.control({
-        'type': 'honk',
-        'count': count,
-    })
+    for _ in range(count - 1):
+        buzz('!T95 O4 G#16 R16') # short honk
+    buzz('!T95 O4 G#4') # final long honk
 
