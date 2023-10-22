@@ -15,11 +15,15 @@ communicate with via UART.
 
 import asyncio
 import os
+import subprocess
+import math
 
 import cio
 
 from .proto import Proto
 from .db import default_db
+
+from .battery_discharge_curve import battery_map_millivolts_to_percentage
 
 from .camera_async import CameraRGB_Async
 from .camera_pi import CameraRGB
@@ -38,7 +42,7 @@ class CioRoot(cio.CioRoot):
             'VersionInfo': VersionInfo,
             'Credentials': Credentials,
             'Camera': Camera,
-            #'Power': Power,
+            'Power': Power,
             #'Buzzer': Buzzer,
             #'Gyroscope': Gyroscope,
             #'Gyroscope_accum': GyroscopeAccum,
@@ -209,6 +213,41 @@ class Camera(cio.CameraIface):
 
     async def capture(self):
         return await Camera._camera.capture()
+
+    async def released(self, last):
+        pass
+
+
+class Power(cio.PowerIface):
+    def __init__(self, proto):
+        self.proto = proto
+
+    async def acquired(self, first):
+        pass
+
+    async def state(self):
+        vbatt1, vbatt2, vchrg = await self.proto.voltages()
+        return 'battery' if vbatt2 > vchrg else 'charging'
+
+    async def millivolts(self):
+        vbatt1, vbatt2, vchrg = await self.proto.voltages()
+        return vbatt2
+
+    async def estimate_remaining(self, millivolts=None):
+        if millivolts is None:
+            millivolts = await self.millivolts()
+        percentage = battery_map_millivolts_to_percentage(millivolts)
+        minutes = 6.0 * 60.0 * (percentage / 100.0)  # Assumes the full battery lasts 6 hours (based on our lab tests)
+        return math.floor(minutes), math.floor(percentage)
+
+    async def should_shut_down(self):
+        return False
+
+    async def shut_down(self):
+        subprocess.run(['/sbin/poweroff'])
+
+    async def reboot(self):
+        subprocess.run(['/sbin/reboot'])
 
     async def released(self, last):
         pass

@@ -28,6 +28,9 @@ class Proto:
         self.write_thread.start()
         self.read_thread = threading.Thread(target=self._reader)
         self.read_thread.start()
+        self.vbatt1 = 0.0
+        self.vbatt2 = 0.0
+        self.vchrg = 0.0
 
     def close(self):
         if self.write_thread is not None:
@@ -67,8 +70,6 @@ class Proto:
                     self.loop.call_soon_threadsafe(self._dispatch_msg, msg)
 
     def _dispatch_msg(self, msg):
-        # self.log.info(f'> {msg}')
-        # self.loop.create_task(...)
         command = msg[0]
 
         if command == ord('S'):
@@ -77,6 +78,12 @@ class Proto:
                 obj = self.cmd_waiters[cmdid]
                 obj['response'] = msg[3:]
                 obj['event'].set()
+
+        elif command == ord('v'):
+            vbatt1, vbatt2, vchrg = struct.unpack('!HHH', msg[1:])
+            self.vbatt1 = 1000 * 3.3 * vbatt1 / 1023
+            self.vbatt2 = 1000 * 3.3 * vbatt2 / 1023
+            self.vchrg = 1000 * 3.3 * vchrg / 1023
 
         else:
             self.log.warning(f'unhandled message: {msg}')
@@ -110,6 +117,9 @@ class Proto:
         res = await self._submit_cmd(b'v', b'')
         major, minor = struct.unpack('!2B', res)
         return major, minor
+
+    async def voltages(self):
+        return self.vbatt1, self.vbatt2, self.vchrg
 
 
 MSG_FRAMER_BUF_SIZE = 128  # must be a power of 2
