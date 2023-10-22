@@ -14,10 +14,12 @@ communicate with via UART.
 """
 
 import asyncio
+import os
 
 import cio
 
 from .proto import Proto
+from .db import default_db
 
 from auto import logger
 log = logger.init(__name__, terminal=True)
@@ -31,7 +33,7 @@ class CioRoot(cio.CioRoot):
         self.proto = None
         self.impls = {
             'VersionInfo': VersionInfo,
-            #'Credentials': Credentials,
+            'Credentials': Credentials,
             #'Camera': Camera,
             #'Power': Power,
             #'Buzzer': Buzzer,
@@ -135,4 +137,54 @@ class VersionInfo(cio.VersionInfoIface):
 
     async def released(self, last):
         pass
+
+
+class Credentials(cio.CredentialsIface):
+    def __init__(self, proto):
+        self.proto = proto
+        self.db = None
+        self.loop = asyncio.get_running_loop()
+
+    async def acquired(self, first):
+        pass
+
+    async def get_labs_auth_code(self):
+        return await self.loop.run_in_executor(None, self._get_labs_auth_code)
+
+    async def set_labs_auth_code(self, auth_code):
+        if (await self.get_labs_auth_code()) is None:
+            await self.loop.run_in_executor(None, self._set_labs_auth_code, auth_code)
+            return True
+        return False
+
+    async def get_jupyter_password(self):
+        return await self.loop.run_in_executor(None, self._get_jupyter_password)
+
+    async def set_jupyter_password(self, password):
+        if (await self.get_jupyter_password()) is None:
+            await self.loop.run_in_executor(None, self._set_jupyter_password, password)
+            return True
+        return False
+
+    async def released(self, last):
+        pass
+
+    def _get_db(self):
+        if self.db is None:
+            self.db = default_db()
+        return self.db
+
+    def _get_labs_auth_code(self):
+        return self._get_db().get('DEVICE_LABS_AUTH_CODE', None)
+
+    def _set_labs_auth_code(self, auth_code):
+        self._get_db().put('DEVICE_LABS_AUTH_CODE', auth_code)
+        os.sync()
+
+    def _get_jupyter_password(self):
+        return self._get_db().get('DEVICE_JUPYTER_PASSWORD', None)
+
+    def _set_jupyter_password(self, password):
+        self._get_db().put('DEVICE_JUPYTER_PASSWORD', password)
+        os.sync()
 
