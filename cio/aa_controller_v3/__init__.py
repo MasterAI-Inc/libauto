@@ -22,9 +22,7 @@ import cio
 
 from .proto import Proto
 from .db import default_db
-
 from .battery_discharge_curve import battery_map_millivolts_to_percentage
-
 from .camera_async import CameraRGB_Async
 from .camera_pi import CameraRGB
 
@@ -147,8 +145,7 @@ class VersionInfo(cio.VersionInfoIface):
 
 
 class Credentials(cio.CredentialsIface):
-    def __init__(self, proto):
-        self.proto = proto
+    def __init__(self, _proto):
         self.db = None
         self.loop = asyncio.get_running_loop()
 
@@ -227,7 +224,7 @@ class Power(cio.PowerIface):
 
     async def state(self):
         vbatt1, vbatt2, vchrg = await self.proto.voltages()
-        return 'battery' if vbatt2 > vchrg else 'charging'
+        return 'battery' if vbatt2 >= vchrg else 'charging'
 
     async def millivolts(self):
         vbatt1, vbatt2, vchrg = await self.proto.voltages()
