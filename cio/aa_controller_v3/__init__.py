@@ -21,6 +21,9 @@ import cio
 from .proto import Proto
 from .db import default_db
 
+from .camera_async import CameraRGB_Async
+from .camera_pi import CameraRGB
+
 from auto import logger
 log = logger.init(__name__, terminal=True)
 
@@ -34,7 +37,7 @@ class CioRoot(cio.CioRoot):
         self.impls = {
             'VersionInfo': VersionInfo,
             'Credentials': Credentials,
-            #'Camera': Camera,
+            'Camera': Camera,
             #'Power': Power,
             #'Buzzer': Buzzer,
             #'Gyroscope': Gyroscope,
@@ -187,4 +190,26 @@ class Credentials(cio.CredentialsIface):
     def _set_jupyter_password(self, password):
         self._get_db().put('DEVICE_JUPYTER_PASSWORD', password)
         os.sync()
+
+
+class Camera(cio.CameraIface):
+    _camera = None
+
+    def __init__(self, _proto):
+        if Camera._camera is None:
+            loop = asyncio.get_running_loop()
+            Camera._camera = CameraRGB_Async(
+                    lambda: CameraRGB(width=320, height=240, fps=8),
+                    loop=loop,
+                    idle_timeout=30
+            )
+
+    async def acquired(self, first):
+        pass
+
+    async def capture(self):
+        return await Camera._camera.capture()
+
+    async def released(self, last):
+        pass
 
