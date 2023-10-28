@@ -82,6 +82,8 @@ class CioRoot(cio.CioRoot):
                 self.proto = None
                 raise
 
+            await self.proto.init()
+
             return list(self.impls.keys())
 
     async def acquire(self, capability_id):

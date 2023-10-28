@@ -23,29 +23,29 @@ class Proto:
         self.fd = serial.Serial('/dev/serial0', 115200, parity=serial.PARITY_NONE, timeout=10)
         self.cmd_id = 0
         self.cmd_waiters = {}
+        self.voltage_values = 0.0, 0.0, 0.0
         self.write_queue = queue.Queue()
         self.write_thread = threading.Thread(target=self._writer)
         self.write_thread.start()
         self.read_thread = threading.Thread(target=self._reader)
         self.read_thread.start()
-        self.vbatt1 = 0.0
-        self.vbatt2 = 0.0
-        self.vchrg = 0.0
 
     def close(self):
         if self.write_thread is not None:
             self.write_queue.put(None)
             self.write_thread.join()
             self.write_thread = None
+            self.log.info('write thread joined')
         if self.fd is not None:
             self.fd.close()
             if self.read_thread is not None:
                 self.read_thread.join()
                 self.read_thread = None
+                self.log.info('read thread joined')
             self.fd = None
 
     def _writer(self):
-        time.sleep(2)
+        time.sleep(1)
         while True:
             item = self.write_queue.get()
             if item is None:
@@ -62,7 +62,7 @@ class Proto:
                 self.log.error(f'serial reader thread error: {e}')
                 break
             if not data:
-                self.log.warning(f'serial reader closing on emtpy buffer: {data}')
+                self.log.info(f'serial reader closing on emtpy buffer: {data}')
                 break
             for byte in data:
                 if framer.put(byte):
@@ -81,9 +81,10 @@ class Proto:
 
         elif command == ord('v'):
             vbatt1, vbatt2, vchrg = struct.unpack('!HHH', msg[1:])
-            self.vbatt1 = 1000 * 3.3 * vbatt1 / 1023
-            self.vbatt2 = 1000 * 3.3 * vbatt2 / 1023
-            self.vchrg = 1000 * 3.3 * vchrg / 1023
+            vbatt1 = 1000 * 3.3 * vbatt1 / 1023
+            vbatt2 = 1000 * 3.3 * vbatt2 / 1023
+            vchrg = 1000 * 3.3 * vchrg / 1023
+            self.voltage_values = vbatt1, vbatt2, vchrg
 
         else:
             self.log.warning(f'unhandled message: {msg}')
@@ -113,13 +114,16 @@ class Proto:
         finally:
             del self.cmd_waiters[cmdid]
 
+    async def init(self):
+        pass
+
     async def version(self):
         res = await self._submit_cmd(b'v', b'')
         major, minor = struct.unpack('!2B', res)
         return major, minor
 
     async def voltages(self):
-        return self.vbatt1, self.vbatt2, self.vchrg
+        return self.voltage_values
 
 
 MSG_FRAMER_BUF_SIZE = 128  # must be a power of 2
