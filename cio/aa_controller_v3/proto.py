@@ -140,7 +140,7 @@ class Proto:
 
     async def play(self, freqHz, durationMS):
         async with self.buzzer_lock:
-            freqHz = int(round(freqHz))
+            freqHz = int(round(freqHz)) if freqHz is not None else 0
             durationMS = int(round(durationMS))
             if freqHz >= 40 and durationMS >= 10:
                 msg = struct.pack('!2H', freqHz, durationMS)
@@ -155,7 +155,7 @@ class Proto:
                 finally:
                     self.buzzer_listeners.remove(listener)
             else:
-                await asyncio.sleep(max(durationMS, 0))
+                await asyncio.sleep(max(durationMS / 1000, 0))
 
 
 MSG_FRAMER_BUF_SIZE = 128  # must be a power of 2
