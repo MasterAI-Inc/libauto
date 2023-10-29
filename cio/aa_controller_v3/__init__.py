@@ -17,6 +17,9 @@ import asyncio
 import os
 import subprocess
 import math
+import time
+
+from auto.buzzer_lang import BuzzParser
 
 import cio
 
@@ -41,7 +44,7 @@ class CioRoot(cio.CioRoot):
             'Credentials': Credentials,
             'Camera': Camera,
             'Power': Power,
-            #'Buzzer': Buzzer,
+            'Buzzer': Buzzer,
             #'Gyroscope': Gyroscope,
             #'Gyroscope_accum': GyroscopeAccum,
             #'Accelerometer': Accelerometer,
@@ -247,6 +250,47 @@ class Power(cio.PowerIface):
 
     async def reboot(self):
         subprocess.run(['/sbin/reboot'])
+
+    async def released(self, last):
+        pass
+
+
+class Buzzer(cio.BuzzerIface):
+    _is_playing = False
+
+    def __init__(self, proto):
+        self.proto = proto
+        self.buzz_parser = BuzzParser()
+
+    async def acquired(self, first):
+        pass
+
+    async def is_currently_playing(self):
+        return Buzzer._is_playing or self.proto.buzzer_is_playing
+
+    async def wait(self):
+        while await self.is_currently_playing():
+            # Lame implementation, but good enough for this method's purpose.
+            await asyncio.sleep(0.1)
+
+    async def play(self, notes="o4l16ceg>c8"):
+        if not notes:
+            return
+
+        note_tuples, _total_time = self.buzz_parser.convert(notes)
+
+        await self.wait()
+
+        if Buzzer._is_playing:
+            # RACE CONDITION: Someone beat you to it.
+            raise Exception('Buzzer is currently playing, so you cannot submit more notes right now.')
+
+        Buzzer._is_playing = True
+        try:
+            for freqHz, durationMS, _volume in note_tuples:
+                await self.proto.play(freqHz, durationMS)
+        finally:
+            Buzzer._is_playing = False
 
     async def released(self, last):
         pass

@@ -25,6 +25,9 @@ class Proto:
         self.cmd_waiters = {}
         self.voltages = 0.0, 0.0, 0.0
         self.loop_freq = 0
+        self.buzzer_lock = asyncio.Lock()
+        self.buzzer_is_playing = False
+        self.buzzer_listeners = set()
         self.write_queue = queue.Queue()
         self.write_thread = threading.Thread(target=self._writer)
         self.write_thread.start()
@@ -93,6 +96,11 @@ class Proto:
             counter, = struct.unpack('!H', msg[1:])
             self.loop_freq = counter
 
+        elif command == ord('b'):
+            self.buzzer_is_playing = (msg[1] != 0x00)
+            for f in self.buzzer_listeners:
+                f(self.buzzer_is_playing)
+
         else:
             self.log.warning(f'unhandled message: {msg}')
 
@@ -129,6 +137,25 @@ class Proto:
         res = await self._submit_cmd(b'v', b'')
         major, minor = struct.unpack('!2B', res)
         return major, minor
+
+    async def play(self, freqHz, durationMS):
+        async with self.buzzer_lock:
+            freqHz = int(round(freqHz))
+            durationMS = int(round(durationMS))
+            if freqHz >= 40 and durationMS >= 10:
+                msg = struct.pack('!2H', freqHz, durationMS)
+                waiter = asyncio.Event()
+                def listener(is_playing):
+                    if not is_playing:
+                        waiter.set()
+                self.buzzer_listeners.add(listener)
+                try:
+                    _ = await self._submit_cmd(b'b', msg)
+                    await waiter.wait()
+                finally:
+                    self.buzzer_listeners.remove(listener)
+            else:
+                await asyncio.sleep(max(durationMS, 0))
 
 
 MSG_FRAMER_BUF_SIZE = 128  # must be a power of 2
