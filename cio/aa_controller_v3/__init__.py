@@ -225,11 +225,11 @@ class Power(cio.PowerIface):
         pass
 
     async def state(self):
-        vbatt1, vbatt2, vchrg = await self.proto.voltages()
+        vbatt1, vbatt2, vchrg = self.proto.voltages
         return 'battery' if vbatt2 >= vchrg else 'charging'
 
     async def millivolts(self):
-        vbatt1, vbatt2, vchrg = await self.proto.voltages()
+        vbatt1, vbatt2, vchrg = self.proto.voltages
         return vbatt2
 
     async def estimate_remaining(self, millivolts=None):

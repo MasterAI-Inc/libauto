@@ -23,7 +23,8 @@ class Proto:
         self.fd = serial.Serial('/dev/serial0', 115200, parity=serial.PARITY_NONE, timeout=5)
         self.next_cmdid = 0
         self.cmd_waiters = {}
-        self.voltage_values = 0.0, 0.0, 0.0
+        self.voltages = 0.0, 0.0, 0.0
+        self.loop_freq = 0
         self.write_queue = queue.Queue()
         self.write_thread = threading.Thread(target=self._writer)
         self.write_thread.start()
@@ -86,7 +87,11 @@ class Proto:
             vbatt1 = 1000 * 3.3 * vbatt1 / 1023
             vbatt2 = 1000 * 3.3 * vbatt2 / 1023
             vchrg = 1000 * 3.3 * vchrg / 1023
-            self.voltage_values = vbatt1, vbatt2, vchrg
+            self.voltages = vbatt1, vbatt2, vchrg
+
+        elif command == ord('r'):
+            counter, = struct.unpack('!H', msg[1:])
+            self.loop_freq = counter
 
         else:
             self.log.warning(f'unhandled message: {msg}')
@@ -123,9 +128,6 @@ class Proto:
         res = await self._submit_cmd(b'v', b'')
         major, minor = struct.unpack('!2B', res)
         return major, minor
-
-    async def voltages(self):
-        return self.voltage_values
 
 
 MSG_FRAMER_BUF_SIZE = 128  # must be a power of 2
