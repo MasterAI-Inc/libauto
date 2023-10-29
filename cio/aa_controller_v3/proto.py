@@ -122,6 +122,7 @@ class Proto:
             del self.cmd_waiters[cmdid]
 
     async def init(self):
+        # TODO query all of the EEPROM
         pass
 
     async def version(self):
