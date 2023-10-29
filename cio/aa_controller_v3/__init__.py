@@ -43,6 +43,7 @@ class CioRoot(cio.CioRoot):
             'VersionInfo': VersionInfo,
             'Credentials': Credentials,
             'Camera': Camera,
+            'LoopFrequency': LoopFrequency,
             'Power': Power,
             'Buzzer': Buzzer,
             #'Gyroscope': Gyroscope,
@@ -215,6 +216,20 @@ class Camera(cio.CameraIface):
 
     async def capture(self):
         return await Camera._camera.capture()
+
+    async def released(self, last):
+        pass
+
+
+class LoopFrequency(cio.LoopFrequencyIface):
+    def __init__(self, proto):
+        self.proto = proto
+
+    async def acquired(self, first):
+        pass
+
+    async def read(self):
+        return self.proto.loop_freq
 
     async def released(self, last):
         pass
