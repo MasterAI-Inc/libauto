@@ -20,8 +20,8 @@ class Proto:
     def __init__(self, log):
         self.log = log
         self.loop = asyncio.get_running_loop()
-        self.fd = serial.Serial('/dev/serial0', 115200, parity=serial.PARITY_NONE, timeout=10)
-        self.cmd_id = 0
+        self.fd = serial.Serial('/dev/serial0', 115200, parity=serial.PARITY_NONE, timeout=5)
+        self.next_cmdid = 0
         self.cmd_waiters = {}
         self.voltage_values = 0.0, 0.0, 0.0
         self.write_queue = queue.Queue()
@@ -38,6 +38,8 @@ class Proto:
             self.log.info('write thread joined')
         if self.fd is not None:
             self.fd.close()
+            if hasattr(self.fd, 'cancel_read'):
+                self.fd.cancel_read()
             if self.read_thread is not None:
                 self.read_thread.join()
                 self.read_thread = None
@@ -89,18 +91,18 @@ class Proto:
         else:
             self.log.warning(f'unhandled message: {msg}')
 
-    def _next_cmd_id(self):
+    def _next_cmdid(self):
         while True:
-            cmdid = self.cmd_id
-            self.cmd_id += 1
-            if self.cmd_id > 65535:
-                self.cmd_id = 0
+            cmdid = self.next_cmdid
+            self.next_cmdid += 1
+            if self.next_cmdid > 65535:
+                self.next_cmdid = 0
             if cmdid not in self.cmd_waiters:
                 break
         return cmdid, struct.pack('!H', cmdid)
 
     async def _submit_cmd(self, cmd, args):
-        cmdid, cmdid_bytes = self._next_cmd_id()
+        cmdid, cmdid_bytes = self._next_cmdid()
         msg = _frame_msg(cmd + cmdid_bytes + args)
         event = asyncio.Event()
         self.cmd_waiters[cmdid] = {
