@@ -28,6 +28,7 @@ from .db import default_db
 from .battery_discharge_curve import battery_map_millivolts_to_percentage
 from .camera_async import CameraRGB_Async
 from .camera_pi import CameraRGB
+from . import imu_util
 
 from auto import logger
 log = logger.init(__name__, terminal=True)
@@ -46,15 +47,16 @@ class CioRoot(cio.CioRoot):
             'LoopFrequency': LoopFrequency,
             'Power': Power,
             'Buzzer': Buzzer,
-            #'Gyroscope': Gyroscope,
-            #'Gyroscope_accum': GyroscopeAccum,
-            #'Accelerometer': Accelerometer,
-            #'Magnetometer': Magnetometer,
-            #'AHRS': Ahrs,
+            'Gyroscope': Gyroscope,
+            'Gyroscope_accum': GyroscopeAccum,
+            'Accelerometer': Accelerometer,
+            'AHRS': Ahrs,
             #'PushButtons': PushButtons,
             #'LEDs': LEDs,
+            #'Photoresistor': Photoresistor,
             #'Encoders': Encoders,
             #'CarMotors': CarMotors,
+            #'Calibrator': Calibrator,
             #'PID_steering': PidSteering,
             #'CarControl': CarControl,
         }
@@ -309,4 +311,72 @@ class Buzzer(cio.BuzzerIface):
 
     async def released(self, last):
         pass
+
+
+class Gyroscope(cio.GyroscopeIface):
+    def __init__(self, proto):
+        self.proto = proto
+
+    async def acquired(self, first):
+        await self.proto.imu_acquire()
+
+    async def read(self):
+        await self.proto.wait_imu_tick()
+        return tuple(self.proto.gyrovals)
+
+    async def released(self, last):
+        await self.proto.imu_release()
+
+
+class GyroscopeAccum(cio.GyroscopeAccumIface):
+    def __init__(self, proto):
+        self.proto = proto
+        self.offsets = None
+
+    async def acquired(self, first):
+        await self.proto.imu_acquire()
+
+    async def reset(self):
+        self.offsets = tuple(self.proto.gyroaccumvals)
+
+    async def read(self):
+        await self.proto.wait_imu_tick()
+        vals = tuple(self.proto.gyroaccumvals)
+        if self.offsets is None:
+            self.offsets = vals
+        return tuple((val - offset) for val, offset in zip(vals, self.offsets))
+
+    async def released(self, last):
+        await self.proto.imu_release()
+
+
+class Accelerometer(cio.AccelerometerIface):
+    def __init__(self, proto):
+        self.proto = proto
+
+    async def acquired(self, first):
+        await self.proto.imu_acquire()
+
+    async def read(self):
+        await self.proto.wait_imu_tick()
+        return tuple(self.proto.accelvals)
+
+    async def released(self, last):
+        await self.proto.imu_release()
+
+
+class Ahrs(cio.AhrsIface):
+    def __init__(self, proto):
+        self.proto = proto
+
+    async def acquired(self, first):
+        await self.proto.imu_acquire()
+
+    async def read(self):
+        await self.proto.wait_imu_tick()
+        q = tuple(self.proto.quaternion)
+        return imu_util.roll_pitch_yaw(q)
+
+    async def released(self, last):
+        await self.proto.imu_release()
 

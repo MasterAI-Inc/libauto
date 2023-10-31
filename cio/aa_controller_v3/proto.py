@@ -14,6 +14,7 @@ import struct
 import threading
 import queue
 import time
+import math
 
 
 class Proto:
@@ -28,6 +29,15 @@ class Proto:
         self.buzzer_lock = asyncio.Lock()
         self.buzzer_is_playing = False
         self.buzzer_listeners = set()
+        self.imu_counter_lock = asyncio.Lock()
+        self.imu_use_counter = 0
+        self.imu_last_update = None
+        self.imu_event = asyncio.Event()
+        self.is_maybe_stationary = True
+        self.gyrovals = 0.0, 0.0, 0.0
+        self.gyroaccumvals = 0.0, 0.0, 0.0
+        self.accelvals = 0.0, 0.0, 1.0
+        self.quaternion = 1.0, 0.0, 0.0, 0.0
         self.write_queue = queue.Queue()
         self.write_thread = threading.Thread(target=self._writer)
         self.write_thread.start()
@@ -85,6 +95,9 @@ class Proto:
                 obj['response'] = msg[3:]
                 obj['event'].set()
 
+        elif command == ord('i'):
+            self._handle_imu_msg(msg)
+
         elif command == ord('v'):
             vbatt1, vbatt2, vchrg = struct.unpack('!HHH', msg[1:])
             vbatt1 = 1000 * 3.3 * vbatt1 / 1023
@@ -103,6 +116,27 @@ class Proto:
 
         else:
             self.log.warning(f'unhandled message: {msg}')
+
+    def _handle_imu_msg(self, msg):
+        now = time.time()
+        if self.imu_last_update is not None:
+            dt_s = now - self.imu_last_update
+        else:
+            dt_s = 0.0
+        self.imu_last_update = now
+        flags = msg[1]
+        self.is_maybe_stationary = bool(flags & 0b10000)
+        #is_floats = bool(flags & 0b1000)
+        #has_gyro = bool(flags & 0b100)
+        #has_accel = bool(flags & 0b10)
+        #has_ahrs = bool(flags & 0b1)
+        #assert is_floats and has_gyro and has_accel and has_ahrs
+        self.gyrovals = [math.degrees(v) for v in struct.unpack('<fff', msg[2:14])]
+        self.gyroaccumvals = [(a + b*dt_s) for a, b in zip(self.gyroaccumvals, self.gyrovals)]
+        self.accelvals = struct.unpack('<fff', msg[14:26])
+        self.quaternion = struct.unpack('<ffff', msg[26:42])
+        self.imu_event.set()
+        self.imu_event = asyncio.Event()
 
     def _next_cmdid(self):
         while True:
@@ -131,7 +165,7 @@ class Proto:
 
     async def init(self):
         # TODO query all of the EEPROM
-        pass
+        await self.set_imu_enabled(False)
 
     async def version(self):
         res = await self._submit_cmd(b'v', b'')
@@ -156,6 +190,27 @@ class Proto:
                     self.buzzer_listeners.remove(listener)
             else:
                 await asyncio.sleep(max(durationMS / 1000, 0))
+
+    async def set_imu_enabled(self, enabled):
+        await self._submit_cmd(b'i', struct.pack('!B', enabled))
+
+    async def imu_acquire(self):
+        async with self.imu_counter_lock:
+            self.imu_use_counter += 1
+            if self.imu_use_counter == 1:
+                await self.set_imu_enabled(True)
+                self.log.info('started IMU streaming')
+
+    async def imu_release(self):
+        async with self.imu_counter_lock:
+            self.imu_use_counter -= 1
+            if self.imu_use_counter == 0:
+                await self.set_imu_enabled(False)
+                self.imu_last_update = None
+                self.log.info('stop IMU streaming')
+
+    async def wait_imu_tick(self):
+        await self.imu_event.wait()
 
 
 MSG_FRAMER_BUF_SIZE = 128  # must be a power of 2
