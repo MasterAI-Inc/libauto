@@ -72,17 +72,9 @@ class CioRoot(cio.CioRoot):
             self.proto = Proto(log)
 
             try:
-                v = VersionInfo(self.proto)
-                await v.acquired(first=True)
-                try:
-                    major, minor = await v.version()
-                    if major != 3:
-                        raise Exception('Controller is not version 3, thus this interface will not work.')
-                finally:
-                    try:
-                        await v.released(last=True)
-                    except:
-                        pass  # we did the best we could
+                major, minor = await self.proto.version(timeout=2.0)
+                if major != 3:
+                    raise Exception('Controller is not version 3, thus this interface will not work.')
             except:
                 self.proto.close()
                 self.proto = None
@@ -283,7 +275,7 @@ class Buzzer(cio.BuzzerIface):
         pass
 
     async def is_currently_playing(self):
-        return Buzzer._is_playing or self.proto.buzzer_is_playing
+        return Buzzer._is_playing
 
     async def wait(self):
         while await self.is_currently_playing():

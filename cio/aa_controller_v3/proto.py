@@ -17,6 +17,9 @@ import time
 import math
 
 
+N_CMD_TRIES = 4
+
+
 class Proto:
     def __init__(self, log):
         self.log = log
@@ -27,7 +30,6 @@ class Proto:
         self.voltages = 0.0, 0.0, 0.0
         self.loop_freq = 0
         self.buzzer_lock = asyncio.Lock()
-        self.buzzer_is_playing = False
         self.buzzer_listeners = set()
         self.imu_counter_lock = asyncio.Lock()
         self.imu_use_counter = 0
@@ -59,9 +61,9 @@ class Proto:
                 self.read_thread = None
                 self.log.info('read thread joined')
             self.fd = None
+            self.imu_event.set()
 
     def _writer(self):
-        time.sleep(1)
         while True:
             item = self.write_queue.get()
             if item is None:
@@ -110,9 +112,9 @@ class Proto:
             self.loop_freq = counter
 
         elif command == ord('b'):
-            self.buzzer_is_playing = (msg[1] != 0x00)
+            buzzer_is_playing = (msg[1] != 0x00)
             for f in self.buzzer_listeners:
-                f(self.buzzer_is_playing)
+                f(buzzer_is_playing)
 
         else:
             self.log.warning(f'unhandled message: {msg}')
@@ -148,7 +150,7 @@ class Proto:
                 break
         return cmdid, struct.pack('!H', cmdid)
 
-    async def _submit_cmd(self, cmd, args):
+    async def __submit_cmd(self, cmd, args, timeout=None):
         cmdid, cmdid_bytes = self._next_cmdid()
         msg = _frame_msg(cmd + cmdid_bytes + args)
         event = asyncio.Event()
@@ -158,17 +160,27 @@ class Proto:
         }
         try:
             self.write_queue.put(msg)
-            await event.wait()
+            await asyncio.wait_for(event.wait(), timeout=(timeout or 0.1))
             return self.cmd_waiters[cmdid]['response']
         finally:
             del self.cmd_waiters[cmdid]
+
+    async def _submit_cmd(self, cmd, args, timeout=None):
+        for _ in range(N_CMD_TRIES - 1):
+            try:
+                return await self.__submit_cmd(cmd, args, timeout=timeout)
+            except asyncio.TimeoutError:
+                pass  # we'll loop back and retry
+
+        # Last attempt is allowed to throw anything:
+        return await self.__submit_cmd(cmd, args, timeout=timeout)
 
     async def init(self):
         # TODO query all of the EEPROM
         await self.set_imu_enabled(False)
 
-    async def version(self):
-        res = await self._submit_cmd(b'v', b'')
+    async def version(self, timeout=None):
+        res = await self._submit_cmd(b'v', b'', timeout=timeout)
         major, minor = struct.unpack('!2B', res)
         return major, minor
 
@@ -185,7 +197,10 @@ class Proto:
                 self.buzzer_listeners.add(listener)
                 try:
                     _ = await self._submit_cmd(b'b', msg)
-                    await waiter.wait()
+                    try:
+                        await asyncio.wait_for(waiter.wait(), timeout=((durationMS / 1000) + 0.1))
+                    except asyncio.TimeoutError:
+                        pass  # we'll just assume the buzzer stopped and that we missed the message that told us so
                 finally:
                     self.buzzer_listeners.remove(listener)
             else:
