@@ -54,7 +54,7 @@ class CioRoot(cio.CioRoot):
             'Accelerometer': Accelerometer,
             'AHRS': Ahrs,
             'PushButtons': PushButtons,
-            #'LEDs': LEDs,
+            'LEDs': LEDs,
             #'Photoresistor': Photoresistor,
             #'Encoders': Encoders,
             #'CarMotors': CarMotors,
@@ -415,4 +415,70 @@ class PushButtons(cio.PushButtonsIface):
 
     async def released(self, last):
         self.proto.buttonlisteners.remove(self.addevents)
+
+
+class LEDs(cio.LEDsIface):
+    def __init__(self, proto):
+        self.proto = proto
+        self.NUM_LEDS = 3
+        self.vals = [None for index in range(self.NUM_LEDS)]  # using `None`, so that fist call to _set() actually sets it, no matter what the value
+        self.brightness = None
+
+    async def acquired(self, first):
+        pass
+
+    async def led_map(self):
+        return {index: 'RGB LED at index {}'.format(index) for index in range(self.NUM_LEDS)}
+
+    async def set_led(self, led_identifier, val):
+        await self._set(led_identifier, val)
+
+    async def set_many_leds(self, id_val_list):
+        for led_identifier, val in id_val_list:
+            await self._set(led_identifier, val)
+
+    async def mode_map(self):
+        return {}
+
+    async def set_mode(self, mode_identifier):
+        raise NotImplementedError('no modes are currently supported')
+
+    async def set_brightness(self, brightness):
+        if not isinstance(brightness, int) or brightness < 0 or brightness > 255:
+            raise ValueError(f'brightness must be an integer in the range [0, 255]')
+        if brightness > 0:
+            changed = self.brightness != brightness
+            self.brightness = brightness
+        else:
+            changed = self.brightness is not None
+            self.brightness = None
+        if changed:
+            for i, v in enumerate(self.vals):
+                if v is not None:
+                    await self.proto.set_led(i, v, self.brightness)
+
+    async def _set(self, index, val):
+        if not isinstance(index, int):
+            raise ValueError('You must pass an integer for the led identifier parameter.')
+        if index < 0 or index >= self.NUM_LEDS:
+            raise ValueError(f'The index {index} is out of range.')
+        if isinstance(val, (int, float)) and 0.0 <= val <= 1.0:
+            val = float(val)
+            val = val, val, val
+        elif isinstance(val, (tuple, list)) and len(val) == 3 and all([(0.0 <= v <= 1.0) for v in val]):
+            val = tuple([float(v) for v in val])
+        else:
+            raise ValueError('You must pass the LED value as a single value or a three-tuple denoting the three RGB values, where each value is in the range [0.0, 1.0].')
+        if self.vals[index] == val:
+            return
+        self.vals[index] = val
+        await self.proto.set_led(index, val, self.brightness)
+
+    async def _reset(self):
+        for index in range(self.NUM_LEDS):
+            await self._set(index, (0, 0, 0))
+
+    async def released(self, last):
+        if last:
+            await self._reset()
 

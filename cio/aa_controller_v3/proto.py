@@ -19,6 +19,8 @@ import math
 
 N_CMD_TRIES = 4
 
+DEFAULT_LED_BRIGHTNESS = 30
+
 
 class Proto:
     def __init__(self, log):
@@ -259,6 +261,12 @@ class Proto:
 
     async def wait_imu_tick(self):
         await self.imu_event.wait()
+
+    async def set_led(self, index, val, brightness):
+        if brightness is None:
+            brightness = DEFAULT_LED_BRIGHTNESS
+        val = [int(round(v*brightness)) for v in val]
+        await self._submit_cmd(b'l', struct.pack('!4B', index, *val))
 
 
 MSG_FRAMER_BUF_SIZE = 128  # must be a power of 2
