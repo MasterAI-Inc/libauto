@@ -170,7 +170,8 @@ class Proto:
             try:
                 return await self.__submit_cmd(cmd, args, timeout=timeout)
             except asyncio.TimeoutError:
-                pass  # we'll loop back and retry
+                # We'll loop back and retry...
+                self.log.warning('CMD TIMEOUT')
 
         # Last attempt is allowed to throw anything:
         return await self.__submit_cmd(cmd, args, timeout=timeout)
@@ -200,7 +201,9 @@ class Proto:
                     try:
                         await asyncio.wait_for(waiter.wait(), timeout=((durationMS / 1000) + 0.1))
                     except asyncio.TimeoutError:
-                        pass  # we'll just assume the buzzer stopped and that we missed the message that told us so
+                        # We'll just assume the buzzer stopped and that we missed the
+                        # message that told us so.
+                        self.log.warning('BUZZER TIMEOUT')
                 finally:
                     self.buzzer_listeners.remove(listener)
             else:
