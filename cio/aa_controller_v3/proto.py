@@ -40,6 +40,8 @@ class Proto:
         self.gyroaccumvals = 0.0, 0.0, 0.0
         self.accelvals = 0.0, 0.0, 1.0
         self.quaternion = 1.0, 0.0, 0.0, 0.0
+        self.buttonstate = [(0, 0, False) for _ in range(3)]
+        self.buttonlisteners = []
         self.write_queue = queue.Queue()
         self.write_thread = threading.Thread(target=self._writer)
         self.write_thread.start()
@@ -116,8 +118,36 @@ class Proto:
             for f in self.buzzer_listeners:
                 f(buzzer_is_playing)
 
+        elif command == ord('B'):
+            event = msg[1]
+            events = []
+            if event & 0b000001:
+                self._button_was_released(2, events)
+            if event & 0b000010:
+                self._button_was_pressed(2, events)
+            if event & 0b000100:
+                self._button_was_released(1, events)
+            if event & 0b001000:
+                self._button_was_pressed(1, events)
+            if event & 0b010000:
+                self._button_was_released(0, events)
+            if event & 0b100000:
+                self._button_was_pressed(0, events)
+            for listener in self.buttonlisteners:
+                listener(events)
+
         else:
             self.log.warning(f'unhandled message: {msg}')
+
+    def _button_was_pressed(self, button_index, events):
+        events.append({'button': button_index, 'action': 'pressed'})
+        npress, nrelease, ispressed = self.buttonstate[button_index]
+        self.buttonstate[button_index] = (npress + 1, nrelease, True)
+
+    def _button_was_released(self, button_index, events):
+        events.append({'button': button_index, 'action': 'released'})
+        npress, nrelease, ispressed = self.buttonstate[button_index]
+        self.buttonstate[button_index] = (npress, nrelease + 1, False)
 
     def _handle_imu_msg(self, msg):
         now = time.time()

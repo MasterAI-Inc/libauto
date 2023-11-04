@@ -19,6 +19,8 @@ import subprocess
 import math
 import time
 
+from collections import deque
+
 from auto.buzzer_lang import BuzzParser
 
 import cio
@@ -51,7 +53,7 @@ class CioRoot(cio.CioRoot):
             'Gyroscope_accum': GyroscopeAccum,
             'Accelerometer': Accelerometer,
             'AHRS': Ahrs,
-            #'PushButtons': PushButtons,
+            'PushButtons': PushButtons,
             #'LEDs': LEDs,
             #'Photoresistor': Photoresistor,
             #'Encoders': Encoders,
@@ -371,4 +373,46 @@ class Ahrs(cio.AhrsIface):
 
     async def released(self, last):
         await self.proto.imu_release()
+
+
+class PushButtons(cio.PushButtonsIface):
+    def __init__(self, proto):
+        self.proto = proto
+        self.events = []
+        self.addevents = lambda events: self.events.extend(events)
+        self.event_queue = deque()
+
+    async def acquired(self, first):
+        self.proto.buttonlisteners.append(self.addevents)
+
+    async def num_buttons(self):
+        return len(self.proto.buttonstate)
+
+    async def button_state(self, button_index):
+        return self.proto.buttonstate[button_index]
+
+    async def get_events(self):
+        events = self.events
+        self.events = []
+        return events
+
+    async def wait_for_event(self):
+        if not self.event_queue:   # if empty
+            while True:
+                events = await self.get_events()
+                if events:  # if not empty
+                    self.event_queue.extend(events)
+                    return self.event_queue.popleft()
+                await asyncio.sleep(0.05)
+        else:
+            return self.event_queue.popleft()
+
+    async def wait_for_action(self, action='pressed'):
+        while True:
+            event = await self.wait_for_event()
+            if action == 'any' or action == event['action']:
+                return event['button'], event['action']
+
+    async def released(self, last):
+        self.proto.buttonlisteners.remove(self.addevents)
 
