@@ -49,6 +49,10 @@ class Proto:
         self.photoresistor_use_counter = 0
         self.photoresistor_vals = 0.0, 0.0
         self.photoresistor_event = asyncio.Event()
+        self.encoder_e1_counter_lock = asyncio.Lock()
+        self.encoder_e1_use_counter = 0
+        self.encoder_e1_vals = 0, 0, 0, 0, 0
+        self.encoder_e1_event = asyncio.Event()
         self.write_queue = queue.Queue()
         self.write_thread = threading.Thread(target=self._writer)
         self.write_thread.start()
@@ -72,6 +76,7 @@ class Proto:
             self.fd = None
             self.imu_event.set()
             self.photoresistor_event.set()
+            self.encoder_e1_event.set()
 
     def _writer(self):
         while True:
@@ -124,6 +129,12 @@ class Proto:
             self.photoresistor_vals = 1000*v, r
             self.photoresistor_event.set()
             self.photoresistor_event = asyncio.Event()
+
+        elif command == ord('e'):
+            clicks, aCount, bCount, aUpTime, bUpTime = struct.unpack('<hHHII', msg[1:])
+            self.encoder_e1_vals = clicks, aCount, bCount, aUpTime, bUpTime
+            self.encoder_e1_event.set()
+            self.encoder_e1_event = asyncio.Event()
 
         elif command == ord('r'):
             counter, = struct.unpack('!H', msg[1:])
@@ -307,6 +318,26 @@ class Proto:
 
     async def photoresistor_tick(self):
         await self.photoresistor_event.wait()
+
+    async def encoder_e1_set_enabled(self, enabled):
+        await self._submit_cmd(b'e', struct.pack('!B', enabled))
+
+    async def encoder_e1_acquire(self):
+        async with self.encoder_e1_counter_lock:
+            self.encoder_e1_use_counter += 1
+            if self.encoder_e1_use_counter == 1:
+                await self.encoder_e1_set_enabled(True)
+                self.log.info('started encoder_e1 streaming')
+
+    async def encoder_e1_release(self):
+        async with self.encoder_e1_counter_lock:
+            self.encoder_e1_use_counter -= 1
+            if self.encoder_e1_use_counter == 0:
+                await self.encoder_e1_set_enabled(False)
+                self.log.info('stop encoder_e1 streaming')
+
+    async def encoder_e1_tick(self):
+        await self.encoder_e1_event.wait()
 
 
 MSG_FRAMER_BUF_SIZE = 128  # must be a power of 2

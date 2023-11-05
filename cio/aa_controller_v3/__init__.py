@@ -56,10 +56,9 @@ class CioRoot(cio.CioRoot):
             'PushButtons': PushButtons,
             'LEDs': LEDs,
             'Photoresistor': Photoresistor,
-            #'Encoders': Encoders,
+            'Encoders': Encoders,
             #'CarMotors': CarMotors,
             #'Calibrator': Calibrator,
-            #'PID_steering': PidSteering,
             #'CarControl': CarControl,
         }
         self.refcounts = {}   # maps `capability_id` to integer refcount
@@ -513,4 +512,52 @@ class Photoresistor(cio.PhotoresistorIface):
 
     async def released(self, last):
         await self.proto.photoresistor_release()
+
+
+class Encoders(cio.EncodersIface):
+    def __init__(self, proto):
+        self.proto = proto
+        self.e1_enabled = False
+
+    async def acquired(self, first):
+        pass
+
+    async def num_encoders(self):
+        return 1
+
+    async def enable(self, encoder_index):
+        if encoder_index != 0:
+            raise ValueError('encoder index out of range')
+        if not self.e1_enabled:
+            self.e1_enabled = True
+            await self.proto.encoder_e1_acquire()
+
+    async def read_counts(self, encoder_index):
+        if encoder_index != 0:
+            raise ValueError('encoder index out of range')
+        if not self.e1_enabled:
+            raise ValueError('this encoder is not enabled')
+        await self.proto.encoder_e1_tick()
+        clicks, aCount, bCount, aUpTime, bUpTime = self.proto.encoder_e1_vals
+        # TODO: handle overflow? reset to zero on each enable?
+        return clicks, aCount, bCount
+
+    async def read_timing(self, encoder_index):
+        if encoder_index != 0:
+            raise ValueError('encoder index out of range')
+        if not self.e1_enabled:
+            raise ValueError('this encoder is not enabled')
+        await self.proto.encoder_e1_tick()
+        clicks, aCount, bCount, aUpTime, bUpTime = self.proto.encoder_e1_vals
+        return aUpTime, bUpTime
+
+    async def disable(self, encoder_index):
+        if encoder_index != 0:
+            raise ValueError('encoder index out of range')
+        if self.e1_enabled:
+            self.e1_enabled = False
+            await self.proto.encoder_e1_release()
+
+    async def released(self, last):
+        await self.disable(0)
 
