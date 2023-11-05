@@ -45,6 +45,10 @@ class Proto:
         self.quaternion = 1.0, 0.0, 0.0, 0.0
         self.buttonstate = [(0, 0, False) for _ in range(3)]
         self.buttonlisteners = []
+        self.photoresistor_counter_lock = asyncio.Lock()
+        self.photoresistor_use_counter = 0
+        self.photoresistor_vals = 0.0, 0.0
+        self.photoresistor_event = asyncio.Event()
         self.write_queue = queue.Queue()
         self.write_thread = threading.Thread(target=self._writer)
         self.write_thread.start()
@@ -67,6 +71,7 @@ class Proto:
                 self.log.info('read thread joined')
             self.fd = None
             self.imu_event.set()
+            self.photoresistor_event.set()
 
     def _writer(self):
         while True:
@@ -111,6 +116,14 @@ class Proto:
             vbatt2 = 1000 * 3.3 * vbatt2 / 1023
             vchrg = 1000 * 3.3 * vchrg / 1023
             self.voltages = vbatt1, vbatt2, vchrg
+
+        elif command == ord('p'):
+            v, = struct.unpack('!H', msg[1:])
+            v = 3.3 * v / 1023
+            r = ((3.3 - v) * 470000) / v
+            self.photoresistor_vals = 1000*v, r
+            self.photoresistor_event.set()
+            self.photoresistor_event = asyncio.Event()
 
         elif command == ord('r'):
             counter, = struct.unpack('!H', msg[1:])
@@ -274,6 +287,26 @@ class Proto:
         brightness *= MAX_LED_BRIGHTNESS
         val = [int(round(v*brightness)) for v in val]
         await self._submit_cmd(b'l', struct.pack('!4B', index, *val))
+
+    async def photoresistor_set_enabled(self, enabled):
+        await self._submit_cmd(b'p', struct.pack('!B', enabled))
+
+    async def photoresistor_acquire(self):
+        async with self.photoresistor_counter_lock:
+            self.photoresistor_use_counter += 1
+            if self.photoresistor_use_counter == 1:
+                await self.photoresistor_set_enabled(True)
+                self.log.info('started photoresistor streaming')
+
+    async def photoresistor_release(self):
+        async with self.photoresistor_counter_lock:
+            self.photoresistor_use_counter -= 1
+            if self.photoresistor_use_counter == 0:
+                await self.photoresistor_set_enabled(False)
+                self.log.info('stop photoresistor streaming')
+
+    async def photoresistor_tick(self):
+        await self.photoresistor_event.wait()
 
 
 MSG_FRAMER_BUF_SIZE = 128  # must be a power of 2

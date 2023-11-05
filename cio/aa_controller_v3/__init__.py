@@ -55,7 +55,7 @@ class CioRoot(cio.CioRoot):
             'AHRS': Ahrs,
             'PushButtons': PushButtons,
             'LEDs': LEDs,
-            #'Photoresistor': Photoresistor,
+            'Photoresistor': Photoresistor,
             #'Encoders': Encoders,
             #'CarMotors': CarMotors,
             #'Calibrator': Calibrator,
@@ -489,4 +489,28 @@ class LEDs(cio.LEDsIface):
     async def released(self, last):
         if last:
             await self._reset()
+
+
+class Photoresistor(cio.PhotoresistorIface):
+    def __init__(self, proto):
+        self.proto = proto
+
+    async def acquired(self, first):
+        await self.proto.photoresistor_acquire()
+
+    async def read(self):
+        await self.proto.photoresistor_tick()
+        millivolts, resistance = self.proto.photoresistor_vals
+        return millivolts, resistance
+
+    async def read_millivolts(self):
+        millivolts, resistance = await self.read()
+        return millivolts
+
+    async def read_ohms(self):
+        millivolts, resistance = await self.read()
+        return resistance
+
+    async def released(self, last):
+        await self.proto.photoresistor_release()
 
