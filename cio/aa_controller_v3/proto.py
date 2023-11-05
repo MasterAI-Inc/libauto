@@ -218,7 +218,7 @@ class Proto:
         major, minor = struct.unpack('!2B', res)
         return major, minor
 
-    async def play(self, freqHz, durationMS):
+    async def buzzer_play(self, freqHz, durationMS):
         async with self.buzzer_lock:
             freqHz = int(round(freqHz)) if freqHz is not None else 0
             durationMS = int(round(durationMS))
@@ -241,6 +241,9 @@ class Proto:
                     self.buzzer_listeners.remove(listener)
             else:
                 await asyncio.sleep(max(durationMS / 1000, 0))
+
+    async def buzzer_stop(self):
+        await self._submit_cmd(b'n', b'')
 
     async def set_imu_enabled(self, enabled):
         await self._submit_cmd(b'i', struct.pack('!B', enabled))

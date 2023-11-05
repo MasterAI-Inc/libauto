@@ -272,9 +272,11 @@ class Buzzer(cio.BuzzerIface):
     def __init__(self, proto):
         self.proto = proto
         self.buzz_parser = BuzzParser()
+        self.iamplaying = False
+        self.active = False
 
     async def acquired(self, first):
-        pass
+        self.active = True
 
     async def is_currently_playing(self):
         return Buzzer._is_playing
@@ -297,14 +299,20 @@ class Buzzer(cio.BuzzerIface):
             raise Exception('Buzzer is currently playing, so you cannot submit more notes right now.')
 
         Buzzer._is_playing = True
+        self.iamplaying = True
         try:
             for freqHz, durationMS, _volume in note_tuples:
-                await self.proto.play(freqHz, durationMS)
+                await self.proto.buzzer_play(freqHz, durationMS)
+                if not self.active:
+                    break
         finally:
+            self.iamplaying = False
             Buzzer._is_playing = False
 
     async def released(self, last):
-        pass
+        self.active = False
+        if self.iamplaying:
+            await self.proto.buzzer_stop()
 
 
 class Gyroscope(cio.GyroscopeIface):
