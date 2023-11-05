@@ -465,7 +465,7 @@ class LEDs(cio.LEDsIface):
         if isinstance(val, (int, float)) and 0.0 <= val <= 1.0:
             val = float(val)
             val = val, val, val
-        elif isinstance(val, (tuple, list)) and len(val) == 3 and all([(0.0 <= v <= 1.0) for v in val]):
+        elif isinstance(val, (tuple, list)) and len(val) == 3 and all([isinstance(v, (int, float)) for v in val]) and all([(0.0 <= v <= 1.0) for v in val]):
             val = tuple([float(v) for v in val])
         else:
             raise ValueError('You must pass the LED value as a single value or a three-tuple denoting the three RGB values, where each value is in the range [0.0, 1.0].')

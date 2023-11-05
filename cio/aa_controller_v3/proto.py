@@ -19,7 +19,8 @@ import math
 
 N_CMD_TRIES = 4
 
-DEFAULT_LED_BRIGHTNESS = 30
+DEFAULT_LED_BRIGHTNESS = 0.5  # range [0.0, 1.0]
+MAX_LED_BRIGHTNESS = 40       # range [0, 255]
 
 
 class Proto:
@@ -265,6 +266,9 @@ class Proto:
     async def set_led(self, index, val, brightness):
         if brightness is None:
             brightness = DEFAULT_LED_BRIGHTNESS
+        else:
+            brightness /= 255
+        brightness *= MAX_LED_BRIGHTNESS
         val = [int(round(v*brightness)) for v in val]
         await self._submit_cmd(b'l', struct.pack('!4B', index, *val))
 
