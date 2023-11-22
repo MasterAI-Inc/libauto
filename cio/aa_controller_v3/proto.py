@@ -19,6 +19,10 @@ import math
 
 N_CMD_TRIES = 4
 
+EEPROM_NUM_BYTES = 256
+
+MAX_DECIAMPS = 50
+
 DEFAULT_LED_BRIGHTNESS = 0.5  # range [0.0, 1.0]
 MAX_LED_BRIGHTNESS = 40       # range [0, 255]
 
@@ -53,6 +57,8 @@ class Proto:
         self.encoder_e1_use_counter = 0
         self.encoder_e1_vals = 0, 0, 0, 0, 0
         self.encoder_e1_event = asyncio.Event()
+        self.eeprom_vals = [None for _ in range(EEPROM_NUM_BYTES)]
+        self.eeprom_event = asyncio.Event()
         self.write_queue = queue.Queue()
         self.write_thread = threading.Thread(target=self._writer)
         self.write_thread.start()
@@ -163,6 +169,15 @@ class Proto:
             for listener in self.buttonlisteners:
                 listener(events)
 
+        elif command == ord('E'):
+            addr, = struct.unpack('!H', msg[1:3])
+            vals = msg[3:]
+            for i, v in enumerate(vals):
+                if addr + i < EEPROM_NUM_BYTES:
+                    self.eeprom_vals[addr + i] = v
+            self.eeprom_event.set()
+            self.eeprom_event = asyncio.Event()
+
         else:
             self.log.warning(f'unhandled message: {msg}')
 
@@ -234,13 +249,19 @@ class Proto:
         return await self.__submit_cmd(cmd, args, timeout=timeout)
 
     async def init(self):
-        # TODO query all of the EEPROM
         await self.set_imu_enabled(False)
+        await self.photoresistor_set_enabled(False)
+        await self.encoder_e1_set_enabled(False)
+        await self.read_all_eeprom()
 
     async def version(self, timeout=None):
         res = await self._submit_cmd(b'v', b'', timeout=timeout)
         major, minor = struct.unpack('!2B', res)
         return major, minor
+
+    def is_charging(self):
+        vbatt1, vbatt2, vchrg = self.voltages
+        return vbatt2 < vchrg
 
     async def buzzer_play(self, freqHz, durationMS):
         async with self.buzzer_lock:
@@ -338,6 +359,44 @@ class Proto:
 
     async def encoder_e1_tick(self):
         await self.encoder_e1_event.wait()
+
+    async def read_all_eeprom(self):
+        addr = 0
+        chunk_length = 32
+        while addr < EEPROM_NUM_BYTES:
+            len_here = min(chunk_length, EEPROM_NUM_BYTES - addr)
+            event = self.eeprom_event
+            await self._submit_cmd(b'r', struct.pack('!HB', addr, len_here))
+            await event.wait()
+            addr += len_here
+        for v in self.eeprom_vals:
+            assert v is not None
+            assert isinstance(v, int)
+
+    async def write_eeprom(self, addr, val):
+        assert isinstance(val, int)
+        if addr >= 0 and addr < EEPROM_NUM_BYTES:
+            await self._submit_cmd(b'w', struct.pack('!HB', addr, val))
+            self.eeprom_vals[addr] = val
+
+    def eeprom_read_buf(self, addr, length):
+        assert 0 <= addr < EEPROM_NUM_BYTES
+        assert 0 < addr + length <= EEPROM_NUM_BYTES
+        return bytes(self.eeprom_vals[addr:addr+length])
+
+    async def set_steering(self, steering, channel=0):
+        cmd = [b's', b't'][channel]
+        await self._submit_cmd(cmd, struct.pack('!H', steering))
+
+    async def set_throttle(self, throttle):
+        if throttle == 0:
+            await self._submit_cmd(b'd', struct.pack('!b', 0))  # set duty
+            await self._submit_cmd(b'a', struct.pack('!B', 5))  # set max deciamps
+        else:
+            deciamps = int(round((abs(throttle) / 100) * MAX_DECIAMPS))
+            duty = 127 if throttle > 0 else -127
+            await self._submit_cmd(b'a', struct.pack('!B', deciamps))  # set max deciamps
+            await self._submit_cmd(b'd', struct.pack('!b', duty))  # set duty
 
 
 MSG_FRAMER_BUF_SIZE = 128  # must be a power of 2
