@@ -18,6 +18,7 @@ import os
 import subprocess
 import math
 import time
+import struct
 
 from collections import deque
 
@@ -57,7 +58,7 @@ class CioRoot(cio.CioRoot):
             'LEDs': LEDs,
             'Photoresistor': Photoresistor,
             'Encoders': Encoders,
-            #'CarMotors': CarMotors,
+            'CarMotors': CarMotors,
             #'Calibrator': Calibrator,
             #'CarControl': CarControl,
         }
@@ -149,6 +150,7 @@ class Credentials(cio.CredentialsIface):
     def __init__(self, _proto):
         self.db = None
         self.loop = asyncio.get_running_loop()
+        # TODO: back up to EEPROM?
 
     async def acquired(self, first):
         pass
@@ -238,8 +240,7 @@ class Power(cio.PowerIface):
         pass
 
     async def state(self):
-        vbatt1, vbatt2, vchrg = self.proto.voltages
-        return 'battery' if vbatt2 >= vchrg else 'charging'
+        return 'charging' if self.proto.is_charging() else 'battery'
 
     async def millivolts(self):
         vbatt1, vbatt2, vchrg = self.proto.voltages
@@ -560,4 +561,113 @@ class Encoders(cio.EncodersIface):
 
     async def released(self, last):
         await self.disable(0)
+
+
+def lerp(i, f1, f2, t1, t2):
+    if i < f1:
+        i = f1
+    if i > f2:
+        i = f2
+    return (i - f1) * (t2 - t1) / (f2 - f1) + t1
+
+
+class CarMotors(cio.CarMotorsIface):
+    """
+    This class stores calibration settings in the EEPROM at these addresses:
+
+    | addresses       | data                           |
+    | --------------- | ------------------------------ |
+    | 0x00            | safe throttle reverse          |
+    | 0x01            | safe throttle forward          |
+    | 0x02            | <reserved>                     |
+    | 0x03            | servo channel to use           |
+    | 0x04            | reverse throttle flag          |
+    | 0x05 - 0x0A     | left, mid, right steering      |
+    """
+
+    def __init__(self, proto):
+        self.proto = proto
+        self.ison = False
+        self.eeprom_addr = 0
+
+    async def acquired(self, first):
+        pass
+
+    async def on(self):
+        self.ison = True
+
+    async def set_steering(self, steering):
+        if not self.ison:
+            raise RuntimeError('Motors are not turn on; turn them on first.')
+        if self.proto.is_charging():
+            raise RuntimeError('You may not drive the car while it is charging!')
+        steering = int(round(min(max(steering, -45), 45)))
+        channel = 1 if (self.proto.eeprom_vals[self.eeprom_addr + 3] != 0) else 0
+        left, mid, right = struct.unpack('!HHH', self.proto.eeprom_read_buf(self.eeprom_addr + 5, 6))
+        if steering == 0:   # straight
+            val = mid
+        elif steering < 0:  # right
+            val = lerp(steering, -45, 0, right, mid)
+        else:               # left
+            val = lerp(steering, 0, 45, mid, left)
+        val = int(round(val))
+        await self.proto.set_steering(val, channel=channel)
+
+    async def set_throttle(self, throttle):
+        if not self.ison:
+            raise RuntimeError('Motors are not turn on; turn them on first.')
+        if self.proto.is_charging():
+            raise RuntimeError('You may not drive the car while it is charging!')
+        throttle = int(round(min(max(throttle, -100), 100)))
+        reverse = (self.proto.eeprom_vals[self.eeprom_addr + 4] == 0)
+        await self.proto.set_throttle(-throttle if reverse else throttle)
+
+    async def get_safe_throttle(self):
+        min_throttle, max_throttle = struct.unpack('!bb', self.proto.eeprom_read_buf(self.eeprom_addr, 2))
+        return min_throttle, max_throttle
+
+    async def set_safe_throttle(self, min_throttle, max_throttle):
+        buf = struct.pack('!bb', min_throttle, max_throttle)
+        for i, val in enumerate(list(buf)):
+            await self.proto.write_eeprom(self.eeprom_addr + i, val)
+
+    async def off(self):
+        if self.ison:
+            try:
+                await self.set_throttle(0)
+            finally:
+                self.ison = False
+
+    async def released(self, last):
+        if last:
+            try:
+                await self.off()
+            except:
+                # Well we tried our best.
+                pass
+
+    async def swap_motor_direction(self):
+        reverse = (self.proto.eeprom_vals[self.eeprom_addr + 4] == 0)
+        await self.proto.write_eeprom(self.eeprom_addr + 4, 1 if reverse else 0)
+
+    async def set_servo_channel(self, channel):
+        await self.proto.write_eeprom(self.eeprom_addr + 3, 1 if channel else 0)
+
+    async def raw_set_servo(self, val):
+        channel = 1 if (self.proto.eeprom_vals[self.eeprom_addr + 3] != 0) else 0
+        await self.proto.set_steering(val, channel=channel)
+
+    async def set_servo_params(self, left, mid, right):
+        buf = struct.pack('!HHH', left, mid, right)
+        addr = self.eeprom_addr + 5
+        for i, val in enumerate(list(buf)):
+            await self.proto.write_eeprom(addr + i, val)
+
+    def rpc_extra_exports(self):
+        return [
+            'swap_motor_direction',
+            'set_servo_channel',
+            'raw_set_servo',
+            'set_servo_params',
+        ]
 
