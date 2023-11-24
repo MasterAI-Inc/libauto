@@ -21,7 +21,8 @@ N_CMD_TRIES = 4
 
 EEPROM_NUM_BYTES = 256
 
-MAX_DECIAMPS = 50
+MIN_DECIAMPS = 5
+MAX_DECIAMPS = 30
 
 DEFAULT_LED_BRIGHTNESS = 0.5  # range [0.0, 1.0]
 MAX_LED_BRIGHTNESS = 40       # range [0, 255]
@@ -397,6 +398,7 @@ class Proto:
             await self._submit_cmd(b'a', struct.pack('!B', 5))  # set max deciamps
         else:
             deciamps = int(round((abs(throttle) / 100) * MAX_DECIAMPS))
+            deciamps = min(max(MIN_DECIAMPS, deciamps), MAX_DECIAMPS)
             duty = 127 if throttle > 0 else -127
             await self._submit_cmd(b'a', struct.pack('!B', deciamps))  # set max deciamps
             await self._submit_cmd(b'd', struct.pack('!b', duty))  # set duty
