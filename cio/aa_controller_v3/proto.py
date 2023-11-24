@@ -16,6 +16,8 @@ import queue
 import time
 import math
 
+from .throttle_util import make_throttle_func
+
 
 N_CMD_TRIES = 4
 
@@ -60,6 +62,8 @@ class Proto:
         self.encoder_e1_event = asyncio.Event()
         self.eeprom_vals = [None for _ in range(EEPROM_NUM_BYTES)]
         self.eeprom_event = asyncio.Event()
+        self.smart_throttle_task = None
+        self.smart_throttle_last_set = None
         self.write_queue = queue.Queue()
         self.write_thread = threading.Thread(target=self._writer)
         self.write_thread.start()
@@ -392,7 +396,7 @@ class Proto:
         cmd = [b's', b't'][channel]
         await self._submit_cmd(cmd, struct.pack('!H', steering))
 
-    async def set_throttle(self, throttle):
+    async def _set_throttle(self, throttle):
         if throttle == 0:
             await self._submit_cmd(b'd', struct.pack('!b', 0))  # set duty
             await self._submit_cmd(b'a', struct.pack('!B', 5))  # set max deciamps
@@ -402,6 +406,51 @@ class Proto:
             duty = 127 if throttle > 0 else -127
             await self._submit_cmd(b'a', struct.pack('!B', deciamps))  # set max deciamps
             await self._submit_cmd(b'd', struct.pack('!b', duty))  # set duty
+
+    async def set_throttle(self, throttle):
+        last_throttle, func_start_time = self.smart_throttle_last_set if self.smart_throttle_last_set is not None else (0, 0)
+
+        func = None
+
+        if last_throttle < 0:
+            if throttle < 0:
+                # Keep the old start time! Just update the function shape...
+                func = make_throttle_func(self._set_throttle, 2*throttle, throttle, func_start_time)
+            elif throttle > 0:
+                func_start_time = time.time()
+                func = make_throttle_func(self._set_throttle, 2*throttle, throttle, func_start_time)
+            else:   # throttle == 0
+                func_start_time = time.time()
+                func = make_throttle_func(self._set_throttle, -last_throttle//2, 0, func_start_time)
+
+        elif last_throttle > 0:
+            if throttle < 0:
+                func_start_time = time.time()
+                func = make_throttle_func(self._set_throttle, 2*throttle, throttle, func_start_time)
+            elif throttle > 0:
+                # Keep the old start time! Just update the function shape...
+                func = make_throttle_func(self._set_throttle, 2*throttle, throttle, func_start_time)
+            else:   # throttle == 0
+                func_start_time = time.time()
+                func = make_throttle_func(self._set_throttle, -last_throttle//2, 0, func_start_time)
+
+        else: # last_throttle == 0
+            if throttle < 0:
+                func_start_time = time.time()
+                func = make_throttle_func(self._set_throttle, 2*throttle, throttle, func_start_time)
+            elif throttle > 0:
+                func_start_time = time.time()
+                func = make_throttle_func(self._set_throttle, 2*throttle, throttle, func_start_time)
+            else:   # throttle == 0
+                pass
+
+        if func is not None:
+            if self.smart_throttle_task is not None:
+                self.smart_throttle_task.cancel()
+                self.smart_throttle_task = None
+            self.smart_throttle_task = asyncio.create_task(func)
+
+        self.smart_throttle_last_set = throttle, func_start_time
 
 
 MSG_FRAMER_BUF_SIZE = 128  # must be a power of 2
