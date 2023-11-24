@@ -1,0 +1,475 @@
+#!/usr/bin/env python3
+
+###############################################################################
+#
+# Copyright (c) 2017-2023 Master AI, Inc.
+# ALL RIGHTS RESERVED
+#
+# Use of this library, in source or binary form, is prohibited without written
+# approval from Master AI, Inc.
+#
+###############################################################################
+
+import sys
+import time
+import math
+import asyncio
+import logging
+
+from auto.services.console.client import CuiRoot
+from auto.services.controller.client import CioRoot
+
+
+START_PROMPT = """
+*YOU ARE ABOUT TO CALIBRATE THIS CAR.*
+
+If you do not want to calibrate this
+car, please EXIT by pressing button 3.
+
+Press button 1 to BEGIN.
+Press button 3 to EXIT.
+"""
+
+
+CAR_MOTORS_PROMPT = """
+Would you like to calibrate the car's
+ ** STEERING **?
+
+e.g. if car is not turning sharply
+
+Press button 1 for 'yes'.
+Press button 3 for 'no'.
+"""
+
+
+CAR_SPEED_PROMPT = """
+Would you like to calibrate the car's
+ ** SPEED **?
+
+e.g. if car is too fast
+
+Press button 1 for 'yes'.
+Press button 3 for 'no'.
+"""
+
+
+CAR_MOTORS_LEFT_STEERING = """
+Set the **LEFT** steering direction.
+
+Use button 1 and 3 to **MOVE**
+the steering.
+
+Press button 2 to **STORE**
+the position.
+"""
+
+
+CAR_MOTORS_RIGHT_STEERING = """
+Set the **RIGHT** steering direction.
+
+Use button 1 and 3 to **MOVE**
+the steering.
+
+Press button 2 to **STORE**
+the position.
+"""
+
+
+CAR_MOTORS_FORWARD_REVERSE_DIRS = """
+Car will drive **FORWARD** and then
+in **REVERSE**.
+
+** Please HOLD the car carefully with
+   both hands, with wheels off the
+   ground. Be sure wheels can spin
+   freely, clear of all obstacles. **
+
+Press button 1 when you are ready.
+"""
+
+
+CAR_MOTORS_DIRECTIONS_CORRECT = """
+Did the car drive forward **THEN**
+in reverse?
+
+Press button 1 if 'yes'.
+Press button 3 if 'no'.
+"""
+
+
+CAR_MOTORS_DIRECTIONS_SWAP = """
+Will swap directions and try again...
+"""
+
+
+CAR_MOTORS_MID_STEERING = """
+Will check the steering direction
+for moving **STRAIGHT**.
+
+Car will drive **FORWARD** and
+then in **REVERSE**.
+
+** Place car on the ground with a
+   SAFE and OPEN area in front of it.
+
+Press button 1 when you are ready."""
+
+
+CAR_MOTORS_MID_STEERING_CHECK = """
+Did the car drive roughly straight?
+
+Press 1 to correct to the **LEFT**
+Press 2 if it looked okay.
+Press 3 to correct to the **RIGHT**.
+
+** CAR WILL DRIVE AGAIN AFTER YOU
+   MAKE YOUR SELECTION.
+   BE SURE AREA IS CLEAR AND SAFE.
+**"""
+
+
+CAR_SPEED_FORWARD = """
+Will demo current **FORWARD**
+speed.
+
+** Place car on the ground with a
+   SAFE and OPEN area in front of it.
+
+Press button 1 when you are ready.
+"""
+
+
+CAR_SPEED_FORWARD_CHECK = """
+Is the **FORWARD** speed okay?
+
+Press 1 to **DECREASE** speed.
+Press 2 if okay.
+Press 3 to **INCREASE** speed.
+
+** CAR WILL DRIVE AGAIN AFTER YOU
+   MAKE YOUR SELECTION.
+   BE SURE AREA IS CLEAR AND SAFE.
+"""
+
+
+CAR_SPEED_REVERSE = """
+Will demo current **REVERSE**
+speed.
+
+** Place car on the ground with a
+   SAFE and OPEN area in front of it.
+
+Press button 1 when you are ready.
+"""
+
+
+CAR_SPEED_REVERSE_CHECK = """
+Is the **REVERSE** speed okay?
+
+Press 1 to **DECREASE** speed.
+Press 2 if okay.
+Press 3 to **INCREASE** speed.
+
+** CAR WILL DRIVE AGAIN AFTER YOU
+   MAKE YOUR SELECTION.
+   BE SURE AREA IS CLEAR AND SAFE.
+"""
+
+
+DRIVE_DEMO_PROMPT = """
+Would you like your car to do
+a final **DRIVING DEMO**?
+
+Press button 1 for 'yes'.
+Press button 3 for 'no'.
+"""
+
+
+DRIVE_DEMO_AGAIN = """
+Demo again?
+
+Press button 1 for 'yes'.
+Press button 3 for 'no'.
+"""
+
+
+async def _clear(console):
+    print("\x1b[2J\x1b[H")  # https://stackoverflow.com/a/2084560
+    await console.clear_text()
+
+
+async def _print_all(console, text, end='\n', **kwargs):
+    print(text, end=end, **kwargs)
+    await console.write_text(text + end)
+
+
+async def _prompt(console, buttons, options, prompt_text):
+    async for b in _prompt_continuous(console, buttons, options, prompt_text):
+        return b
+
+
+async def _prompt_continuous(console, buttons, options, prompt_text):
+    await _clear(console)
+    await _print_all(console, prompt_text)
+    while True:
+        b = await buttons.wait_for_action()
+        b = b[0] + 1
+        if b in options:
+            yield b
+
+
+async def _not_at_target(ahrs, target):
+    _, _, yaw = await ahrs.read()
+    diff = math.radians(yaw - target)
+    diff = math.atan2(math.sin(diff), math.cos(diff))  # normalize into [-pi, +pi]
+    diff = math.degrees(diff)
+    return abs(diff) > 5.0
+
+
+async def _drive_demo(console, controller, car, buttons, ctrl):
+    min_throttle, max_throttle = await car.get_safe_throttle()
+
+    await car.on()
+    await ctrl.on()
+
+    ahrs = await controller.acquire('AHRS')
+    _, _, orig_yaw = await ahrs.read()
+
+    while True:
+        for i in reversed(range(3)):
+            await _print_all(console, "Driving in {}...".format(i+1))
+            await asyncio.sleep(0.9)
+
+        await ctrl.straight(max_throttle, sec=2.0, cm=None)
+
+        await ctrl.straight(min_throttle, sec=1.5, cm=None)
+
+        while (await _not_at_target(ahrs, orig_yaw - 90)):
+            await car.set_steering(45.0)
+            await car.set_throttle(min_throttle)
+
+        while (await _not_at_target(ahrs, orig_yaw + 90)):
+            await car.set_steering(45.0)
+            await car.set_throttle(max_throttle)
+
+        while (await _not_at_target(ahrs, orig_yaw + 180)):
+            await car.set_steering(-45.0)
+            await car.set_throttle(max_throttle)
+
+        await ctrl.straight(max_throttle, sec=1.0, cm=None)
+
+        answer = await _prompt(console, buttons, [1, 3], DRIVE_DEMO_AGAIN)
+        if answer == 3:
+            break
+
+    await controller.release(ahrs)
+    await ctrl.off()
+    await car.off()
+
+
+async def _calibrate_car_speed(console, car, buttons):
+    min_throttle, max_throttle = await car.get_safe_throttle()
+
+    await car.on()
+
+    _ = await _prompt(console, buttons, [1], CAR_SPEED_FORWARD)
+
+    INC_AMOUNT = 5
+
+    while True:
+        await car.set_steering(0.0)
+        await car.set_throttle(max_throttle)
+        await asyncio.sleep(1)
+        await car.set_throttle(min_throttle)
+        await asyncio.sleep(1)
+        await car.set_throttle(0)
+        answer = await _prompt(console, buttons, [1, 2, 3], CAR_SPEED_FORWARD_CHECK)
+        if answer == 1:
+            max_throttle -= INC_AMOUNT
+        elif answer == 2:
+            break
+        elif answer == 3:
+            max_throttle += INC_AMOUNT
+        await car.set_safe_throttle(min_throttle, max_throttle)
+
+    _ = await _prompt(console, buttons, [1], CAR_SPEED_REVERSE)
+
+    while True:
+        await car.set_steering(0.0)
+        await car.set_throttle(max_throttle)
+        await asyncio.sleep(1)
+        await car.set_throttle(min_throttle)
+        await asyncio.sleep(1)
+        await car.set_throttle(0)
+        answer = await _prompt(console, buttons, [1, 2, 3], CAR_SPEED_REVERSE_CHECK)
+        if answer == 1:
+            min_throttle += INC_AMOUNT
+        elif answer == 2:
+            break
+        elif answer == 3:
+            min_throttle -= INC_AMOUNT
+        await car.set_safe_throttle(min_throttle, max_throttle)
+
+    await car.off()
+
+
+async def _calibrate_car_motors(console, car, buttons):
+    steering_left = 1500
+    steering_mid = 1500
+    steering_right = 1500
+
+    min_throttle, max_throttle = await car.get_safe_throttle()
+
+    if min_throttle == max_throttle:
+        # This is the EEPROM default, so we'll override it to start from
+        # a more reasonable place.
+        min_throttle, max_throttle = -50, 50
+        await car.set_safe_throttle(min_throttle, max_throttle)
+
+    await car.on()
+
+    await car.set_servo_params(steering_left, steering_mid, steering_right)
+
+    await car.set_steering(45.0)
+
+    async for answer in _prompt_continuous(console, buttons, [1, 2, 3], CAR_MOTORS_LEFT_STEERING):
+        if answer == 1:
+            steering_left += 50
+        elif answer == 3:
+            steering_left -= 50
+        else:
+            break
+        await car.set_servo_params(steering_left, steering_mid, steering_right)
+        await car.set_steering(45.0)
+
+    await car.set_steering(-45.0)
+
+    async for answer in _prompt_continuous(console, buttons, [1, 2, 3], CAR_MOTORS_RIGHT_STEERING):
+        if answer == 1:
+            steering_right += 50
+        elif answer == 3:
+            steering_right -= 50
+        else:
+            break
+        await car.set_servo_params(steering_left, steering_mid, steering_right)
+        await car.set_steering(-45.0)
+
+    steering_mid = (steering_left + steering_right) // 2
+    await car.set_servo_params(steering_left, steering_mid, steering_right)
+
+    await car.set_steering(0.0)
+
+    while True:
+        await car.set_steering(0.0)
+        _ = await _prompt(console, buttons, [1], CAR_MOTORS_FORWARD_REVERSE_DIRS)
+        await car.set_steering(0.0)
+        await car.set_throttle(max_throttle)
+        await asyncio.sleep(1)
+        await car.set_throttle(min_throttle)
+        await asyncio.sleep(1)
+        await car.set_throttle(0)
+        answer = await _prompt(console, buttons, [1, 3], CAR_MOTORS_DIRECTIONS_CORRECT)
+        if answer == 1:
+            break
+        else:
+            await _print_all(console, CAR_MOTORS_DIRECTIONS_SWAP)
+            await asyncio.sleep(1)
+            await car.swap_motor_direction()
+
+    left_dir = 1 if steering_mid < steering_left else -1
+    left_dir *= 50  # <-- step size
+    await car.set_steering(0.0)
+    _ = await _prompt(console, buttons, [1], CAR_MOTORS_MID_STEERING)
+
+    while True:
+        await car.set_steering(0.0)
+        await car.set_throttle(max_throttle)
+        await asyncio.sleep(1)
+        await car.set_throttle(min_throttle)
+        await asyncio.sleep(1)
+        await car.set_throttle(0)
+        answer = await _prompt(console, buttons, [1, 2, 3], CAR_MOTORS_MID_STEERING_CHECK)
+        if answer == 1:
+            steering_mid += left_dir
+        elif answer == 2:
+            break
+        elif answer == 3:
+            steering_mid -= left_dir
+        await car.set_servo_params(steering_left, steering_mid, steering_right)
+
+    await car.set_steering(0.0)
+
+    await car.off()
+
+
+async def _calibrate(console, controller, calibrator, buzzer, buttons, car, ctrl):
+    answer = await _prompt(console, buttons, [1, 3], START_PROMPT)
+    if answer == 3:
+        return
+
+    await buzzer.play("!T95 V9 O4")  # set tempo, volume, and octave
+
+    answer = await _prompt(console, buttons, [1, 3], CAR_MOTORS_PROMPT)
+    if answer == 1:
+        await _calibrate_car_motors(console, car, buttons)
+        await buzzer.play("G#4")
+
+    answer = await _prompt(console, buttons, [1, 3], CAR_SPEED_PROMPT)
+    if answer == 1:
+        await _calibrate_car_speed(console, car, buttons)
+        await buzzer.play("G#4")
+
+    answer = await _prompt(console, buttons, [1, 3], DRIVE_DEMO_PROMPT)
+    if answer == 1:
+        await _drive_demo(console, controller, car, buttons, ctrl)
+        await buzzer.play("G#4")
+
+
+async def run():
+    console = CuiRoot()
+    controller = CioRoot()
+
+    await console.init()
+    caps = await controller.init()
+
+    required_caps = ['Calibrator', 'Buzzer', 'PushButtons', 'CarMotors', 'CarControl']
+    has_all_required = all([rc in caps for rc in required_caps])
+
+    v = await controller.acquire('VersionInfo')
+    major, minor = await v.version()
+    await controller.release(v)
+
+    if major != 3 or not has_all_required:
+        await _clear(console)
+        await _print_all(console, 'This script is only used for AutoAuto v3 car controllers. Exiting...')
+        await console.close()
+        await controller.close()
+        sys.exit(1)
+
+    calibrator = await controller.acquire('Calibrator')
+    buzzer = await controller.acquire('Buzzer')
+    buttons = await controller.acquire('PushButtons')
+    car = await controller.acquire('CarMotors')
+    ctrl = await controller.acquire('CarControl')
+
+    try:
+        await _calibrate(console, controller, calibrator, buzzer, buttons, car, ctrl)
+
+    finally:
+        await _clear(console)
+        await _print_all(console, "Calibration script exiting...")
+
+        await controller.release(calibrator)
+        await controller.release(buzzer)
+        await controller.release(buttons)
+        await controller.release(car)
+        await controller.release(ctrl)
+
+        await console.close()
+        await controller.close()
+
+
+if __name__ == '__main__':
+    logging.getLogger().setLevel(logging.WARNING)
+    asyncio.run(run())
+

@@ -59,7 +59,7 @@ class CioRoot(cio.CioRoot):
             'Photoresistor': Photoresistor,
             'Encoders': Encoders,
             'CarMotors': CarMotors,
-            #'Calibrator': Calibrator,
+            'Calibrator': Calibrator,
             'CarControl': CarControl,
         }
         self.refcounts = {}   # maps `capability_id` to integer refcount
@@ -670,6 +670,26 @@ class CarMotors(cio.CarMotorsIface):
             'raw_set_servo',
             'set_servo_params',
         ]
+
+
+class Calibrator(cio.CalibratorIface):
+    def __init__(self, _proto):
+        pass
+
+    async def acquired(self, first):
+        pass
+
+    async def start(self):
+        pass  # no-op
+
+    async def status(self):
+        pass  # no-op
+
+    async def script_name(self):
+        return "calibrate_car_v3"
+
+    async def released(self, last):
+        pass
 
 
 class CarControl(cio.CarControlIface):
