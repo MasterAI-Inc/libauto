@@ -308,8 +308,11 @@ class Proto:
                 self.imu_last_update = None
                 self.log.info('stop IMU streaming')
 
-    async def wait_imu_tick(self):
-        await self.imu_event.wait()
+    async def wait_imu_tick(self, timeout=None):
+        if timeout is None:
+            await self.imu_event.wait()
+        else:
+            await asyncio.wait_for(self.imu_event.wait(), timeout=timeout)
 
     async def set_led(self, index, val, brightness):
         if brightness is None:

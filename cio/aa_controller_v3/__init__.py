@@ -60,7 +60,7 @@ class CioRoot(cio.CioRoot):
             'Encoders': Encoders,
             'CarMotors': CarMotors,
             #'Calibrator': Calibrator,
-            #'CarControl': CarControl,
+            'CarControl': CarControl,
         }
         self.refcounts = {}   # maps `capability_id` to integer refcount
         self.objects = {}     # maps `capability_id` to first object of that type
@@ -670,4 +670,127 @@ class CarMotors(cio.CarMotorsIface):
             'raw_set_servo',
             'set_servo_params',
         ]
+
+
+class CarControl(cio.CarControlIface):
+    def __init__(self, proto):
+        self.proto = proto
+        self.ison = False
+        # We have a feature to detect when the car is stuck when
+        # driving for a certain number of degrees. This is a feature
+        # to protect the car so that it doesn't drive *forever* against
+        # a wall (or whatever obstacle) and burn itself up. There are
+        # two parameters for this features:
+        #  - `DEG_HIST_LEN`: how many points of history to keep
+        #  - `DEG_HIST_THRESHOLD`: the number of degrees we expect (in
+        #                          the worst case) for the car to drive
+        #                          within the kept history
+        # So, if the car doesn't turn `DEG_HIST_THRESHOLD` within its history
+        # of length `DEG_HIST_LEN`, then we stop the car and raise an error.
+        self.DEG_HIST_LEN = 50
+        self.DEG_HIST_THRESHOLD = 10
+
+    async def acquired(self, first):
+        await self.proto.imu_acquire()
+
+    async def on(self):
+        self.ison = True
+
+    async def straight(self, throttle, sec=None, cm=None):
+        if cm is not None:
+            raise ValueError('This device does not have a wheel encoder, thus you may not pass `cm` to travel a specific distance.')
+
+        if sec is None:
+            raise ValueError('You must specify `sec`, the number of seconds to drive.')
+
+        motors = CarMotors(self.proto)
+        await motors.on()
+
+        try:
+            await motors.set_steering(0)
+            await asyncio.sleep(0.1)
+
+            start_time = time.time()
+
+            orig_yaw = None
+
+            while self.ison and (time.time() - start_time < sec):
+                await self.proto.wait_imu_tick(timeout=0.2)
+                _, _, yaw = imu_util.roll_pitch_yaw(tuple(self.proto.quaternion))
+                if orig_yaw is None:
+                    orig_yaw = yaw
+                error = math.radians(yaw - orig_yaw)
+                error = math.atan2(math.sin(error), math.cos(error))  # normalize into [-pi, +pi]
+                error = math.degrees(error)
+                await motors.set_throttle(throttle)
+                await motors.set_steering(error if throttle < 0 else -error)
+
+        finally:
+            await motors.off()
+
+        await asyncio.sleep(0.1)
+
+    async def drive(self, steering, throttle, sec=None, deg=None):
+        if sec is not None and deg is not None:
+            raise ValueError('You may not specify both `sec` and `deg`.')
+
+        if sec is None and deg is None:
+            raise ValueError('You must specify either `sec` or `deg`.')
+
+        if deg is not None and deg <= 0.0:
+            raise ValueError('You must pass `deg` as a postive value.')
+
+        motors = CarMotors(self.proto)
+        await motors.on()
+
+        try:
+            await motors.set_steering(steering)
+            await asyncio.sleep(0.1)
+
+            if sec is not None:
+                start_time = time.time()
+                while self.ison and (time.time() - start_time < sec):
+                    await motors.set_throttle(throttle)
+                    await motors.set_steering(steering)
+                    await asyncio.sleep(min(0.5, time.time() - start_time))
+
+            else:  # deg is not None
+                last_yaw = None
+                accum_yaw = 0.0
+                history = deque()
+                history_accum = 0.0
+                while self.ison:
+                    await self.proto.wait_imu_tick(timeout=0.2)
+                    _, _, yaw = imu_util.roll_pitch_yaw(tuple(self.proto.quaternion))
+                    if last_yaw is None:
+                        diff = 0.0
+                    else:
+                        diff = math.radians(yaw - last_yaw)
+                        diff = math.atan2(math.sin(diff), math.cos(diff))  # normalize into [-pi, +pi]
+                        diff = math.degrees(diff)
+                    last_yaw = yaw
+                    accum_yaw += diff
+                    if abs(accum_yaw) >= deg:
+                        break
+                    await motors.set_throttle(throttle)
+                    await motors.set_steering(steering)
+                    history.append(diff)
+                    history_accum += diff
+                    while len(history) > self.DEG_HIST_LEN:
+                        old_diff = history.popleft()
+                        history_accum -= old_diff
+                    if len(history) == self.DEG_HIST_LEN and abs(history_accum) < self.DEG_HIST_THRESHOLD:
+                        raise RuntimeError('Not making progress; is the car stuck somewhere?')
+
+        finally:
+            await motors.off()
+
+        await asyncio.sleep(0.1)
+
+    async def off(self):
+        self.ison = False
+
+    async def released(self, last):
+        await self.off()
+        await self.proto.imu_release()
 
