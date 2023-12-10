@@ -634,7 +634,7 @@ class CarMotors(cio.CarMotorsIface):
     async def off(self):
         if self.ison:
             try:
-                await self.set_throttle(0)
+                await self.proto.set_throttle(0)
             finally:
                 self.ison = False
 
