@@ -62,6 +62,7 @@ class Proto:
         self.encoder_e1_event = asyncio.Event()
         self.eeprom_vals = [None for _ in range(EEPROM_NUM_BYTES)]
         self.eeprom_event = asyncio.Event()
+        self.smart_throttle_speed_estimate = None
         self.smart_throttle_task = None
         self.smart_throttle_last_set = None
         self.write_queue = queue.Queue()
@@ -396,7 +397,21 @@ class Proto:
         cmd = [b's', b't'][channel]
         await self._submit_cmd(cmd, struct.pack('!H', steering))
 
+    def _update_estimated_speed(self, next_throttle):
+        now = time.time()
+        last_throttle, last_speed, last_time = self.smart_throttle_speed_estimate if self.smart_throttle_speed_estimate is not None else (0.0, 0.0, now)
+        if next_throttle is None:
+            next_throttle = last_throttle
+        dt = now - last_time
+        throttle_half_life_seconds = 0.5
+        lambda_ = math.log(2.0) / throttle_half_life_seconds
+        alpha = 1.0 - math.exp(-lambda_ * dt)
+        speed_est = alpha * last_throttle + (1.0 - alpha) * last_speed
+        self.smart_throttle_speed_estimate = next_throttle, speed_est, now
+        return speed_est
+
     async def _set_throttle(self, throttle):
+        self._update_estimated_speed(throttle)
         if throttle == 0:
             await self._submit_cmd(b'd', struct.pack('!b', 0))  # set duty
             await self._submit_cmd(b'a', struct.pack('!B', 5))  # set max deciamps
@@ -410,9 +425,12 @@ class Proto:
     async def set_throttle(self, throttle):
         last_throttle, func_start_time = self.smart_throttle_last_set if self.smart_throttle_last_set is not None else (0, 0)
 
+        speed_est = self._update_estimated_speed(None)
+        speed_est = int(math.trunc(speed_est))
+
         func = None
 
-        if last_throttle < 0:
+        if speed_est < 0:
             if throttle < 0:
                 # Keep the old start time! Just update the function shape...
                 func = make_throttle_func(self._set_throttle, 2*throttle, throttle, func_start_time)
@@ -420,10 +438,11 @@ class Proto:
                 func_start_time = time.time()
                 func = make_throttle_func(self._set_throttle, 2*throttle, throttle, func_start_time)
             else:   # throttle == 0
-                func_start_time = time.time()
-                func = make_throttle_func(self._set_throttle, -last_throttle//2, 0, func_start_time)
+                #func_start_time = time.time()
+                #func = make_throttle_func(self._set_throttle, -speed_est//2, 0, func_start_time)
+                func = make_throttle_func(self._set_throttle, 0, 0, func_start_time)
 
-        elif last_throttle > 0:
+        elif speed_est > 0:
             if throttle < 0:
                 func_start_time = time.time()
                 func = make_throttle_func(self._set_throttle, 2*throttle, throttle, func_start_time)
@@ -431,10 +450,11 @@ class Proto:
                 # Keep the old start time! Just update the function shape...
                 func = make_throttle_func(self._set_throttle, 2*throttle, throttle, func_start_time)
             else:   # throttle == 0
-                func_start_time = time.time()
-                func = make_throttle_func(self._set_throttle, -last_throttle//2, 0, func_start_time)
+                #func_start_time = time.time()
+                #func = make_throttle_func(self._set_throttle, -speed_est//2, 0, func_start_time)
+                func = make_throttle_func(self._set_throttle, 0, 0, func_start_time)
 
-        else: # last_throttle == 0
+        else: # speed_est == 0
             if throttle < 0:
                 func_start_time = time.time()
                 func = make_throttle_func(self._set_throttle, 2*throttle, throttle, func_start_time)

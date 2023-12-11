@@ -33,7 +33,7 @@ its target value over the span of 1 second. See the code below for a demo:
 
 def make_throttle_func(set_throttle, start_val, end_val, t_zero):
     def calc_throttle(t):
-        k = 5 if end_val != 0 else 10
+        k = 10
         val = end_val + (start_val - end_val) * np.exp(-k*(t - t_zero))
         return int(math.trunc(val))
 
