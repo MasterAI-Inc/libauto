@@ -267,7 +267,7 @@ class Proto:
 
     def is_charging(self):
         vbatt1, vbatt2, vchrg = self.voltages
-        return vbatt2 < vchrg
+        return vchrg > 8600
 
     async def buzzer_play(self, freqHz, durationMS):
         async with self.buzzer_lock:
