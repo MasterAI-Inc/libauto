@@ -1,0 +1,38 @@
+#!/bin/bash
+
+#=================================
+# This is a migration script!
+# It will be run as root upon
+# startup.
+#=================================
+
+
+#---------------------------------
+# This section is just to
+# prevent running the migration
+# more than once.
+#---------------------------------
+
+myself="$(basename "$0")"
+
+flag_dir="/var/lib/libauto"
+flag_file="$flag_dir/$myself.done"
+
+if [ -f "$flag_file" ]
+then
+    echo "Migration not needed: $myself"
+    exit
+fi
+
+echo "Will run migration: $myself"
+
+touch "$flag_file"
+
+
+#---------------------------------
+# This is the _actual_ migration
+# code.
+#---------------------------------
+
+sed -i -e 's/console=serial0,115200 //g' /boot/cmdline.txt
+

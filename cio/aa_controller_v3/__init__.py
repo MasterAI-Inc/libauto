@@ -150,7 +150,6 @@ class Credentials(cio.CredentialsIface):
     def __init__(self, _proto):
         self.db = None
         self.loop = asyncio.get_running_loop()
-        # TODO: back up to EEPROM?
 
     async def acquired(self, first):
         pass
