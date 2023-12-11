@@ -403,7 +403,7 @@ class Proto:
         if next_throttle is None:
             next_throttle = last_throttle
         dt = now - last_time
-        throttle_half_life_seconds = 0.5
+        throttle_half_life_seconds = 0.25
         lambda_ = math.log(2.0) / throttle_half_life_seconds
         alpha = 1.0 - math.exp(-lambda_ * dt)
         speed_est = alpha * last_throttle + (1.0 - alpha) * last_speed
