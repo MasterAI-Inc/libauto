@@ -36,3 +36,6 @@ touch "$flag_file"
 
 sed -i -e 's/console=serial0,115200 //g' /boot/cmdline.txt
 
+sync
+reboot
+sleep 10
