@@ -37,7 +37,7 @@ async def _display_forever(power, console, labs, buzzer):
         for _ in range(sample_size):
             millivolts = await power.millivolts()
             samples.append(millivolts)
-            await asyncio.sleep(3)
+            await asyncio.sleep(1)
 
         millivolts = sum(samples) / len(samples)
         minutes, percentage = await power.estimate_remaining(millivolts)

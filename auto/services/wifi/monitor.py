@@ -28,7 +28,7 @@ log = logger.init(__name__, terminal=True)
 
 
 NUM_INTERNET_ATTEMPTS = 5
-INTERNET_ATTEMPT_SLEEP = 4
+INTERNET_ATTEMPT_SLEEP = 20
 
 
 async def _has_internet_access_multi_try():
