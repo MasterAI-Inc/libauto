@@ -40,6 +40,8 @@ do
     "$migration"
 done
 
+sync
+
 # Run all the services.
 exec python3 auto/services/run_all.py "$@"
 
