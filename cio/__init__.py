@@ -291,6 +291,13 @@ class GyroscopeIface(abc.ABC):
     async def read(self):
         """
         Read an (x, y, z) tuple-of-floats from the Gyroscope.
+
+        The gyroscope measures the instantaneous rotational velocity
+        that this device is experiencing right now.
+
+            x = rotational velocity around the x-axis (degrees per second)
+            y = rotational velocity around the y-axis (degrees per second)
+            z = rotational velocity around the z-axis (degrees per second)
         """
         pass
 
@@ -315,6 +322,14 @@ class GyroscopeAccumIface(abc.ABC):
     async def read(self):
         """
         Read the accumulated (x, y, z) tuple-of-floats from the Gyroscope.
+
+        This component accumulates the gyroscope data over time to provide
+        an absolute rotational angel of this device (relative to when this
+        component was last "reset").
+
+            x = current rotation around the x-axis (degrees)
+            y = current rotation around the y-axis (degrees)
+            z = current rotation around the z-axis (degrees)
         """
         pass
 
@@ -332,6 +347,11 @@ class AccelerometerIface(abc.ABC):
     async def read(self):
         """
         Read an (x, y, z) tuple-of-floats from the Accelerometer.
+
+        The accelerometer measures the amount of acceleration "felt" by
+        the device in each axis. Measurements are in units of gravity ("G"s),
+        where
+          1 G = 9.81 m/s^2
         """
         pass
 
@@ -367,6 +387,13 @@ class AhrsIface(abc.ABC):
     async def read(self):
         """
         Get the current (roll, pitch, yaw) tuple-of-floats of the device.
+
+        This component, if present, will provide more accurate data than
+        the `Gyroscope_accum` component as it may use more sensors and/or
+        more sophisticated calculations.
+
+        Each of (roll, pitch, yaw) is given in degrees and is relative to the
+        device's resting position.
         """
         pass
 
@@ -840,8 +867,7 @@ class PidSteeringIface(PidIface):
 
 class CarControlIface(abc.ABC):
     """
-    Uses `CarMotors`, `PID_steering`, `Gyroscope_accum`, and `Encoders`
-    to drive a car-form-factor robot with high-level commands.
+    A higher-level interface than `CarMotors`.
 
     Required: False
 
