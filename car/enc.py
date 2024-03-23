@@ -37,7 +37,7 @@ def read(index):
 
     Returns the number of "clicks" (a signed value) that this encoder has seen.
     """
-    return _get_encoders().read(index)[0]
+    return _get_encoders().read_counts(index)[0]
 
 
 def disable(index):
