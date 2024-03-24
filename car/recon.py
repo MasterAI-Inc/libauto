@@ -9,7 +9,7 @@
 ###############################################################################
 
 """
-This module provides simplified implementations of the Reconnaissance ("Recon")
+This module provides a simplified interface to the Reconnaissance ("Recon")
 sensor.
 """
 

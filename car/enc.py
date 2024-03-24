@@ -9,7 +9,7 @@
 ###############################################################################
 
 """
-This module provides simplified implementations of the Encoder sensors.
+This module provides a simplified interface to the Encoder sensor.
 """
 
 from auto.asyncio_tools import thread_safe

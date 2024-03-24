@@ -9,7 +9,7 @@
 ###############################################################################
 
 """
-This module provides simplified implementations of the Compass sensors.
+This module provides a simplified interface to the Compass sensor.
 """
 
 from auto.asyncio_tools import thread_safe

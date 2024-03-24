@@ -9,7 +9,7 @@
 ###############################################################################
 
 """
-This module provides simplified implementations of the
+This module provides a simplified interface to the
 Attitude and Heading Reference System (AHRS).
 """
 

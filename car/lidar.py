@@ -9,7 +9,7 @@
 ###############################################################################
 
 """
-This module provides simplified implementations of the LiDAR sensors.
+This module provides a simplified interface to the LiDAR sensor.
 """
 
 from auto.asyncio_tools import thread_safe

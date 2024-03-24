@@ -9,7 +9,7 @@
 ###############################################################################
 
 """
-This module provides simplified implementations of the magnetometer sensor.
+This module provides a simplified interface to the magnetometer sensor.
 """
 
 from auto.asyncio_tools import thread_safe
