@@ -15,10 +15,10 @@ For beginners, it provides easy functions for navigation for the virtual
 car.
 """
 
-from auto.capabilities import list_caps, acquire
-from auto.asyncio_tools import thread_safe
-from auto.sleep import _physics_client
 from .motors import set_steering
+from . import compass
+from . import gps
+from . import physics
 from auto import IS_VIRTUAL
 import math
 
@@ -31,10 +31,6 @@ def drive_to(target_x, target_z, halt_threshold=2.5):
     """
     if not IS_VIRTUAL:
         raise NotImplemented('This function only work on virtual cars.')
-
-    gps = _get_gps()
-    compass = _get_compass()
-    physics = _physics_client()
 
     halt_threshold_sqrd = halt_threshold * halt_threshold
 
@@ -73,30 +69,3 @@ def drive_route(xz_checkpoints, halt_threshold=2.5):
     """
     for x, z in xz_checkpoints:
         drive_to(x, z, halt_threshold)
-
-
-@thread_safe
-def _get_gps():
-    global _GPS
-    try:
-        _GPS
-    except NameError:
-        caps = list_caps()
-        if 'GPS' not in caps:
-            raise AttributeError('This device has no GPS.')
-        _GPS = acquire('GPS')
-    return _GPS
-
-
-@thread_safe
-def _get_compass():
-    global _COMPASS
-    try:
-        _COMPASS
-    except NameError:
-        caps = list_caps()
-        if 'Compass' not in caps:
-            raise AttributeError('This device has no Compass.')
-        _COMPASS = acquire('Compass')
-    return _COMPASS
-

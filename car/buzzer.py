@@ -14,8 +14,8 @@ This module provides a simple helper to use the buzzer.
 
 from auto.asyncio_tools import thread_safe
 from auto.capabilities import list_caps, acquire
-from auto.sleep import _physics_client
 from auto import IS_VIRTUAL
+from car import physics
 
 
 @thread_safe
@@ -50,9 +50,7 @@ def honk(count=2):
 
 
 def _physics_honk(count):
-    physics = _physics_client()
-    physics.control({
+    physics._get_physics().control({
         'type': 'honk',
         'count': count,
     })
-
