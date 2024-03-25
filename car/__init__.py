@@ -253,22 +253,24 @@ def recon_cars(theta_1=0, theta_2=360, slice_size=8, max_distance=10000, verbose
     """
     if verbose:
         _ctx_print_all(f"Querying the Recon sensor in range: [{theta_1}°, {theta_2}°]...")
-    from car import recon_weapons
-    return recon_weapons.naive_recon(theta_1, theta_2, slice_size, max_distance)
+    from car import recon
+    return recon.naive_recon(theta_1, theta_2, slice_size, max_distance)
 
 
 def throw_ball(theta=0, velocity=18, verbose=True):
     """
     Throw a ball in the direction of `theta` and with `velocity`.
     """
+    if not IS_VIRTUAL:
+        raise NotImplemented('This function only work on virtual cars.')
     if theta is None:
         if verbose:
             _ctx_print_all(f"Cannot throw ball when `theta = None`...")
         return
     if verbose:
         _ctx_print_all(f"Throwing a ball at {theta:.1f}° with velocity {velocity}...")
-    from car import recon_weapons
-    return recon_weapons.throw_ball(theta, velocity)
+    from car import weapons
+    return weapons.fire(theta=theta, phi=90, velocity=velocity)
 
 
 def capture(num_frames=1, verbose=True):

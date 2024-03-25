@@ -15,6 +15,7 @@ sensor.
 
 from auto.asyncio_tools import thread_safe
 from auto.capabilities import list_caps, acquire
+from car import IS_VIRTUAL
 
 
 def query(theta_1=90, theta_2=-90, r=10000):
@@ -53,6 +54,22 @@ def query(theta_1=90, theta_2=-90, r=10000):
     queried space. An empty list is returned if no devices are found.
     """
     return _get_recon().query(theta_1, theta_2, r)
+
+
+def naive_recon(theta_1, theta_2, slice_size, max_distance):
+    """
+    Naive linear search using the Recon sensor.
+
+    It returns the angle of the *first* enemy that is
+    found. It returns `None` if no enemy was found.
+    """
+    if not IS_VIRTUAL:
+        raise NotImplemented('This function only work on virtual cars.')
+    theta_1, theta_2 = min(theta_1, theta_2), max(theta_1, theta_2)
+    for a in range(theta_1, theta_2 - slice_size + 1, slice_size):
+        vins = query(a, a + slice_size, max_distance)
+        if vins:
+            return (a + a + slice_size) / 2
 
 
 @thread_safe
