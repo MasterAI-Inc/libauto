@@ -251,15 +251,16 @@ from car.motors import set_throttle, safe_forward_throttle
 import time
 
 throttle = safe_forward_throttle()
+print("Safe throttle is:", throttle)
 
 set_throttle(0.0)        # Car in NEUTRAL
-time.sleep(1.5)
+time.sleep(1.0)
 
 set_throttle(throttle)   # Car moves at safe forward speed
-time.sleep(1.5)
+time.sleep(1.0)
 
-set_throttle(50.0)       # HALF THROTTLE (DANGER! THIS IS VERY FAST!)
-time.sleep(0.4)
+set_throttle(min(100, 2*throttle))       # HALF THROTTLE (DANGER! THIS IS VERY FAST!)
+time.sleep(0.5)
 
 set_throttle(0.0)        # Back to NEUTRAL
 time.sleep(1.0)
@@ -275,10 +276,22 @@ The helper function `car.plot()` will both stream a single frame to your AutoAut
 
 ### Servos
 
-If your device has extra servo outputs, you can control them via the `auto.servos` module.
+If your device has extra servo outputs (e.g. Rhobota), you can control them via the `auto.servos` module.
 
 ```python
-TODO
+from auto.servos import get_servo
+import time
+
+servo = get_servo(0)  # <-- servo index
+                      # see your device's documentation
+
+servo.on()
+
+for i in range(0, 181):
+    servo.go(i)
+    time.sleep(0.02)
+
+servo.off()
 ```
 
 ### LEDs
