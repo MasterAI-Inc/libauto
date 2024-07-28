@@ -298,19 +298,59 @@ servo.off()
 
 If your device has RGB LEDs, then you can control them via the `auto.leds` module.
 
-```python
-from auto.leds import led_map, set_many_leds
-from random import randint
-import time
+The following example works on both Fleet 1 and Fleet 2 AutoAuto cars:
 
-randpixel = lambda: [randint(0, 255) for i in range(3)]
+```python
+from auto.leds import (
+    led_map,
+    set_many_leds,
+)
+import random
+import time
 
 leds = led_map()
 
 while True:
-    state = [(i, randpixel()) for i in leds]
-    set_many_leds(state)
+    vals = [
+        (led, random.randint(0, 1))
+        for led in leds
+    ]
+    set_many_leds(vals)
     time.sleep(0.5)
+```
+
+Fleet 2 AutoAuto cars have RGB LEDs, so you can specify RGB colors for them. Note: The following example only works on devices (like the Fleet 2 AutoAuto car) that have RGB LEDs:
+
+```python
+from auto.leds import (
+    led_map,
+    set_many_leds,
+    set_brightness,
+)
+import random
+import time
+
+color_vals = [
+    (1.0, 0.0, 0.0),  # red
+    (0.0, 1.0, 0.0),  # green
+    (0.0, 0.0, 1.0),  # blue
+    (1.0, 1.0, 0.0),  # yellow
+]
+
+brightnesses = [
+    *range(5, 255, 5),
+    *range(255, 5, -5),
+]
+
+leds = led_map()
+
+while True:
+    rand_colors = random.sample(color_vals, k=len(leds))
+    vals = list(zip(leds, rand_colors))
+    set_many_leds(vals)
+    for b in brightnesses:
+        set_brightness(b)
+        time.sleep(0.01)
 ```
 
 ### List the device's capabilities
