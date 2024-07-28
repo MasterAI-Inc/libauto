@@ -116,9 +116,9 @@ stream(None, to_console=True, to_labs=True)
 import car
 
 while True:
-    frame = car.capture()
+    frame = car.capture(verbose=False)
     car.detect_faces(frame)
-    car.stream(frame, to_labs=True)
+    car.stream(frame, to_labs=True, verbose=False)
 ```
 
 The lower-level class-based interface for the face detector can be found in `auto.models.FaceDetector`. The face detector uses OpenCV under the hood.
@@ -131,9 +131,9 @@ We call this the "pedestrian detector" in the context of an AutoAuto _car_.
 import car
 
 while True:
-    frame = car.capture()
+    frame = car.capture(verbose=False)
     car.detect_pedestrians(frame)
-    car.stream(frame, to_labs=True)
+    car.stream(frame, to_labs=True, verbose=False)
 ```
 
 The lower-level class-based interface for the people detector can be found in `auto.models.PedestrianDetector`. The people detector uses OpenCV under the hood.
@@ -144,9 +144,9 @@ The lower-level class-based interface for the people detector can be found in `a
 import car
 
 while True:
-    frame = car.capture()
+    frame = car.capture(verbose=False)
     car.detect_stop_signs(frame)
-    car.stream(frame, to_labs=True)
+    car.stream(frame, to_labs=True, verbose=False)
 ```
 
 The lower-level class-based interface for the stop sign detector can be found in `auto.models.StopSignDetector`. The stop sign detector uses OpenCV under the hood.
