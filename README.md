@@ -372,49 +372,49 @@ print(my_capabilities)
 You can get _instantaneous_ measurements from the gyroscope like this:
 
 ```python
-from auto.capabilities import list_caps, acquire, release
-import time
+import car
+from car import gyro
+from car import motors
 
-gyroscope = acquire('Gyroscope')
-
-for i in range(100):
-    x, y, z = gyroscope.read()
-    print(' '.join("{:10.3f}".format(v) for v in (x, y, z)))
-    time.sleep(0.05)
-
-release(gyroscope)
+while True:
+    x, y, z = gyro.read()
+    string_vals = [
+        f'{v:7.2f}'
+        for v in (x, y, z)
+    ]
+    print(', '.join(string_vals))
 ```
 
 Or you can get _accumulated_ (or _integrated_, if you prefer) measurements like this (which is likely what you actually want):
 
 ```python
-from auto.capabilities import list_caps, acquire, release
-import time
+import car
+from car import gyro
+from car import motors
 
-gyroscope = acquire('Gyroscope_accum')
-
-for i in range(100):
-    x, y, z = gyroscope.read()
-    print(' '.join("{:10.3f}".format(v) for v in (x, y, z)))
-    time.sleep(0.05)
-
-release(gyroscope)
+while True:
+    x, y, z = gyro.read_accum()
+    string_vals = [
+        f'{v:7.2f}'
+        for v in (x, y, z)
+    ]
+    print(', '.join(string_vals))
 ```
 
 ### Accelerometer
 
 ```python
-from auto.capabilities import list_caps, acquire, release
-import time
+import car
+from car import accel
+from car import motors
 
-accelerometer = acquire('Accelerometer')
-
-for i in range(100):
-    x, y, z = accelerometer.read()
-    print(' '.join("{:10.3f}".format(v) for v in (x, y, z)))
-    time.sleep(0.05)
-
-release(accelerometer)
+while True:
+    x, y, z = accel.read()
+    string_vals = [
+        f'{v:7.2f}'
+        for v in (x, y, z)
+    ]
+    print(', '.join(string_vals))
 ```
 
 ### Buzzer
