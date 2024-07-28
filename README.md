@@ -1,8 +1,8 @@
-# The MasterAI Device Library
+# The MasterAI Device Library (`libauto`)
 
-Learn and use Python and A.I. to program your own autonomous vehicles! 🚗 🚁
+Use Python and A.I. to program your own autonomous vehicles! 🚗 🚁
 
-Many MasterAI devices use this library. For example, the AutoAuto car below:
+All MasterAI devices use this library (`libauto`). For example, the AutoAuto car below:
 
 ![AutoAuto Fleet 1 Car](https://static.autoauto.ai/uploads/d452293bcac14e65a3370c54e9027e79.JPG)
 
