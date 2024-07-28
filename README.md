@@ -483,24 +483,22 @@ release(power)
 Some devices have motor encoders to track how many "clicks" the motor has rotated.
 
 ```python
-from auto.capabilities import list_caps, acquire, release
-import time
+import car
+from car import enc
 
-encoders = acquire('Encoders')
+N = enc.num_encoders()
 
-index = 1
+car.print(f'This device has {N} encoders.')
 
-print("There are", encoders.num_encoders(), "encoders.")
-print(f"Enabling encoder at index {index}.")
+for i in range(N):
+    enc.enable(i)
 
-encoders.enable(index)
-
-for i in range(50):
-    counts, _, _ = encoders.read_counts(index)
-    print(counts)
-    time.sleep(0.1)
-
-release(encoders)
+while True:
+    vals = [
+        f'{enc.read(i):8.0f}'
+        for i in range(N)
+    ]
+    car.print(', '.join(vals))
 ```
 
 ### Calibration
@@ -511,6 +509,7 @@ Depending on the device you have, you can run the appropriate calibration script
 |---------------------------------|-------------------------|
 | AutoAuto Car with v1 Controller | `calibrate_car_v1`      |
 | AutoAuto Car with v2 Controller | `calibrate_car_v2`      |
+| AutoAuto Car with v3 Controller | `calibrate_car_v3`      |
 
 ## Buzzer Language
 
