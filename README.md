@@ -358,14 +358,12 @@ while True:
 Different MasterAI devices (and different versions of the same device) may have a different set of hardware capabilities. You can ask your device to list its capabilities like this:
 
 ```python
-from auto.capabilities import list_caps, acquire, release
+from auto.capabilities import list_caps
 
 my_capabilities = list_caps()
 
 print(my_capabilities)
 ```
-
-**Note:** In the program above we also imported `acquire` and `release` (although we didn't use them). Those two functions will be used in many of the examples that follow to actually _use_ the capabilities that we listed above.
 
 ### Gyroscope
 
@@ -427,20 +425,6 @@ import car
 car.buzz('!V10 O4 L16 c e g >c8')
 
 car.honk()
-```
-
-Or you can use the underlying buzzer interface.
-
-```python
-from auto.capabilities import list_caps, acquire, release
-
-buzzer = acquire("Buzzer")
-
-buzzer.play('!V10 O4 L16 c e g >c8')  # <-- asynchronous call
-
-buzzer.wait()   # <-- block the program until the buzzer finishes playing
-
-release(buzzer)
 ```
 
 See [Buzzer Language](#buzzer-language) to learn how to write notes as a string that the buzzer can interpret and play.
