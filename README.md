@@ -431,20 +431,17 @@ See [Buzzer Language](#buzzer-language) to learn how to write notes as a string 
 
 ### Photoresistor
 
-You can use the photoresistor as a very simple ambient light detector.
+You can use the photoresistor as a very simple ambient light detector. The photoresistor's resistance changes based on the amount of light hitting it.
 
 ```python
-from auto.capabilities import list_caps, acquire, release
+import car
+from car import photoresistor
 import time
-
-photoresistor = acquire('Photoresistor')
 
 for i in range(100):
     millivolts, resistance = photoresistor.read()
-    print(resistance)
+    car.print(resistance)
     time.sleep(0.1)
-
-release(photoresistor)
 ```
 
 The program above prints the resistance of the photoresistor (in Ohms). You can play around with where a good threshold is for your application, and you can quickly see the value change by simply covering the light with your hand or by shining a flashlight at it.
@@ -452,22 +449,18 @@ The program above prints the resistance of the photoresistor (in Ohms). You can 
 ### Push Buttons
 
 ```python
-from auto.capabilities import list_caps, acquire, release
+import car
+from car import buttons
 
-buttons = acquire('PushButtons')
-
-print("Press the buttons, and you'll see the events being printed below:")
+car.print("""Press the buttons, and you'll see the
+events being printed below:""")
 
 while True:
     button, action = buttons.wait_for_action('any')
-    print("The {}th button was {}.".format(button, action))
-    if button == 2:
-        break
-
-release(buttons)
+    car.print("The {}th button was {}.".format(button, action))
 ```
 
-### Batter voltage
+### Battery voltage
 
 ```python
 from auto.capabilities import list_caps, acquire, release
