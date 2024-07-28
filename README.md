@@ -161,12 +161,12 @@ The following works with the returned value from:
 ```python
 import car
 
-frame = car.capture()
+frame = car.capture(verbose=False)
 rectangles = car.detect_faces(frame)
-car.stream(frame, to_labs=True)
+car.stream(frame, to_labs=True, verbose=False)
 
-location = car.object_location(rectangles, frame.shape)
-size = car.object_size(rectangles, frame.shape)
+location = car.object_location(rectangles, frame.shape, verbose=False)
+size = car.object_size(rectangles, frame.shape, verbose=False)
 
 car.print("Object location:", location)
 car.print("Object size:", size)
