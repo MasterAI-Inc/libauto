@@ -119,16 +119,16 @@ def get_mac_address(ifname):
         return match.group(1)
 
 
-def has_internet_access():
+def _has_internet_access(ping_proto, ping_host):
     try:
         # Consider instead: https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.getaddrinfo
-        params = socket.getaddrinfo(PING_HOST, PING_PROTO, proto=socket.IPPROTO_TCP)[0]
+        params = socket.getaddrinfo(ping_host, ping_proto, proto=socket.IPPROTO_TCP)[0]
     except:
         return False
     family, type_, proto = params[:3]
     sockaddr = params[4]
     sock = socket.socket(family, type_, proto)
-    sock.settimeout(20.0)
+    sock.settimeout(10.0)
     try:
         sock.connect(sockaddr)   # <-- blocking, but respects the `settimeout()` call above
     except (socket.timeout, OSError):
@@ -136,11 +136,21 @@ def has_internet_access():
         return False
     sock.close()
     try:
-        req = requests.get(f'{PING_PROTO}://{PING_HOST}/ping', timeout=80.0)
+        req = requests.get(f'{ping_proto}://{ping_host}/ping', timeout=40.0, allow_redirects=False)
         data = req.json()
         return req.status_code == 200 and data['text'] == 'pong'
     except:
         return False
+
+
+def has_internet_access():
+    to_check = [(PING_PROTO, PING_HOST)]
+    if PING_PROTO == 'https':
+        to_check.append(('http', PING_HOST))
+    for item in to_check:
+        if _has_internet_access(*item):
+            return True
+    return False
 
 
 def list_ifaces():
